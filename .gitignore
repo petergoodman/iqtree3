@@ -36,3 +36,7 @@ zlib-1.2.7/
 /.envrc
 softwipe_build
 mutsel_rust/target/
+.claude/CLAUDE.md
+.claude/settings.local.json
+CLAUDE.local.md
+CLAUDE.project-template.md
