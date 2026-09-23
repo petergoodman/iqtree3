@@ -28,9 +28,11 @@ and corrected statements of fact in them against source at commit `63c330d9`. Up
 order and build section of `CLAUDE.md`.
 
 **Verification.** Every source statement added or changed was read in the source at `63c330d9`
-in this session. The `NDEBUG` finding (that gcc and clang Release builds appear not to define it)
-rests on reading `CMakeLists.txt`, not on a build. The WSL build procedure in `CLAUDE.md` is
-proposed and has not been run.
+in this session. The operator built the unmodified branch in WSL2 with the procedure now in
+`CLAUDE.md`; the tool then ran smoke tests of that binary (recorded in `CHANGELOG.md`, 2026-09-23)
+and confirmed from the configure output that the Release build does not define `NDEBUG`. The
+tool also changed the project's `.claude/settings.json` permission rule, on the operator's
+instruction, so that it can run `git push origin nq-constrained-pi`.
 
 **Files created.** `docs/agent/design/README.md`, the three copied design documents, and three
 copied check scripts in `docs/agent/design/scripts/` (`verify_constrained_nq.py`, whose
@@ -41,7 +43,7 @@ copied unmodified and not rerun.
 
 **Files modified.** `CLAUDE.md`, `docs/agent/PLAN.md`, `docs/agent/DECISIONS.md`,
 `docs/agent/ARCHITECTURE.md`, `docs/agent/FILE_INDEX.md`, `docs/agent/AA_MODEL_INFERENCE.md`,
-`CHANGELOG.md`, `AI_DISCLOSURE.md`.
+`CHANGELOG.md`, `AI_DISCLOSURE.md`, `.claude/settings.json`.
 
 **Source code modified.** None.
 

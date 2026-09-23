@@ -319,7 +319,10 @@ Top-level analysis driver and all `.iqtree` report generation.
 - QMaker / nQMaker citation block keyed on `params.model_joint` — lines 165–177.
 - `reportModelSelection` — 307.
 - **`reportNexusFile(ostream&, ModelSubst*, string part_name)` — 422–461.** Writes an estimated
-  matrix back out as a NEXUS `model NAME = ...;` entry. The non-reversible branch prints the
+  matrix back out as a NEXUS `model NAME = ...;` entry, called only for `--link-exchange-rates`
+  (`params.optimize_linked_gtr`, line 2023) into `.GTRPMIX.nex`. A `--model-joint` fit is instead
+  written to the `.iqtree` report and to `.best_model.nex` by
+  `PhyloSuperTree::printBestPartitionParams` (`tree/phylosupertree.cpp:1526`). The non-reversible branch prints the
   full Q via `getQMatrix` followed by **equal** frequencies rather than the model's π. Values are
   printed at 6 significant digits, and every model is labelled `GTRPMIX`.
 - `reportLinkSubstMatrix` — 463; `reportModel` — 581 and 733; `reportRate` — 796.

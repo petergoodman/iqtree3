@@ -75,20 +75,59 @@ development code, with their SHA-256 recorded in the design README. The fingerpr
 `chart_fd_bfgs_compare.py` matches the synthesis. Left out `e6_n20_big.py`, which cannot run
 because its `e4_nonrev` module was never supplied. None of the scripts was rerun.
 
-Later the same day Peter installed clang, libomp, Eigen and Boost in WSL2 Debian.
+Later the same day Peter installed clang, lld, libomp, Eigen and Boost in WSL2 Debian and
+**built the unmodified branch successfully** (`[100%] Built target iqtree3`, clang 14.0.6,
+Boost 1.74, system zlib 1.2.13), reading the source from this Windows working copy and writing
+the build to `~/iqtree3-build`, with no second clone. The procedure is now the verified one in
+`CLAUDE.md`. From the configure output: the Release CXX flags contain no `-DNDEBUG`, so `ASSERT`
+is active; googletest is fetched by `cmaple` at configure time; `CMAKE_POLICY_VERSION_MINIMUM`
+is unused with CMake 3.25. An incremental rebuild after touching `model/modelunrest.cpp` took
+15.5 s, a no-op build 2.2 s. Pushes now work through the narrowed permission rule (commit
+`1767d1ee`), and the fork's GitHub Actions run upstream's CI workflow on every push to the branch.
+
+Smoke tests of the unmodified binary, run from `~/iqtree3-smoke` with `-T 1 -seed 1`, all exit 0:
+
+| Run | Command (after `iqtree3`) | Log-likelihood | Wall time |
+|---|---|---|---|
+| LG+G4 | `-s example/aa_example.phy -m LG+G4` | -7301.8799 | 16.1 s |
+| NQ.pfam | `-s example/aa_example.phy -m NQ.pfam` | -7577.8547 | 20.2 s |
+| UNREST | `-s example/example.phy -m UNREST` | -22669.6869 | 3.5 s |
+| NONREV | `-s example/aa_example.phy -m NONREV` | -6999.7817 (413 free parameters: 379 rates plus 34 branches) | 67.4 s |
+| joint | `-s test_scripts/test_data/turtle_aa.fasta -p test_scripts/test_data/turtle_aa.nex --model-joint NONREV` | -4974.5432 | 155.6 s |
+| re-import | same data, `-m joint.Q.txt -te joint.treefile` | -4974.5436 | 0.1 s |
+| +F through joint | same data, `-te joint.treefile --model-joint "NONREV+F{0.08,0.06,0.04,0.05,0.02,0.04,0.07,0.07,0.02,0.05,0.10,0.06,0.02,0.04,0.05,0.07,0.05,0.01,0.03,0.07}"` | -4986.6358 | 48.5 s |
+
+Findings from these runs:
+
+- `joint.best_model.nex` records only `NONREV+FO` per partition, without the estimated rates, so
+  it cannot carry a learned matrix. The matrix is printed in the `.iqtree` report under "Full Q
+  matrix and state frequencies (can be used as input for IQ-TREE)" at **6 decimal places**;
+  `joint.Q.txt` is those 21 lines (20 Q rows and the frequency row). Re-importing it reproduced
+  the fit's log-likelihood to 4e-4 with no frequency-mismatch warnings.
+- Many rates in both joint fits sit at the optimizer floor (printed as 0.000070 and 0.000014
+  after normalization) on this small data set (774 sites, 379 parameters).
+- A literal `+F{...}` vector in `--model-joint` reached the linked model: the report's frequency
+  row equals the supplied vector exactly, Q was fitted with it as a fixed root distribution
+  (the nonstationary-root path), and no "Mean state frequencies" pooling occurred. The report
+  shows only the linked model's frequencies, so the per-partition claim rests on the source
+  trace. The linked model's printed name drops the `+F{...}` suffix.
+- `reportNexusFile` is used only for `--link-exchange-rates`, not for `--model-joint`;
+  `ARCHITECTURE.md` and `FILE_INDEX.md` were corrected.
 
 ### Failed
 
-Nothing attempted failed. No build was attempted and IQ-TREE was not run.
+The first configure failed with `lld not found on PATH`: the install command proposed in
+`CLAUDE.md` omitted `lld`, which the build requires for clang on Linux. Fixed by installing it.
+Commands run from Claude Code through `wsl.exe` first lost their `$VAR` expansions and had their
+`/mnt/c` paths rewritten by Git Bash; the working pattern (a script file, `MSYS_NO_PATHCONV=1`)
+is recorded in `CLAUDE.md`. `/usr/bin/time` and `bc` are not installed, so the upstream
+`test_iqtree.sh` harness cannot run here as is.
 
 ### Next
 
-1. Build the unmodified branch in WSL2, run the smoke tests, and confirm from the configure
-   output whether `NDEBUG` is defined. How the WSL build reaches the working tree (a build from
-   the current Windows checkout, or a separate Linux clone) is awaiting Peter's decision; the
-   procedure in `CLAUDE.md` is a proposal.
+1. Write the high-level code plan into `PLAN.md` (a fresh agent, from the prompt prepared this
+   session).
 2. Supply the generating tool and model for the synthesis and for P-log, for `AI_DISCLOSURE.md`.
-3. Then write the high-level code plan into `PLAN.md`.
 
 ## 2026-09-15 (second session): complete description of amino-acid model inference
 

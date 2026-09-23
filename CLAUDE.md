@@ -35,41 +35,47 @@ come only from `PLAN.md`, `DECISIONS.md`, and the design documents.
 
 **The build does not use MSVC.** MSVC cannot compile this code (variable-length arrays and
 OpenMP 3.0 loops in `tree/phylokernelnew.h`; see `docs/agent/ARCHITECTURE.md` section 17). The
-build runs under WSL2 Debian with clang, from a clone inside the Linux filesystem.
-
-**Proposed, not yet run to completion on this machine.** Replace this note with the verified
-commands once the first build succeeds.
+build runs under WSL2 Debian 12 with clang 14, reading the source from this Windows working copy
+and writing build output to the Linux filesystem. There is one working copy; do not create a
+second clone. Verified 2026-09-23 (unmodified code, `[100%] Built target iqtree3`).
 
 ```bash
-# one-time, needs sudo: compiler, OpenMP, Eigen, Boost (cmake, git and make are already present)
-sudo apt-get update && sudo apt-get install -y clang libomp-dev libeigen3-dev libboost-dev
-# one-time clone; --recursive because lsd2 and cmaple are git submodules the build needs
-git clone --recursive https://github.com/petergoodman/iqtree3.git ~/BioInformatics/iqtree3
-cd ~/BioInformatics/iqtree3 && git switch nq-constrained-pi
-git remote add upstream https://github.com/iqtree/iqtree3.git
-git remote set-url --push upstream DISABLED_NO_PUSH_TO_UPSTREAM
-# from the repository root of the WSL clone
-cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
+# one-time, needs sudo (already done on this machine):
+sudo apt-get update && sudo apt-get install -y clang lld libomp-dev libeigen3-dev libboost-dev
+# in an interactive Debian terminal, turn conda off first: its base env ships its own Boost,
+# OpenMP and libstdc++, which CMake can pick up instead of the system copies
+conda deactivate
+cmake -S /mnt/c/Users/peter/BioInformatics/iqtree3 -B ~/iqtree3-build -DCMAKE_BUILD_TYPE=Release \
       -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++
-cmake --build build -j 4
+cmake --build ~/iqtree3-build -j 4
+# binary: ~/iqtree3-build/iqtree3 (Linux path /home/petergoodman/iqtree3-build/iqtree3)
 ```
 
-- Delete `build/` before re-configuring after a failed configure: a bad cached value persists in
-  `build/CMakeCache.txt` and defeats retries.
-- `-DCMAKE_POLICY_VERSION_MINIMUM=3.5` is required because vendored `zlib-1.2.7`, `yaml-cpp` and
-  `terraphast` declare a `cmake_minimum_required` that modern CMake rejects. If CMake is ever
-  called from PowerShell, quote every `-D` token whose value contains a period.
+- `lld` is required: `CMakeLists.txt:451-461` stops the configure without it when the compiler is
+  clang. The configure downloads googletest (via `cmaple`), so it needs network access.
+- `-DCMAKE_POLICY_VERSION_MINIMUM=3.5` is unused with this machine's CMake 3.25 and system zlib;
+  it is needed only with CMake 4.x. If CMake is ever called from PowerShell, quote every `-D`
+  token whose value contains a period.
 - The `mutsel_rust` subproject is off unless `-DUSE_MUTSEL=ON`, so no Rust toolchain is needed.
   Upstream CI passes that flag; a development build should not.
-- Eigen3 and Boost are hard `find_package` dependencies and are not vendored.
-- `-j 4` rather than `-j`: the WSL VM has 6 GB of memory, and the per-instruction-set kernel
-  files are large to compile.
-- Smoke tests: `build/iqtree3 -s example/aa_example.phy -m LG+G4`, then `-m NONREV`, then
-  `-m NQ.pfam`. Protein partition path:
+- `-j 4` rather than `-j`: the WSL VM has 6 GB of memory.
+- Delete `~/iqtree3-build` before re-configuring after a failed configure, so that no stale value
+  in its `CMakeCache.txt` survives.
+- **Running WSL from Claude Code's Bash tool.** `wsl.exe` joins its arguments into one command
+  line, so `$VAR` inside `wsl.exe -d Debian -- bash -c '...'` is expanded by the outer Linux shell
+  and usually comes out empty. Put multi-step commands in a script file and run it with
+  `MSYS_NO_PATHCONV=1 wsl.exe -d Debian -- bash /mnt/c/.../script.sh`; without
+  `MSYS_NO_PATHCONV=1`, Git Bash rewrites `/mnt/c/...` into a Windows path. Shells started this way
+  do not activate conda.
+- Write run outputs outside the repository (for example `~/iqtree3-smoke`), never into the
+  working copy.
+- Smoke tests: `-s example/aa_example.phy` with `-m LG+G4`, `-m NQ.pfam`, `-m NONREV`;
+  `-s example/example.phy -m UNREST` (DNA); protein partition path
   `-s test_scripts/test_data/turtle_aa.fasta -p test_scripts/test_data/turtle_aa.nex --model-joint NONREV`.
-  (`example/example.phy` is DNA and cannot exercise `NONREV`.)
+  `example/example.phy` is DNA and cannot exercise `NONREV`.
 - Regression scripts live in `test_scripts/`; CI runs `test_iqtree.sh` then `verify_results.sh`.
-  They do not exercise `NONREV`, `NQ.*`, `GTR20`, or `--model-joint`.
+  They do not exercise `NONREV`, `NQ.*`, `GTR20`, or `--model-joint`, and `test_iqtree.sh` needs
+  `/usr/bin/time`, which this Debian does not have installed (nor `bc`).
 
 ## Layout
 

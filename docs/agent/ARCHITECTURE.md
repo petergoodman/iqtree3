@@ -655,12 +655,17 @@ Driven by:
 - `--init-model NAME|FILE|DIVMAT` (`tools.cpp:2896`) seeds the matrix. The `DIVMAT` branch
   (`partitionmodel.cpp:61–120`) begins with `ASSERT(0 && "init_by_div_mat not working")` at line
   96. `ASSERT` compiles to nothing only when `NDEBUG` is defined (`utils/tools.h:60–68`), and
-  the build does not appear to define it for gcc or clang (§17), so in those builds the branch
-  most likely stops at the assertion. Under `NDEBUG` it would run a partial version (see
+  the build does not define it for gcc or clang (§17), so in those builds the branch stops at
+  the assertion (not run). Under `NDEBUG` it would run a partial version (see
   `AA_MODEL_INFERENCE.md` section 15).
-- Results are written as NEXUS via `reportNexusFile` (`phyloanalysis.cpp:422–459`). It prints
-  matrix entries at 6 significant digits, labels every model `GTRPMIX`, and for a non-reversible
-  model writes the full Q followed by a uniform `1/n` frequency line rather than the model's π.
+- Output of a linked fit. The estimated matrix is printed in the `.iqtree` report
+  (`reportModel`), and `PhyloSuperTree::printBestPartitionParams` (`tree/phylosupertree.cpp:1526`)
+  writes `.best_model.nex` with each partition's `getModelNameParams(true)` string.
+  `reportNexusFile` (`phyloanalysis.cpp:422–459`) is not used on this path: it is called only when
+  `params.optimize_linked_gtr` is set (`--link-exchange-rates`, `phyloanalysis.cpp:2023`), and
+  writes `.GTRPMIX.nex`. It prints matrix entries at 6 significant digits, labels every model
+  `GTRPMIX`, and for a non-reversible model writes the full Q followed by a uniform `1/n`
+  frequency line rather than the model's π.
 
 ---
 
@@ -744,7 +749,7 @@ in or read from. It describes the codebase's plumbing; it is not a plan for this
   class that maps its own parameters into `rates[]` through `setRates()` has to call it itself,
   as `ModelLieMarkov::getVariables` does (§5).
 - **Whether `ASSERT` is active depends on `NDEBUG`,** which the gcc and clang Release flags do
-  not appear to define (§17). An `ASSERT` that a build compiles out does not check anything.
+  not define (§17). An `ASSERT` that a build compiles out does not check anything.
 - **Complex eigen arrays alias the real ones.** `ceval`/`cevec`/`cinv_evec` point into the same
   allocation as `eigenvalues`/`eigenvectors`/`inv_eigenvectors`. Do not free or reallocate one
   without the other.
@@ -781,7 +786,7 @@ map of existing code for orientation; it implies no design.
 | Candidate lists | `-mset` / `-madd` are split on commas by `convert_string_vec` (`utils/tools.cpp:588`), so a model string containing a comma cannot be passed there |
 | Amino-acid model entry point | `ModelProtein::init`, `modelprotein.cpp:1207` (`NONREV` branch) |
 | Multi-partition estimation | `PartitionModel::optimizeLinkedModel`, `partitionmodel.cpp:753` |
-| Emitting an estimated matrix | `reportNexusFile`, `phyloanalysis.cpp:422` (6 significant digits, §12) |
+| Emitting an estimated matrix | linked fits: `.iqtree` report and `.best_model.nex` via `PhyloSuperTree::printBestPartitionParams` (`tree/phylosupertree.cpp:1526`); `reportNexusFile` (`phyloanalysis.cpp:422`) only for `--link-exchange-rates` (§12) |
 | The existing π consistency check | the π-mismatch warning in `readParameters`, `modelmarkov.cpp:1833–1842` |
 
 ---
@@ -802,16 +807,24 @@ What is known about building this tree. The commands used on the project machine
   job passes `-DUSE_MUTSEL=ON`, which needs a Rust toolchain, and `-DIQTREE_FLAGS=static`. The
   Rust subproject is off unless `USE_MUTSEL` is set to `ON` (`CMakeLists.txt:291`).
 - **Dependencies.** Eigen3 and Boost are hard `find_package` requirements and are not vendored,
-  unlike most third-party code here. OpenMP provides multithreading.
-- **`-DCMAKE_POLICY_VERSION_MINIMUM=3.5` is required on every platform**, because vendored
-  `zlib-1.2.7`, `yaml-cpp`, and `terraphast` declare a `cmake_minimum_required` below 3.5, which
-  modern CMake rejects outright.
+  unlike most third-party code here. OpenMP provides multithreading. When the compiler is clang
+  on Linux, the `lld` linker is also required: `CMakeLists.txt:451–461` stops the configure with
+  a fatal error if `ld.lld` is not found, because `cmaple` enables link-time optimization.
+- **googletest is fetched at configure time.** `cmaple/CMakeLists.txt:281–293` downloads
+  googletest at a pinned commit with `FetchContent` and builds `gtest` and `gtest_main`, which
+  `cmaple/unittest/` uses. A configure therefore needs network access, and gtest targets exist in
+  every build that integrates CMAPLE (the default).
+- **`-DCMAKE_POLICY_VERSION_MINIMUM=3.5`** is needed only with CMake 4.x, which rejects projects
+  declaring `cmake_minimum_required` below 3.5, as vendored `zlib-1.2.7` does (2.4.4). With
+  CMake 3.25 and the system zlib (the configure prints "Using system zlib" when one is found),
+  CMake reports the variable as unused.
 - **Build type and `NDEBUG`.** The default build type is Release (`CMakeLists.txt:134–135`). For
   gcc and clang the root `CMakeLists.txt` replaces `CMAKE_CXX_FLAGS_RELEASE` with flags that do
   not include `-DNDEBUG` (lines 400 and 420), and no other part of the build defines `NDEBUG`
-  (`ncl/ncl.h:72` defines it only for the Metrowerks compiler). Read from the build files, not
-  yet confirmed from a build's configure output: in gcc and clang builds `ASSERT` appears to stay
-  active in Release.
+  (`ncl/ncl.h:72` defines it only for the Metrowerks compiler). Confirmed on 2026-09-23 from the
+  configure output of a clang 14 Release build, whose CXX flags were
+  `-std=c++17 -fopenmp -pthread -O3 -ffunction-sections -fdata-sections`: `ASSERT` is active in
+  gcc and clang Release builds.
 - **Line endings.** A Windows checkout with `core.autocrlf=true` has CRLF line endings, and the
   `test_scripts/*.sh` harness then fails under bash. A clone made inside Linux does not have
   this problem.

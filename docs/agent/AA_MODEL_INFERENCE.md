@@ -1115,8 +1115,8 @@ The number of rounds for the `-Q` path is controlled by `--loop-model`, default 
 `--init-model DIVMAT`, the empirical divergence matrix, is **implemented but disabled**: the code
 path opens with `ASSERT(0 && "init_by_div_mat not working")`, and the intended
 `Q = log(diag(pi) F)` step is commented out. `ASSERT` compiles to a no-op only under `NDEBUG`,
-which the gcc and clang Release configuration does not appear to define (see Section 15,
-item 9), so in those builds the path most likely stops at the assertion. In a build with
+which the gcc and clang Release configuration does not define (see Section 15, item 9), so in
+those builds the path stops at the assertion (not run). In a build with
 `NDEBUG`, the remaining code would run, handing `setFullRateMatrix` the raw row-normalised
 divergence matrix rather than its logarithm and applying it only to the representative model
 rather than broadcasting it. Do not use `--init-model DIVMAT`.
@@ -1650,8 +1650,8 @@ Found while reading, listed because each one can change a number or waste a week
    it. For gcc and clang, the root `CMakeLists.txt` replaces `CMAKE_CXX_FLAGS_RELEASE` with flags
    that omit `-DNDEBUG` (lines 400 and 420), and nothing else in the build defines it
    (`ncl/ncl.h:72` does so only for the Metrowerks compiler). So in gcc and clang Release builds
-   the `ASSERT`s appear to stay active. This is read from the build files and is to be confirmed
-   from the configure output of the first build.
+   the `ASSERT`s stay active; confirmed from the configure output of a clang 14 Release build on
+   2026-09-23, whose flags contained no `-DNDEBUG`.
 
 10. **`tqli` gives up after 100 iterations with a warning and continues** with an unconverged
     eigenvalue (`utils/eigendecomposition.cpp:682-685`); `hqr2` instead calls `exit(1)`.
