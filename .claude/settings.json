@@ -1,8 +1,25 @@
 {
   "permissions": {
+    "allow": [
+      "Bash(git push origin nq-constrained-pi)"
+    ],
     "deny": [
-      "Bash(git push *)",
       "Bash(git push --force *)",
+      "Bash(git push -f *)",
+      "Bash(git push --force-with-lease *)",
+      "Bash(git push * --force*)",
+      "Bash(git push * -f *)",
+      "Bash(git push * -f)",
+      "Bash(git push * +*)",
+      "Bash(git push --mirror *)",
+      "Bash(git push --delete *)",
+      "Bash(git push * --delete *)",
+      "Bash(git push -d *)",
+      "Bash(git push * -d *)",
+      "Bash(git push upstream*)",
+      "Bash(git push * upstream*)",
+      "Bash(git push * master*)",
+      "Bash(git push * *:master*)",
       "Bash(git reset --hard *)",
       "Bash(git checkout -- *)",
       "Bash(rm -rf *)",
