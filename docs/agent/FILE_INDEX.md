@@ -4,16 +4,28 @@
 non-reversible amino-acid substitution matrices (nQ) under a user-supplied target stationary
 frequency vector π*.
 
+**What this file is.** A quick guide to which file to open for which question, with line
+anchors into the code as it exists at the baseline commit, so that agents can go straight to the
+right place instead of grepping the repository. It is one of three reference documents that
+describe the current code and prescribe nothing: `docs/agent/ARCHITECTURE.md` covers the
+programming architecture, `docs/agent/AA_MODEL_INFERENCE.md` the mathematics, optimization and
+algorithms of amino-acid model inference, and this file the navigation. It is not a plan or a
+decision record. "Load when" lines say when a file is worth opening, not what to build; the
+project's design is in `docs/agent/design/`, its decisions in `docs/agent/DECISIONS.md`, and its
+plan in `docs/agent/PLAN.md`. A passage here that reads as a recommendation for the project is a
+defect; report it rather than follow it.
+
 **How to use this file.** Do not `grep` the whole tree. Load files by tier. Tier 0 is mandatory
 reading before writing any code. Tiers 1–4 are loaded on demand, keyed by the "Load when" line
 of each entry. Tier 6 is an explicit *do-not-read* list — those directories look relevant by
 name and are not.
 
-Line numbers were verified against the working tree at commit `8977d31a`. They drift; treat
-them as anchors to grep near, not as ground truth.
+**Baseline: `63c330d9` (upstream tag `v3.1.4`).** Every line number below was re-verified
+against that commit on 2026-09-15. They drift; treat them as anchors to grep near, not as ground
+truth. `git diff --stat 63c330d9 HEAD -- <path>` tells you whether a given file has moved since.
 
-Companion document: **`AGENT_IQTREE_ARCHITECTURE.md`** — read that first for how the system
-fits together, then use this file to find things.
+Companion document: **`docs/agent/ARCHITECTURE.md`** — read that first for how the system fits
+together, then use this file to find things.
 
 ---
 
@@ -22,8 +34,7 @@ fits together, then use this file to find things.
 ### `model/modelmarkov.h` (558 lines)
 
 The base class `ModelMarkov : public ModelSubst, public EigenDecomposition` for every
-reversible *and* non-reversible Markov substitution model. This is the class the new
-functionality will subclass or extend.
+reversible *and* non-reversible Markov substitution model.
 
 Key declarations:
 
@@ -57,22 +68,22 @@ optimized, normalized, and eigendecomposed lives here.
 | 354–359 | `init(StateFreqType)` | `init_state_freq` then `decomposeRateMatrix`. |
 | 847–875 | `getRateMatrix / setRateMatrix / setFullRateMatrix` | Conversion between a full Q and the packed `rates[]` array. `setFullRateMatrix` shows the exact off-diagonal packing order for the non-reversible case. |
 | 875–893 | `getStateFrequency` | Returns `state_freq` renormalized to sum 1. This is the π the likelihood kernel uses at the root. |
-| 894–931 | `setStateFrequency / adaptStateFrequency` | `adaptStateFrequency` rescales non-reversible `rates[]` by a new π — an existing, closely related "make Q consistent with a given π" operation. Read it. |
+| 894–931 | `setStateFrequency / adaptStateFrequency` | `adaptStateFrequency` rescales non-reversible `rates[]` by a new π, `q_ij *= π_new_j / π_old_j`. The `PartitionModel` constructor applies it to linked models with `FREQ_ESTIMATE` or `FREQ_EMPIRICAL` (`partitionmodel.cpp:116–165`). |
 | 932–962 | `getQMatrix` | Non-reversible: memcpy of `rate_matrix`. Reversible: builds Q from `rates` and π. |
-| **964–976** | **`getNDim()`** | **Non-reversible returns `num_params` only — π contributes no free dimensions.** This is precisely the assumption the new feature changes. |
-| 978–999 | `getNDimFreq()` | Degrees of freedom *not* counted in `getNDim()`, used for AIC/BIC. Returns 0 for `FREQ_ESTIMATE`. |
+| **964–976** | **`getNDim()`** | **Non-reversible returns `num_params` only — π contributes no free dimensions.** Returns 0 when `fixed_parameters` is set. |
+| 978–999 | `getNDimFreq()` | Degrees of freedom *not* counted in `getNDim()`, used for AIC/BIC. Returns `n-1` for `FREQ_EMPIRICAL`, 3 or 9 for codon types, 0 otherwise (including `FREQ_ESTIMATE` and `FREQ_USER_DEFINED`). |
 | 1018–1036 | `setVariables()` | Packs model state into the BFGS vector (**1-indexed**). |
 | 1038–1089 | `getVariables()` | Unpacks the BFGS vector into model state; returns a `changed` flag. |
 | 1091–1118 | `targetFunk()` | `getVariables` → `decomposeRateMatrix` → `clearAllPartialLH` → `-computeLikelihood()`. Also the penalty guard returning `1.0e+30` when any π entry falls below `Params::min_state_freq`. |
 | 1139–1164 | `setBounds()` | Box constraints handed to BFGS. |
-| 1166–1244 | `optimizeParameters()` | The driver: allocate, `setVariables`, `setBounds`, `minimizeMultiDimen`, `getVariables`, re-decompose, recompute likelihood. **The template any constrained optimizer must mirror.** |
-| **1246–1387** | **`decomposeRateMatrixNonrev()`** | **The heart of the problem.** Builds full Q from `rates[]`, then at line 1267 calls `computeStateFreqFromQMatrix(rate_matrix, state_freq, num_states)` — i.e. *solves for π from Q*. Guarded by `if (freq_type != FREQ_USER_DEFINED || optimize_from_given_params)`. Then normalizes Q so that Σᵢ πᵢ(−Qᵢᵢ) = `total_num_subst`, then eigendecomposes (Eigen3 `EigenSolver` over a complex spectrum, or `eigensystem_nonrev`). |
+| 1166–1244 | `optimizeParameters()` | The driver: allocate, `setVariables`, `setBounds`, `minimizeMultiDimen`, `getVariables`, re-decompose, recompute likelihood. The reference single-model optimization loop. |
+| **1246–1387** | **`decomposeRateMatrixNonrev()`** | Virtual (`modelmarkov.h:345`). Builds full Q from `rates[]`, then at line 1267 calls `computeStateFreqFromQMatrix(rate_matrix, state_freq, num_states)` — i.e. *solves for π from Q*. Guarded by `if (freq_type != FREQ_USER_DEFINED || optimize_from_given_params)`. Then normalizes Q so that Σᵢ πᵢ(−Qᵢᵢ) = `total_num_subst`, then eigendecomposes (Eigen3 `EigenSolver` over a complex spectrum, or `eigensystem_nonrev`). |
 | 1389–1603 | `decomposeRateMatrix()` | Dispatcher; reversible path symmetrizes and uses `SelfAdjointEigenSolver` with fallbacks to `decomposeRateMatrixRev()`. |
 | 1637–1700 | `readRates(istream&)` | Reversible reads a triangle; **non-reversible reads the full matrix including the diagonal and throws unless every row sums to 0**. |
-| 1798–1884 | `readParameters / readParametersString` | Detect reversibility from the sign of the first entry (negative ⇒ full Q ⇒ non-reversible), read rates then π, then re-derive π from Q and print a warning on mismatch. That warning is the current, weak version of the consistency condition the new feature must enforce *by construction*. |
-| 1949–1951 | `setRates()` | Base implementation is `ASSERT(0)`. Subclasses using an indirect parameterization override it. |
+| 1798–1884 | `readParameters / readParametersString` | Detect reversibility from the sign of the first entry (negative ⇒ full Q ⇒ non-reversible), read rates then π, then re-derive π from Q and print a warning on mismatch greater than 1e-3. This is the only place the code compares a supplied π with the π solved from Q. |
+| 1949–1951 | `setRates()` | Base implementation is `ASSERT(0)`, and the base `getVariables` never calls it. `ModelLieMarkov` overrides it and calls it from its own `getVariables`. |
 | 1954–1963 | `getModelByName()` | Static factory, reachable only for `UNREST` and Lie-Markov names. |
-| **2119–2131** | **`computeStateFreqFromQMatrix(Q, pi, n)`** | Free function. Solves `[1ᵀ; Q]ᵀ x = e₁` via `colPivHouseholderQr`. **The exact Q→π map the constraint must invert.** |
+| **2119–2131** | **`computeStateFreqFromQMatrix(Q, pi, n)`** | Free function. Solves `[1ᵀ; Q]ᵀ x = e₁` via `colPivHouseholderQr`, and asserts only that the result sums to 1 within 1e-4. The Q→π solve performed on every non-reversible decomposition unless π is pinned. |
 
 **Load when:** always.
 
@@ -85,13 +96,13 @@ Amino-acid models. Two distinct halves:
 1. **Lines 31–1105:** `builtin_prot_models`, a raw-string NEXUS block holding every built-in AA
    matrix. The **non-reversible** ones are `NQ.PFAM` (line 915), `NQ.BIRD` (938), `NQ.INSECT`
    (961), `NQ.MAMMAL` (984), `NQ.PLANT` (1007), `NQ.YEAST` (1030). Each is a full 20×20 Q
-   (negative diagonal, rows summing to 0) followed by a 20-entry π row — exactly the format a
-   newly estimated constrained nQ should be emitted in.
+   (negative diagonal, rows summing to 0) followed by a 20-entry π row.
 2. **Lines 1106–1245:** `ModelProtein::init()` — the dispatcher turning a model-name string into
    parameters. The `GTR20` branch (1180–1206) and the **`NONREV` branch (1207–1231)** are the
    entry points. `NONREV` defaults to `FREQ_ESTIMATE`, seeds Q from LG, calls
    `setReversible(false)`, and sets `num_params = getNumRateEntries() - 1 = 379`.
-   `--init-model` (`Params::model_name_init`) overrides the seed.
+   `--init-model` (`Params::model_name_init`) overrides the seed. A `+F{...}` vector is read
+   after the seed conversion (lines 1239–1242), so the conversion uses LG's frequencies.
 
 Also present: `rescaleRates()` (~1090), `readRates()` (1265+, which handles the protein
 lower-triangle file convention), `getNameParams()`, and checkpointing.
@@ -105,9 +116,9 @@ estimated matrix. Read only the line ranges you need — the data tables are hug
 
 `ModelUnrest` — the general non-reversible model (`-m UNREST`), written for DNA but implemented
 generically over `num_states`. **This is the smallest complete worked example of a
-non-reversible model class in the codebase** and is the right file to imitate for a new
-subclass: constructor, `validModelName`, `setBounds`, `setRates`, `setStateFrequency`
-(deliberately a no-op), and the three checkpoint methods. About 190 lines for both files.
+non-reversible model class in the codebase**: constructor, `validModelName`, `setBounds`,
+`setRates` (called only from the constructor), `setStateFrequency` (deliberately a no-op), and
+the three checkpoint methods. About 190 lines for both files.
 
 **Load when:** creating any new `ModelMarkov` subclass. Always worth the tokens.
 
@@ -116,12 +127,11 @@ subclass: constructor, `validModelName`, `setBounds`, `setRates`, `setStateFrequ
 ## Tier 1 — The constrained-parameterization precedents
 
 These are the three places IQ-TREE already does "optimize a matrix inside a constrained
-subspace". A new constrained optimizer should follow one of these rather than inventing a
-fourth pattern.
+subspace".
 
 ### `model/modelliemarkov.h` (161) + `model/modelliemarkov.cpp` (2336)
 
-Lie-Markov models. **The closest existing analogue to the target feature.** A non-reversible Q
+Lie-Markov models, for 4-state DNA. A non-reversible Q
 is written as a fixed linear combination of basis matrices, so the free parameters
 (`double *model_parameters`) live in a *lower-dimensional subspace* of rate space rather than
 in `rates[]` directly.
@@ -137,18 +147,18 @@ Read these and nothing else in the file:
 - `restartParameters()` — overrides `Optimization::restartParameters` to escape boundary optima,
   a known failure mode for constrained non-reversible models.
 
-**Load when:** designing the parameterization of the constrained nQ. High value.
+**Load when:** studying how an existing class stores parameters separately from `rates[]` and
+maps them in `getVariables`, or how a basis is shifted to reach a fixed π.
 
-### `utils/tools.cpp` lines 7898–8050 and `utils/tools.h` lines 469–482, 3821–3855
+### `utils/tools.cpp` lines 7936–8090 and `utils/tools.h` lines 469–482, 3821–3855
 
 The DNA constrained-frequency machinery: `freqsFromParams()`, `paramsFromFreqs()`,
 `forceFreqsConform()`, `nFreqParams()`, `setBoundsForFreqType()`, and the `StateFreqType` enum
 encoding constraints such as `+FRY` (π_A + π_G = ½ = π_C + π_T) and `+F1231` (π_C = π_T).
 This is IQ-TREE's existing idiom for *"π is restricted to a linear subspace, so optimize in
-reduced coordinates"* — the mirror image of the target feature, which restricts Q given π.
+reduced coordinates"*, which restricts π rather than Q.
 
-**Load when:** deciding how to expose and validate a target-π constraint on the command line,
-and how to reduce coordinates.
+**Load when:** working with frequency-type constraints and their command-line syntax.
 
 ### `model/modeldna.cpp` lines 422–600
 
@@ -157,7 +167,7 @@ packing to honour a `param_spec` string (which rate entries are tied together or
 *and* a constrained `freq_type` at the same time. The canonical example of mapping `ndim` free
 variables onto a larger `rates[]` array with shared and fixed entries.
 
-**Load when:** the new parameterization needs tied or fixed rate entries.
+**Load when:** working with tied or fixed rate entries.
 
 ---
 
@@ -169,6 +179,10 @@ The `Optimization` base class that `ModelSubst` inherits. Everything optimizable
 implements this interface.
 
 - `getNDim()`, `targetFunk(double x[])`, `derivativeFunk()`, `restartParameters()`.
+- `derivativeFunk()` — `optimization.cpp:916`, virtual at `optimization.h:145`. One-sided
+  forward differences with step `1e-4 * |x|`. `PartitionModel` does not override it, so linked
+  optimization uses this implementation on the summed objective; the only override in the
+  inspected code is `PhyloTreeMixlen` (`tree/phylotreemixlen.h:165`).
 - `minimizeMultiDimen(guess, ndim, lower, upper, bound_check, gtol, hessian)` — line 176. BFGS
   with numerical gradients (`dfpmin` / `lnsrch`). **The workhorse; called by every
   `optimizeParameters`.**
@@ -181,9 +195,9 @@ implements this interface.
 `variables[0]` is unused.
 
 **Note:** there is **no equality-constrained solver** in this codebase today — only box bounds.
-Any hard constraint must be expressed by reparameterization, projection, or penalty.
+Existing models that impose structure on Q do it through their parameterization.
 
-**Load when:** choosing an optimizer or adding constraints.
+**Load when:** working on optimization, gradients, or bounds.
 
 ### `lbfgsb/` (`lbfgsb.c`, `lbfgsb_new.h`)
 
@@ -198,7 +212,9 @@ types via `nbd[]`.
 
 - `eigensystem_nonrev(rate_matrix, state_freq, eval, eval_imag, evec, inv_evec, n)` — line 71.
   Real non-symmetric eigendecomposition (`elmhes` / `eltran` / `hqr2` / `luinverse`), used when
-  `--matrix-exp` selects `MET_EIGEN_DECOMPOSITION`.
+  `--eigen` selects `MET_EIGEN_DECOMPOSITION`. There is no `--matrix-exp` option; the flags are
+  `--eigenlib`, `--eigen`, `--scaling-squaring`, `--lie-markov` (`utils/tools.cpp:5093-5108`),
+  and the default is `MET_EIGEN3LIB_DECOMPOSITION` (`utils/tools.cpp:7533`).
 - `eigensystem_sym` — the reversible path.
 - `ZERO_FREQ = 1e-10` (line 24) — threshold below which a state is dropped from the matrix.
 - `total_num_subst` (line 81) — the normalization target for Q.
@@ -212,8 +228,7 @@ a non-diagonalizable Q (the `nondiagonalizable` flag triggers a scaled-squaring 
 
 Located by `FindEigen3.cmake` / `-DEIGEN3_INCLUDE_DIR=...`. `MatrixXd`, `VectorXd`,
 `EigenSolver`, `SelfAdjointEigenSolver`, `FullPivLU`, and `colPivHouseholderQr` are used
-directly inside `modelmarkov.cpp`. **Eigen is already a hard dependency — use it for any new
-linear algebra (null-space projection, QR, SVD) rather than adding a library.**
+directly inside `modelmarkov.cpp`. Eigen is already a hard dependency of the build.
 
 ---
 
@@ -226,7 +241,8 @@ The **central dispatcher** mapping a model-name string to a concrete `ModelSubst
 `ModelMarkov::validModelName` and sequence type into `ModelBIN / ModelDNA / ModelProtein /
 ModelCodon / ModelMorphology`. Declared at `model/modelmixture.h:29`.
 
-**Load when:** registering a new model name. Any new model must be reachable from here.
+**Load when:** working on how model names are dispatched. Every model name is dispatched from
+here.
 
 The rest of `modelmixture.cpp` (4780 lines) is profile-mixture machinery (C10–C60, `+Fmix`) plus
 `builtin_mixmodels_definition`. Relevant background: profile mixtures are exactly the "many π
@@ -239,40 +255,41 @@ scope.
 `ModelFactory` owns the `ModelSubst*` + `RateHeterogeneity*` pair for one tree and drives their
 joint optimization.
 
-- `readModelsDefinition(Params&)` — line 87. Loads `builtin_mixmodels_definition`,
+- `readModelsDefinition(Params&)` — line 88. Loads `builtin_mixmodels_definition`,
   `builtin_prot_models`, and any `--mdef` file into a `ModelsBlock`.
 - Constructor (~150–700): parses the full `-m` string, splits off `+I`, `+G`, `+R`, `+F...`,
-  handles `Params::model_joint` (lines 208–226 and 281–284), then calls `createModel`.
-- `optimizeParametersOnly()` — 1258. Alternating model / site-rate optimization.
-- `optimizeAllParameters()` — 1314. Joint BFGS over model plus site-rate dimensions.
-- `optimizeParameters()` — 1553. The outer loop alternating branch lengths and parameters.
-- `getNParameters()` — 1236:
+  handles `Params::model_joint` (lines 209–227 and 285–288), then calls `createModel`.
+- `optimizeParametersOnly()` — 1275. Alternating model / site-rate optimization.
+- `optimizeAllParameters()` — 1331. Joint BFGS over model plus site-rate dimensions.
+- `optimizeParameters()` — 1570. The outer loop alternating branch lengths and parameters.
+- `getNParameters()` — 1253:
   `model->getNDim() + model->getNDimFreq() + site_rate->getNDim() + branch parameters`.
-- `getNDim / targetFunk / setVariables / getVariables` — 1834–1857: how the model's variable
+- `getNDim / targetFunk / setVariables / getVariables` — 1927–1950: how the model's variable
   block is concatenated with the rate-heterogeneity block.
 
-**Load when:** the new parameterization changes `getNDim()`, or you need to know where
-optimization is actually invoked.
+**Load when:** working on parameter counts, or on where optimization is actually invoked.
 
 ### `model/partitionmodel.h` (209) + `model/partitionmodel.cpp` (922)
 
 The **QMaker / nQMaker** layer: estimating one shared Q across many partitions (`--model-joint`,
-`--link-model`). This is how the published NQ.* matrices were produced and is the most likely
-place an "estimate a constrained nQ from data" workflow plugs in.
+`--link-model`). This is how the published NQ.* matrices were produced.
 
-- Constructor lines 61–120: builds `linked_models`; handles `--init-model DIVMAT`, which seeds Q
-  from the empirical divergence matrix via `setFullRateMatrix`.
-- `getNDim()` — 294, delegates to the linked model.
+- Constructor lines 61–120: builds `linked_models`; handles `--init-model DIVMAT`, which would
+  seed Q from the empirical divergence matrix via `setFullRateMatrix` but opens with
+  `ASSERT(0 && "init_by_div_mat not working")` at line 96.
+- Constructor lines 116–165: for linked models with `FREQ_ESTIMATE` or `FREQ_EMPIRICAL`, pools
+  state counts, prints "Mean state frequencies", and calls `adaptStateFrequency` on every
+  partition's model; other frequency types skip this.
+- `getNDim()` — 295, delegates to the linked model.
 - `targetFunk()` — 299–336: applies one parameter vector to *every* partition sharing the model
   name and sums log-likelihoods (OpenMP over partitions).
-- `setVariables / getVariables` — 672–690.
-- `optimizeLinkedModel()` — 692–779: the partition-wide analogue of
+- `setVariables / getVariables` — 733–751.
+- `optimizeLinkedModel()` — 753–840: the partition-wide analogue of
   `ModelMarkov::optimizeParameters`.
-- `optimizeLinkedModels()` — 781–807: loops over each distinct linked model, fixes and unfixes
+- `optimizeLinkedModels()` — 842–868: loops over each distinct linked model, fixes and unfixes
   parameters, checkpoints.
 
-**Load when:** the feature must work with `--model-joint NONREV` — very likely, since that is
-the nQMaker workflow.
+**Load when:** working on the `--model-joint` path, the nQMaker workflow.
 
 ### `utils/tools.h` (≈3900) and `utils/tools.cpp` (≈8000)
 
@@ -280,18 +297,18 @@ The global `Params` singleton and all CLI parsing. Huge; never read whole. Grep 
 you need. Anchors:
 
 - `enum StateFreqType` — `tools.h:469–482`.
-- `Params::freq_type` (1700), `min_state_freq` (1707), `model_name_init` (1624),
-  `gtr20_model` (1838), `optimize_linked_gtr` (1836), `optimize_from_given_params` (1852),
-  `link_model` (2421), `model_joint` (2424), `matrix_exp_technique` (2512).
-- Option parsing: `--init-model` (`tools.cpp:2896`), `--min-freq` (3156), `--link-model` (4998),
-  `--model-joint` / `--link-partition` (5003).
-- Default initialization of `Params` fields: the `tools.cpp:7199` and `7442` regions.
-- `usage_iqtree()` help text, including the non-reversible model list: `tools.cpp:5940–5990`.
-- Frequency helpers: `freqsFromParams` (7898) and, nearby, `paramsFromFreqs`,
+- `Params::freq_type` (1698), `min_state_freq` (1705), `model_name_init` (1624),
+  `gtr20_model` (1836), `optimize_linked_gtr` (1834), `optimize_from_given_params` (1850),
+  `link_model` (2419), `model_joint` (2422), `matrix_exp_technique` (2510).
+- Option parsing: `--init-model` (`tools.cpp:2896`), `--min-freq` (3156), `--link-model` (5018),
+  `--model-joint` / `--link-partition` (5023).
+- Default initialization of `Params` fields: the `tools.cpp:7238` and `7480` regions.
+- `usage_iqtree()` help text, including the non-reversible model list: `tools.cpp:5978–6030`.
+- Frequency helpers: `freqsFromParams` (7936) and, nearby, `paramsFromFreqs`,
   `forceFreqsConform`, `nFreqParams`, `setBoundsForFreqType`.
 
-**Load when:** adding a CLI flag (for example a `--target-freq`-style option) or a `Params`
-field. **Adding an option takes four edits:** declare the field in `tools.h`, default it in the
+**Load when:** working on a CLI flag or a `Params` field. `-mset` and `-madd` lists are split on
+commas by `convert_string_vec` (`tools.cpp:588`). **Adding an option takes four edits:** declare the field in `tools.h`, default it in the
 initializer region of `tools.cpp`, parse it in the `parseArg` argument loop, and document it in
 `usage_iqtree()`.
 
@@ -299,16 +316,15 @@ initializer region of `tools.cpp`, parse it in the `parseArg` argument loop, and
 
 Top-level analysis driver and all `.iqtree` report generation.
 
-- QMaker / nQMaker citation block keyed on `params.model_joint` — lines 162–177. A new method
-  should add its citation here.
-- `reportModelSelection` — 305.
-- **`reportNexusFile(ostream&, ModelSubst*, string part_name)` — 420–459.** Writes an estimated
+- QMaker / nQMaker citation block keyed on `params.model_joint` — lines 165–177.
+- `reportModelSelection` — 307.
+- **`reportNexusFile(ostream&, ModelSubst*, string part_name)` — 422–461.** Writes an estimated
   matrix back out as a NEXUS `model NAME = ...;` entry. The non-reversible branch prints the
-  full Q via `getQMatrix` followed by **equal** frequencies — a wart worth knowing when emitting
-  a constrained nQ whose π is the whole point.
-- `reportLinkSubstMatrix` — 461; `reportModel` — 579 and 731; `reportRate` — 794.
-- `reportPhyloAnalysis` — 1407; the `.GTRPMIX.nex` emission block — 2000–2037.
-- `readModelsDefinition` call sites — 3526, 4268, 4845; `initializeModel` — 3573.
+  full Q via `getQMatrix` followed by **equal** frequencies rather than the model's π. Values are
+  printed at 6 significant digits, and every model is labelled `GTRPMIX`.
+- `reportLinkSubstMatrix` — 463; `reportModel` — 581 and 733; `reportRate` — 796.
+- `reportPhyloAnalysis` — 1409; the `.GTRPMIX.nex` emission block — 2023–2060.
+- `readModelsDefinition` call sites — 3585, 4288, 4857; `initializeModel` — 3586.
 
 **Load when:** you need output, reporting, or a citation. Grep to the function; never read the
 file whole.
@@ -318,9 +334,12 @@ file whole.
 ModelFinder. Holds the model-name tables: `aa_model_names` (line 161),
 **`aa_model_names_nonrev[] = {"NQ.bird", ...}` (line 165)**, `aa_mixture_model_names` (168),
 `aa_freq_names*` (205–208), `aa_usual_nonrev_model = "NQ.pfam"` (224). `--model-joint` handling
-at 1381. `readModelsDefinition` at 1430, 6998, 7256.
+at 1381. `readModelsDefinition` at 1429, 7082, 7340.
 
-**Load when:** a new model name should be selectable by ModelFinder or `--mset`.
+ModelFinder rejects candidate sets that mix recognized reversible and non-reversible names
+(`mixRevNonrev`).
+
+**Load when:** working on which model names ModelFinder or `-mset` accept.
 
 ### `nclextra/modelsblock.h` + `.cpp`
 
@@ -328,7 +347,7 @@ at 1381. `readModelsDefinition` at 1430, 6998, 7256.
 `NM_FREQ`). The NEXUS `begin models;` reader backing both the built-in matrices and user
 `--mdef` files.
 
-**Load when:** you want to load a target π or a seed Q from a NEXUS file.
+**Load when:** working with NEXUS model definitions (`--mdef` or the built-in matrices).
 
 ---
 
@@ -343,11 +362,11 @@ list of what is virtual.
 
 ### `tree/phylotree.h` (≈2400) / `tree/phylotree.cpp` (≈7000)
 
-`PhyloTree` owns `model`, `model_factory`, `site_rate` (fields at 2379 / 2385 / 2390).
+`PhyloTree` owns `model`, `model_factory`, `site_rate` (fields at 2376 / 2382 / 2387).
 
-- `getModel()` 527, `getModelFactory()` 531, `clearAllPartialLH()` 788, `computeLikelihood()`
-  1051, `optimizeAllBranches()` 1455, `convertToRooted()` 2259, `convertToUnrooted()` 2264.
-- Kernel dispatch by reversibility around `phylotree.cpp:2600–2620`.
+- `getModel()` 523, `getModelFactory()` 527, `clearAllPartialLH()` 788, `computeLikelihood()`
+  1051, `optimizeAllBranches()` 1452, `convertToRooted()` 2256, `convertToUnrooted()` 2261.
+- Kernel dispatch by reversibility around `phylotree.cpp:2622`.
 
 **Load when:** you change `decomposeRateMatrix` semantics or need to know when partial
 likelihoods must be invalidated. **Any change to Q or π must be followed by
@@ -355,18 +374,17 @@ likelihoods must be invalidated. **Any change to Q or π must be followed by
 
 ### `tree/phylokernelnonrev.h`, `tree/phylokernelnew.h`
 
-The SIMD likelihood kernels. `phylokernelnew.h:963` is where the *root* tip likelihood vector is
-filled from `model->getStateFrequency(...)` — that is, **`state_freq` is literally the root
-distribution used in the non-reversible likelihood.** That is the operational meaning of the
-constraint this project wants to impose.
+The SIMD likelihood kernels. `phylokernelnew.h:963` (and `phylokernelnonrev.h:676–682`) is where
+the *root* tip likelihood vector is filled from `model->getStateFrequency(...)` — that is,
+**`state_freq` is literally the root distribution used in the non-reversible likelihood.**
 
 **Load when:** confirming what π means numerically. Do not modify these casually: they are
 macro-heavy, templated over state counts, and compiled once per instruction set.
 
 ### `tree/iqtree.cpp` (≈3300)
 
-`IQTree::initializeModel()` — 1063: chooses `PartitionModel` / `PartitionModelPlen` /
-`ModelFactory`. `IQTree::optimizeModelParameters()` — 2307: called during tree search.
+`IQTree::initializeModel()` — 1061: chooses `PartitionModel` / `PartitionModelPlen` /
+`ModelFactory`. `IQTree::optimizeModelParameters()` — 2305: called during tree search.
 
 ### `alignment/alignment.h` / `.cpp`
 
@@ -374,7 +392,7 @@ macro-heavy, templated over state counts, and compiled once per instruction set.
 `computeDivergenceMatrix()` (847) — the empirical divergence matrix used by
 `--init-model DIVMAT`.
 
-**Load when:** you need an empirical π as a default target or as a seed.
+**Load when:** working with empirical frequencies or the divergence matrix.
 
 ### `utils/checkpoint.h`
 
@@ -393,11 +411,12 @@ new parameters.
 |---|---|---|
 | `model/CMakeLists.txt` | The `add_library(model ...)` source list. **Every new `.cpp`/`.h` under `model/` must be added here or it will not be compiled in.** Note that `modelnonrev.cpp` and `modelnonrev.h` exist but are **0 bytes** and are *not* listed — dead placeholders; do not use them. | Adding a file. |
 | `CMakeLists.txt` (root, ≈1150) | `add_subdirectory` list at 840–893; targets `iqtree3` (916–926) and `iqtree3-aa` (929, CMAPLE-AA only); `target_link_libraries` at 1019 and 1040; per-ISA kernel libraries at 900–908. Requires Eigen3 and Boost via `find_package`. | Build changes. |
-| `test_scripts/test_configs.txt` | Matrix of alignments × options driven by `run_tests.sh` / `test_iqtree.ps1`. | Adding regression coverage. |
-| `test_scripts/test_iqtree.ps1`, `verify_results.ps1` | Windows test drivers (this is a Windows dev machine). | Running tests locally. |
+| `test_scripts/test_configs.txt` | Matrix of alignments × options read by `gen_test_standard.py` (see `test_scripts/README`). | Adding regression coverage. |
+| `test_scripts/test_iqtree.sh`, `verify_results.sh`, `test_data/expect_ans.txt` | The regression harness CI runs on Linux (`.ps1` variants also exist). Turtle DNA and protein analyses only; no command names `NONREV`, `NQ.*`, `GTR20`, `UNREST`, a Lie-Markov model, or `--model-joint`. | Running the upstream regression suite. |
 | `example/example.phy`, `example/aa_example.phy` | Small DNA and AA alignments — fast smoke tests. | Every manual verification. |
-| `example/models.nex` | Example user model-definition file, in the exact NEXUS format a custom nQ must use. | Loading a custom Q or π from a file. |
-| `example/example.nex` | Example partition file, for `--model-joint` testing. | nQMaker-style testing. |
+| `example/models.nex` | Example user model-definition file in NEXUS format. | Loading a custom Q or π from a file. |
+| `example/example.nex` | Example partition file for the DNA `example.phy`. `NONREV` is protein-only, so this pair cannot exercise the protein nQMaker path. | DNA partition testing. |
+| `test_scripts/test_data/turtle_aa.fasta`, `turtle_aa.nex` | 16 taxa, 3 protein partitions. | Protein multi-partition (`--model-joint`) testing. |
 
 ---
 
@@ -422,6 +441,15 @@ Listed so you do not spend tokens discovering they are irrelevant.
   nQ to validate parameter recovery. `simulator/alisimulator.cpp:369` shows how the AA data type
   is inferred from the `NONREV` / `GTR20` model names. Otherwise skip.
 - `obsolete/` — dead code still linked for historical reasons.
+- `mutsel_rust/` (9 files, 10,839 lines) and `utils/mutsel_wrapper.{cpp,h}` — a Rust
+  mutation-selection subproject that arrived upstream in v3.1.4, gated off by default
+  (`USE_MUTSEL`). **Read on 2026-09-15; see `docs/agent/AA_MODEL_INFERENCE.md` section 11.** It
+  stays in Tier 6 for routine work: the model is reversible, per-site, fixed on the C++ side
+  (`ModelSet` with `fixParameters(true)`), and fitted externally by AdamW under priors, so none
+  of its machinery is reusable for a constrained nQ. It contains one closed-form construction of
+  a reversible Q with a prescribed stationary distribution: the Halpern-Bruno form
+  `Q_ij = M_ij g(f_j - f_i)` with `f_i = log π_i - log π^mut_i` and `g(x) = x/(1-e^-x)`
+  (`mutsel_rust/src/model.rs:141-171`).
 - `doc/html/`, `doc/latex/` — generated Doxygen output. Enormous and derived; read the headers
   instead.
 - `lib/`, `libmac*/`, `liblinux_arm/` — prebuilt binary blobs.
@@ -433,7 +461,7 @@ Listed so you do not spend tokens discovering they are irrelevant.
 ## Minimum viable context sets
 
 **"Understand how nQ is currently inferred"** (≈3.5k lines):
-`AGENT_IQTREE_ARCHITECTURE.md` → `model/modelmarkov.h` → `modelmarkov.cpp` lines 964–1400 and
+`docs/agent/ARCHITECTURE.md` → `model/modelmarkov.h` → `modelmarkov.cpp` lines 964–1400 and
 2094–2131 → `model/modelprotein.cpp` lines 1106–1245.
 
 **"Add a new constrained non-reversible model class"** — add:

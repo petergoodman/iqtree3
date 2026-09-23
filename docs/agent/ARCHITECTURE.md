@@ -1,43 +1,71 @@
 # IQ-TREE 3 — Architecture Map for Agents
 
-**Audience:** AI coding agents extending IQ-TREE 3's substitution-model layer, specifically for
-constrained optimization of non-reversible amino-acid rate matrices (nQ) under a fixed target
-stationary distribution π.
+**Audience:** AI coding agents working in IQ-TREE 3's substitution-model layer, in particular
+on the inference of non-reversible amino-acid rate matrices (nQ).
 
-**Purpose:** give an agent, in one read, enough of IQ-TREE's structure and conventions to write
-code that looks like the code already here — without re-deriving it from a thousand greps.
+**What this document is.** A description of IQ-TREE 3's programming architecture as it exists at
+the baseline commit: the classes, their relationships, data layouts, control flow, and coding
+conventions around substitution models and their inference, especially non-reversible ones. Its
+purpose is to spare agents from re-deriving that architecture by searching the tree.
 
-**Companion:** `AGENT_CONTEXT_FILE_INDEX.md` — the per-file index with line anchors. Read this
-document first, then use that one to locate specific code.
+**What it is not.** It is not a plan, a design, or a decision record, and nothing in it is an
+instruction about what this project should build or how. Where it says "must", it states a
+constraint the current code imposes (for example, that a parameter vector is 1-indexed), not a
+project choice. The project's design is in `docs/agent/design/`, its decisions in
+`docs/agent/DECISIONS.md`, and its plan in `docs/agent/PLAN.md`. A passage here that reads as a
+recommendation for the project is a defect; report it rather than follow it.
+
+**Companions.** Three reference documents describe the current code, each from a different
+angle, and none of them prescribes anything:
+
+- `docs/agent/ARCHITECTURE.md` (this file): the programming architecture.
+- `docs/agent/AA_MODEL_INFERENCE.md`: the mathematics, optimization, and algorithms by which each
+  class of amino-acid model is inferred.
+- `docs/agent/FILE_INDEX.md`: which file to open for which question, with line anchors, so that
+  agents do not grep the whole repository.
+
+Read this document first, then use the file index to locate specific code.
 
 ## Baseline and staleness
 
-Verified against local commit `8977d31a`. Line numbers drift, names and structure do not.
+**Baseline: `63c330d9` (upstream tag `v3.1.4`).** All line anchors in this document and in
+`FILE_INDEX.md` were re-verified against that commit on 2026-09-15; anchors added or changed on
+2026-09-23 were read at the same commit. Names and structure drift far more slowly than line
+numbers; if an anchor misses, grep for the symbol name nearby.
 
-At the time of writing, this working tree sits 64 commits behind `origin/master`
-(`63c330d9`), and those commits rewrite several files described here:
+Repository layout as of that date: `origin` is the fork `petergoodman/iqtree3`, `upstream` is
+`iqtree/iqtree3` with its push URL deliberately disabled, work happens on branch
+`nq-constrained-pi`, and `master` is kept as an exact mirror of upstream.
 
-| File | Upstream churn | Status of this document |
-|---|---|---|
-| `model/modelmarkov.{cpp,h}` | none | anchors valid |
-| `model/modelprotein.cpp` | none | anchors valid |
-| `model/modelunrest.cpp`, `model/modelliemarkov.cpp`, `model/modelmixture.cpp` | none | anchors valid |
-| `main/phyloanalysis.cpp` | 377 lines | anchors likely stale |
-| `model/partitionmodel.cpp` | 155 lines | anchors likely stale |
-| `main/phylotesting.cpp` | 135 lines | anchors likely stale |
-| `model/modelfactory.cpp` | 132 lines | anchors likely stale |
-| `tree/phylotree.cpp` | 126 lines | anchors likely stale |
-| `utils/tools.{cpp,h}` | 93 lines | anchors likely stale |
-| `model/modelfactorymixlen.{cpp,h}` | deleted upstream | remove references when rebasing |
-
-The entire Tier 0 core is untouched upstream, so the substantive findings hold. To
-re-check any single file before trusting its anchors:
+To check whether a file has moved since the baseline:
 
 ```bash
-git diff --stat 8977d31a HEAD -- <path>
+git diff --stat 63c330d9 HEAD -- <path>
 ```
 
-After changing the baseline, update this block and re-verify anchors in the affected files.
+If it has, re-verify that file's anchors and update both documents in the same change.
+
+### Arrived upstream in v3.1.4
+
+Two additions landed in the 64 commits that preceded this baseline. The first has now been read;
+the second has not, so treat any statement about it as unverified.
+
+- `mutsel_rust/` (**9 files, 10,839 lines of Rust**, of which `data.rs` alone is 7,854) plus
+  `utils/mutsel_wrapper.{cpp,h}`. **Read on 2026-09-15 and written up in
+  `docs/agent/AA_MODEL_INFERENCE.md` section 11.** In summary: a Halpern-Bruno
+  mutation-selection model with one shared reversible mutation matrix and one free
+  log-frequency vector per site, where fitnesses are derived as `log π^s − log π^mut`, which
+  makes `π^s` the exact stationary distribution of the site's Q. It is reversible, it is fitted
+  by AdamW with automatic differentiation rather than BFGS, and it is a MAP estimate under
+  three quadratic log-space priors, not an ML estimate. The subproject is gated off by default
+  (the configure step prints `Compile Rust Dependencies: OFF`), because `USE_MUTSEL` is tested
+  with `if (USE_MUTSEL STREQUAL "ON")` but never declared with `option()`, so no Rust toolchain
+  is required for a standard build.
+- `main/outstreambuf.h`, and a reworked `test_scripts/` measurement harness
+  (`remeasure.{ps1,sh}`, `expect_memory.txt`, `expect_runtime.txt`).
+
+`model/modelfactorymixlen.{cpp,h}` were **deleted** in the same range. `ModelFactoryMixlen` no
+longer exists.
 
 ---
 
@@ -80,10 +108,9 @@ Facts worth knowing before you add a file:
   from `tree/` and `alignment/` (include paths are global), but not on `main/`.
 - The likelihood kernels are compiled **multiple times** into separate libraries
   (`kernelsse`, `kernelavx`, `kernelfma`, `kernelavx512`) with different instruction-set flags.
-  Anything included by `tree/phylokernel*.h` gets compiled once per ISA. Keep model headers out
-  of the kernel include path if you can.
+  Anything included by `tree/phylokernel*.h` gets compiled once per ISA.
 - Hard external dependencies: **Eigen3** and **Boost** (`find_package`, fatal if absent). Eigen is
-  used directly inside `model/modelmarkov.cpp` — use it for new linear algebra.
+  used directly inside `model/modelmarkov.cpp`, for example by `computeStateFreqFromQMatrix`.
 - `iqtree3-aa` is a CMAPLE-AA build variant, unrelated to amino-acid model work despite the name.
 
 ### Dead files — do not be misled
@@ -130,10 +157,10 @@ main()                                   main/main.cpp:2219
  └─ parseArg(argc, argv, Params)         utils/tools.cpp  — fills the Params singleton
  └─ runPhyloAnalysis(params, checkpoint) main/phyloanalysis.cpp
      ├─ read alignment                   → Alignment (patterns, num_states, empirical π)
-     ├─ readModelsDefinition(params)      model/modelfactory.cpp:87  → ModelsBlock
+     ├─ readModelsDefinition(params)      model/modelfactory.cpp:88  → ModelsBlock
      │     builtin_mixmodels_definition + builtin_prot_models + optional --mdef file
      ├─ runModelFinder (optional)        main/phylotesting.cpp  — picks the -m string
-     ├─ iqtree->initializeModel(...)     tree/iqtree.cpp:1063
+     ├─ iqtree->initializeModel(...)     tree/iqtree.cpp:1061
      │     └─ new ModelFactory / PartitionModel / PartitionModelPlen
      │           └─ createModel(model_str, models_block, freq_type, freq_params, tree)
      │                 model/modelmixture.cpp:3122   ← THE model dispatcher
@@ -141,12 +168,12 @@ main()                                   main/main.cpp:2219
      │                       modelprotein.cpp:1106  →  ModelMarkov::init(freq)
      │                             →  init_state_freq()  →  decomposeRateMatrix()
      ├─ tree search / optimization
-     │     IQTree::optimizeModelParameters()     tree/iqtree.cpp:2307
-     │       └─ ModelFactory::optimizeParameters()   modelfactory.cpp:1553
+     │     IQTree::optimizeModelParameters()     tree/iqtree.cpp:2305
+     │       └─ ModelFactory::optimizeParameters()   modelfactory.cpp:1570
      │            ├─ model->optimizeParameters(eps)      ← ModelMarkov::optimizeParameters
      │            ├─ site_rate->optimizeParameters(eps)
      │            └─ tree->optimizeAllBranches()
-     └─ reportPhyloAnalysis(...)         main/phyloanalysis.cpp:1407  → writes .iqtree
+     └─ reportPhyloAnalysis(...)         main/phyloanalysis.cpp:1409  → writes .iqtree
 ```
 
 For partitioned (`-p` / `-q` / `-Q`) analyses the same flow runs with `PhyloSuperTree` and
@@ -170,7 +197,7 @@ PhyloTree (IQTree, PhyloSuperTree)
     └── RateHeterogeneity *site_rate     (same pointer, cached)
 ```
 
-`PhyloTree::getModel()` and `getModelFactory()` are the accessors (`tree/phylotree.h:527`, `531`).
+`PhyloTree::getModel()` and `getModelFactory()` are the accessors (`tree/phylotree.h:523`, `527`).
 A model holds a back-pointer `PhyloTree *phylo_tree` — the cycle is intentional, because
 `targetFunk()` needs to ask the tree for a likelihood.
 
@@ -193,8 +220,7 @@ Optimization                       utils/optimization.h
   ├── RateHeterogeneity            model/rateheterogeneity.h
   │     └── RateGamma, RateInvar, RateFree, RateHeterotachy, RateKategory, ...
   ├── ModelFactory                 model/modelfactory.h    (also CheckpointFactory)
-  │     ├── PartitionModel ── PartitionModelPlen
-  │     └── ModelFactoryMixlen
+  │     └── PartitionModel ── PartitionModelPlen
   └── PhyloTree                    tree/phylotree.h        (also MTree, CheckpointFactory)
         └── IQTree ── PhyloSuperTree ── PhyloSuperTreePlen / PhyloSuperTreeUnlinked
 ```
@@ -206,7 +232,7 @@ partition level.
 
 ---
 
-## 5. The Optimization contract — the pattern to follow
+## 5. The Optimization contract
 
 This is the single most important pattern in the codebase. Every optimizable object implements
 it, and BFGS is the only solver.
@@ -241,16 +267,16 @@ class Optimization {                                     // utils/optimization.h
    warning.
 5. **Constraints are box constraints only.** `setBounds` fills `lower[]`, `upper[]`, and a
    `bound_check[]` flag that asks the optimizer to retry from a different start if the optimum
-   lands on a boundary. There is **no equality-constraint solver in this codebase.** A hard
-   constraint has to be expressed by reparameterization (the Lie-Markov approach), by projection
-   inside `setRates()`, or by a penalty returned from `targetFunk`.
+   lands on a boundary. There is **no equality-constraint solver in this codebase.** The existing
+   models that impose structure on Q do it through their parameterization (`ModelLieMarkov`, and
+   `ModelDNA` with a `param_spec`).
 6. **Invalid regions are signalled by returning `1.0e+30` from `targetFunk`**, not by throwing.
    See the π-underflow guard at `modelmarkov.cpp:1104–1110`.
 
 ### The canonical `optimizeParameters` skeleton
 
-`ModelMarkov::optimizeParameters` (`modelmarkov.cpp:1166–1244`) is the reference implementation.
-Copy its shape:
+`ModelMarkov::optimizeParameters` (`modelmarkov.cpp:1166–1244`) is the reference implementation
+of the single-model optimization loop. Its shape:
 
 ```cpp
 double MyModel::optimizeParameters(double gradient_epsilon) {
@@ -287,14 +313,15 @@ double MyModel::optimizeParameters(double gradient_epsilon) {
 
 **Indirect** (`ModelLieMarkov`, `ModelDNA` with a `param_spec`): the BFGS variables are an
 abstract `model_parameters[]` of lower dimension, and **`setRates()` maps them onto the full
-`rates[]` array**. `getVariables` writes `model_parameters` and then calls `setRates()`.
+`rates[]` array**. `getVariables` writes `model_parameters` and then calls `setRates()`. In
+`ModelLieMarkov` the relevant methods are `setBounds` (861→886), `setVariables` (899),
+`getVariables` (919, which calls `setRates()` only when a value changed), `setBasis` (1087), and
+`setRates` (1194).
 
-> **A constrained nQ belongs to the indirect family.** Fixing π removes degrees of freedom from
-> the 380-entry rate space, so the free parameters should live in the reduced space and
-> `setRates()` should be the map back into the full rate matrix. `ModelLieMarkov` is the working
-> example of exactly that structure:
-> `setBounds` (861→886), `setVariables` (899), `getVariables` (919), `setBasis` (1087),
-> `setRates` (1194).
+The base `ModelMarkov::getVariables` (`modelmarkov.cpp:1038–1089`) copies the variables straight
+into `rates[]` and never calls `setRates()`, whose base implementation is `ASSERT(0)`.
+`ModelUnrest` overrides `setRates()` to pin its last rate to 1 (`modelunrest.cpp:106–111`), but
+it uses the base `getVariables`, so its override runs only at construction.
 
 ---
 
@@ -369,7 +396,7 @@ performs the transposition with
 | Field | Size | Meaning |
 |---|---|---|
 | `rate_matrix` | `n*n` | Full Q, row-major, normalized. Non-reversible only. |
-| `state_freq` (in `ModelSubst`) | `n` | π. **For non-reversible models this is an OUTPUT derived from Q**, not an input. |
+| `state_freq` (in `ModelSubst`) | `n` | π. **For non-reversible models this is an OUTPUT derived from Q**, not an input, except under `FREQ_USER_DEFINED` without `optimize_from_given_params` (§9). |
 | `eigenvalues`, `eigenvalues_imag` | `n` | Real and imaginary parts (non-reversible spectra are complex). |
 | `eigenvectors`, `inv_eigenvectors`, `inv_eigenvectors_transposed` | `n*n` | Cached eigensystem. |
 | `ceval`, `cevec`, `cinv_evec` | `n`, `n*n`, `n*n` | `std::complex<double>` *aliases over the same memory* as the real arrays. Non-reversible only. |
@@ -385,12 +412,11 @@ Use the same helpers; a plain `new double[]` will crash the AVX kernels.
 - `getNDim()` = number of BFGS dimensions. **Non-reversible: `num_params`, with no frequency
   dimensions** (`modelmarkov.cpp:964–976`), because π is determined by Q.
 - `getNDimFreq()` = degrees of freedom *not* in `getNDim()`, added by
-  `ModelFactory::getNParameters` for AIC/BIC. Returns 0 for `FREQ_ESTIMATE`, `n-1` for
-  `FREQ_EMPIRICAL`.
-
-> If a constrained nQ removes `n-1` degrees of freedom from Q and gains none in π, **both
-> `getNDim()` and `getNDimFreq()` must be updated**, or every information criterion IQ-TREE
-> reports will be wrong.
+  `ModelFactory::getNParameters` for AIC/BIC (`modelmarkov.cpp:978–1000`). Returns `n-1` for
+  `FREQ_EMPIRICAL`, 3 or 9 for the codon frequency types, and 0 otherwise, including
+  `FREQ_ESTIMATE` and `FREQ_USER_DEFINED`, and 0 whenever `fixed_parameters` is set.
+- `PartitionModel::getNParameters` counts a linked model's parameters once across partitions
+  (`partitionmodel.cpp:242–256`).
 
 ---
 
@@ -411,14 +437,18 @@ Use the same helpers; a plain `new double[]` will crash the AVX kernels.
 
 `setReversible(bool, bool adapt_tree)` (`modelmarkov.cpp:75–152`) performs the whole switch,
 including converting an existing reversible half-matrix into a full non-reversible one via
-`Qᵢⱼ = Rᵢⱼ πⱼ`. **It also re-roots the tree as a side effect.** That is how `-m NONREV` ends up
-with a rooted tree without anyone asking for one.
+`Qᵢⱼ = Rᵢⱼ πⱼ`, using whatever `state_freq` holds at the moment of the call
+(`modelmarkov.cpp:112–119`). **It also re-roots the tree as a side effect.** That is how
+`-m NONREV` ends up with a rooted tree without anyone asking for one.
+
+In the `NONREV` branch of `ModelProtein::init` (`modelprotein.cpp:1207–1231`) the LG seed is
+read and converted by `setReversible(false)` first, so the conversion uses LG's frequencies. A
+`+F{...}` vector in the model string is read afterwards (`readStateFreq`, then
+`freq = FREQ_USER_DEFINED`, lines 1239–1242) and does not affect the converted seed.
 
 ---
 
-## 9. Where π comes from — the exact code path
-
-This is the crux of the project, so here it is precisely.
+## 9. Where π comes from, by code path
 
 **For reversible models**, π is an independent parameter. `init_state_freq()` sets it from `+F`
 (empirical), `+FQ` (equal), `+FU` (matrix-supplied), or `+FO` (`FREQ_ESTIMATE`, optimized as
@@ -465,45 +495,42 @@ int computeStateFreqFromQMatrix(double Q[], double pi[], int n) {
 }
 ```
 
-**π is then used as the root distribution in the likelihood.** `tree/phylokernelnew.h:963` fills
-the root tip's partial-likelihood vector from `model->getStateFrequency(...)`. So "π must be the
-resulting stationary frequency" is equivalent to "the root distribution the likelihood uses must
-equal the supplied vector, and must genuinely be stationary for the fitted Q."
+**π is then used as the root distribution in the likelihood.** The root leaf's partial-likelihood
+vector is filled from `model->getStateFrequency(...)` (`tree/phylokernelnew.h:963`, and the
+non-reversible kernel at `tree/phylokernelnonrev.h:676–682`), with no transition matrix applied
+to it. The kernel uses whatever `state_freq` holds; nothing on the likelihood path checks that it
+is stationary for Q.
 
-**Three existing partial mechanisms, none of which is the requested feature:**
+**Other code paths that set or check π for a non-reversible model:**
 
-1. `freq_type == FREQ_USER_DEFINED` with `optimize_from_given_params == false` **skips** the
-   solve, leaving `state_freq` at the user's values. This *asserts* a π without constraining Q,
-   so the model becomes internally inconsistent: the root distribution is not stationary for Q.
+1. `freq_type == FREQ_USER_DEFINED` with `optimize_from_given_params == false` **skips** both the
+   uniform reset and the solve, leaving `state_freq` at the user's values while Q is fitted with
+   nothing tying the two together. This is what `-m NONREV+F{...}` does. The result is a
+   nonstationary-root model: the supplied vector is the root distribution and is, in general,
+   not stationary for the fitted Q.
 2. `ModelMarkov::adaptStateFrequency` (`modelmarkov.cpp:914–931`) rescales the non-reversible
-   `rates[]` by `rates[k] *= freq[j]/state_freq[j]`. A one-shot re-weighting, not a constraint
-   maintained through optimization.
+   `rates[]` by `rates[k] *= freq[j]/state_freq[j]`, a one-shot re-weighting. The
+   `PartitionModel` constructor calls it on every partition's copy of a linked model whose
+   frequency type is `FREQ_ESTIMATE` or `FREQ_EMPIRICAL`, after pooling state counts across
+   those partitions, and skips it for every other frequency type
+   (`partitionmodel.cpp:116–165`). Under `NONREV+FO` the solve in the next decomposition then
+   overwrites `state_freq`. The rescaled matrix is stationary at the new vector only when the
+   input matrix satisfies detailed balance.
 3. `readParameters` / `readParametersString` (`1798`, `1846`) re-derive π from a file-supplied Q
-   and **print a warning** when it disagrees with the file's π by more than `1e-3`. That warning
-   is the weak, after-the-fact form of the invariant this project wants to make structural.
+   and **print a warning** when it disagrees with the file's π by more than `1e-3`
+   (`modelmarkov.cpp:1833–1842`). This is the only place the code compares a supplied π with the
+   π solved from Q.
 
-### How many parameters a π constraint costs
+Parameter counts for a family of generators constrained to a supplied π are derived in
+`docs/agent/AA_MODEL_INFERENCE.md` section 7 and in `docs/agent/design/`; they describe a model
+the code does not yet contain, so they are not restated here.
 
-Stationarity, πᵀQ = 0, is a set of **linear** equations in Q's entries. Because the rows of Q
-already sum to zero, those `n` equations sum to zero identically for any π
-(Σⱼ Σᵢ πᵢ Qᵢⱼ = Σᵢ πᵢ · 0 = 0), so their rank is `n-1`, not `n`. For 20 states:
+### Lie-Markov models with a fixed frequency vector
 
-| Quantity | Count |
-|---|---|
-| Off-diagonal entries of Q (the diagonal is derived) | 380 |
-| Minus global scale, which `total_num_subst` normalization removes | 379 (this is the current `NONREV` free-parameter count) |
-| Minus the rank of πᵀQ = 0 | **360** |
-
-Fixing π therefore costs exactly `n-1 = 19` degrees of freedom, the dimension of a frequency
-vector, which is the arithmetic you would expect. The feasible set is a convex polyhedral cone:
-a 361-dimensional linear subspace intersected with non-negativity on the off-diagonals. The two
-models are nested (360 ⊂ 379), so a likelihood-ratio test between them is available.
-
-### A working precedent: π-constrained non-reversible estimation already exists for DNA
-
-`ModelLieMarkov::setBasis()` (`modelliemarkov.cpp:1087`) already implements "given π, estimate
-a non-reversible Q having π as its stationary distribution", for 4-state DNA. When a Lie-Markov
-model receives a user-supplied or empirical π:
+`ModelLieMarkov::setBasis()` (`modelliemarkov.cpp:1087`), for 4-state DNA, shifts the model's
+basis matrices so that every Q in their span has a supplied or empirical π as its stationary
+distribution, and reduces the free-parameter count by the frequency degrees of freedom. When a
+Lie-Markov model receives a user-supplied or empirical π:
 
 ```cpp
 int bdf = BDF[model_num];
@@ -515,30 +542,18 @@ piToTau(state_freq, tau, symmetry);           // π mapped into frequency coordi
 unpermuted_rates[rate] += tau[tauIndex] * transformationMatrix[rate];   // basis shifted by τ
 ```
 
-The comment above the transform tables (`modelliemarkov.cpp:262`) states the intent directly:
-*"Each shows how to modify a basis matrix to enforce a fixed base frequency vector."* There is
-even a feasibility check that warns when the requested π is unreachable for that model family:
+The comment above the transform tables (`modelliemarkov.cpp:262`) states their role:
+*"Each shows how to modify a basis matrix to enforce a fixed base frequency vector."* A
+feasibility check warns when the requested π is unreachable for that model family:
 *"Model %s cannot achieve requested equilibrium base frequencies ... Instead it will use ..."*.
+The `TRANSFORM_*` tables are hand-derived for 4 states and 37 named model families.
 
-What transfers to the 20-state problem:
-
-- The class shape. A reduced `model_parameters[]` array, with `setRates()` mapping it into the
-  full `rates[]`, and `setVariables` / `getVariables` / `setBounds` / `getNDim` overridden
-  around it. Everything downstream (`decomposeRateMatrixNonrev`, the eigendecomposition, the
-  non-reversible kernel, checkpointing) needs no change.
-- Setting `freq_type = FREQ_USER_DEFINED` then makes `decomposeRateMatrixNonrev` skip the π
-  re-solve automatically, and unlike the current behaviour that skip is **sound**, because the
-  parameterization guarantees the answer.
-- The non-negativity trick in `setRates()` (`modelliemarkov.cpp:1194`): take the one basis
-  matrix whose off-diagonals are all non-negative as an anchor, compute the worst-case ratio
-  across entries, and rescale the deviation so nothing crosses zero. This generalizes given any
-  strictly positive anchor matrix having the target π as its stationary distribution.
-
-What does not transfer: the `TRANSFORM_*` tables are hand-derived algebra for 4 states and 37
-named model families. At 20 states the constraint subspace has to be computed numerically,
-which Eigen already supports and which `modelmarkov.cpp` already uses elsewhere. Lie-Markov's
-other constraint, closure under the Lie bracket, is a separate restriction that a general nQ
-does not want.
+`ModelLieMarkov::setRates()` (`modelliemarkov.cpp:1194`) builds `rates[]` from
+`model_parameters[]` as a combination of basis matrices, then keeps every rate non-negative by
+taking `basis[0]`, the one basis matrix whose off-diagonals are all non-negative, as an anchor
+and rescaling the parameter combination by the worst-case ratio across entries. Lie-Markov
+models are additionally closed under the Lie bracket, a restriction separate from the frequency
+constraint.
 
 ---
 
@@ -553,8 +568,8 @@ does not want.
 - Branch lengths enter as `evol_time = time / total_num_subst` in `computeTransMatrix`.
 - `ZERO_FREQ = 1e-10` (`eigendecomposition.h:24`): states with π below this are **removed** from
   the matrix before decomposition and reinserted afterwards as identity rows
-  (`modelmarkov.cpp:1293–1370`). Any constrained-π implementation must handle a target π with
-  near-zero entries, or those states silently drop out.
+  (`modelmarkov.cpp:1293–1370`). Such states therefore drop out of the decomposition without a
+  message.
 - `Params::min_state_freq` (default set in `tools.cpp`, overridable with `--min-freq`) is the
   optimizer's lower bound on any frequency; `targetFunk` returns `1e+30` below it.
 
@@ -595,14 +610,13 @@ on restore — and the mandatory `decomposeRateMatrix()` + `clearAllPartialLH()`
 
 `PartitionModel : public ModelFactory` (`model/partitionmodel.h:32`) estimates **one shared Q
 across many partitions**, each with its own tree and branch lengths. This is how the published
-`Q.*` matrices (QMaker) and `NQ.*` matrices (nQMaker) were estimated, and almost certainly how a
-constrained nQ would be estimated too.
+`Q.*` matrices (QMaker) and `NQ.*` matrices (nQMaker) were estimated.
 
 ```
-PartitionModel::optimizeLinkedModels()                partitionmodel.cpp:781
+PartitionModel::optimizeLinkedModels()                partitionmodel.cpp:842
   for each distinct model name in linked_models:
       unfix that model's parameters in every partition
-      optimizeLinkedModel()                           partitionmodel.cpp:692
+      optimizeLinkedModel()                           partitionmodel.cpp:753
         ├─ setVariables(v)          delegate to the representative model
         ├─ model->setBounds(...)
         ├─ minimizeMultiDimen(...)  → targetFunk
@@ -616,18 +630,37 @@ PartitionModel::optimizeLinkedModels()                partitionmodel.cpp:781
 ```
 
 Key detail: **the same raw variable vector `x` is handed to every partition's model object.**
-Any new parameterization must therefore be a pure function of `x` plus per-model constants —
-no hidden per-partition state in `getVariables`.
+The linked optimization relies on identical `x` producing an identical model in every
+partition; it does not check this.
+
+**Where the gradient comes from.** `optimizeLinkedModel` calls `minimizeMultiDimen` on the
+`PartitionModel` object itself, and `PartitionModel` does not override `derivativeFunk`, so the
+finite-difference gradient is `Optimization::derivativeFunk` (`utils/optimization.cpp:916`)
+evaluating `PartitionModel::targetFunk`, the summed objective. A `derivativeFunk` override in a
+model class is therefore reached by single-model optimization (`ModelMarkov::optimizeParameters`)
+but not by linked optimization. The only override of `derivativeFunk` outside `Optimization` in
+the inspected code is `PhyloTreeMixlen` (`tree/phylotreemixlen.h:165`).
+
+**Frequencies before the first linked update.** The `PartitionModel` constructor pools state
+counts over the partitions of each linked model with `FREQ_ESTIMATE` or `FREQ_EMPIRICAL`, prints
+them as "Mean state frequencies", and calls `adaptStateFrequency` on every partition's model
+(§9, `partitionmodel.cpp:116–165`). Linked models with any other frequency type skip this block.
 
 Driven by:
 
-- `--link-model` (`tools.cpp:4998`) and `--model-joint MODEL` / `--link-partition`
-  (`tools.cpp:5003`), which set `Params::link_model` and `Params::model_joint`.
-- `--model-joint NONREV` is the nQMaker invocation. `phyloanalysis.cpp:162–177` chooses the
+- `--link-model` (`tools.cpp:5018`) and `--model-joint MODEL` / `--link-partition`
+  (`tools.cpp:5023`), which set `Params::link_model` and `Params::model_joint`.
+- `--model-joint NONREV` is the nQMaker invocation. `phyloanalysis.cpp:165–177` chooses the
   QMaker vs nQMaker citation by testing whether `model_joint` contains `"NONREV"`.
-- `--init-model NAME|FILE|DIVMAT` (`tools.cpp:2896`) seeds the matrix;
-  `DIVMAT` seeds from the empirical divergence matrix (`partitionmodel.cpp:61–120`).
-- Results are written as NEXUS via `reportNexusFile` (`phyloanalysis.cpp:420–459`).
+- `--init-model NAME|FILE|DIVMAT` (`tools.cpp:2896`) seeds the matrix. The `DIVMAT` branch
+  (`partitionmodel.cpp:61–120`) begins with `ASSERT(0 && "init_by_div_mat not working")` at line
+  96. `ASSERT` compiles to nothing only when `NDEBUG` is defined (`utils/tools.h:60–68`), and
+  the build does not appear to define it for gcc or clang (§17), so in those builds the branch
+  most likely stops at the assertion. Under `NDEBUG` it would run a partial version (see
+  `AA_MODEL_INFERENCE.md` section 15).
+- Results are written as NEXUS via `reportNexusFile` (`phyloanalysis.cpp:422–459`). It prints
+  matrix entries at 6 significant digits, labels every model `GTRPMIX`, and for a non-reversible
+  model writes the full Q followed by a uniform `1/n` frequency line rather than the model's π.
 
 ---
 
@@ -635,19 +668,19 @@ Driven by:
 
 `Params` is a mutable global singleton, reached from anywhere as `Params::getInstance()`. There
 is no dependency injection; model code reads `Params` directly (for example
-`Params::getInstance().min_state_freq` inside `targetFunk`). Follow that convention rather than
-threading new arguments through constructors.
+`Params::getInstance().min_state_freq` inside `targetFunk`). The codebase uses that convention
+rather than threading options through constructors.
 
 **Adding an option requires four edits, all in `utils/`:**
 
 1. `utils/tools.h` — declare the field in `struct Params`.
-2. `utils/tools.cpp`, the `parseArg` initializer region (~7199 and ~7442) — set its default.
+2. `utils/tools.cpp`, the `parseArg` initializer region (~7238 and ~7480) — set its default.
 3. `utils/tools.cpp`, the `parseArg` argument loop — parse it, following the neighbouring
    `strcmp(argv[cnt], "--flag") == 0` pattern, including the missing-argument error.
-4. `utils/tools.cpp`, `usage_iqtree()` (~5940–5990) — document it in the help text.
+4. `utils/tools.cpp`, `usage_iqtree()` (~5978–6030) — document it in the help text.
 
 Note that `--model-joint` is **absent from `usage_iqtree()`**, so it does not appear in `-h`
-despite being documented on the project website. If you add a target-π option, document both.
+despite being documented on the project website.
 
 Model-name and frequency-type strings are a second, parallel CLI surface: `-m NAME{params}+F...`
 is parsed by `ModelFactory`'s constructor and then by `createModel`
@@ -656,29 +689,29 @@ frequency-handling intent through the whole model layer.
 
 ---
 
-## 14. Mechanical checklist: adding a new substitution model
+## 14. Where a substitution model class is wired into the code
 
-This is the plumbing, not the science.
+This section lists the places in the current code that a substitution model class is registered
+in or read from. It describes the codebase's plumbing; it is not a plan for this project.
 
-1. **Create** `model/mymodel.h` and `model/mymodel.cpp`, subclassing `ModelMarkov`. Copy the
-   shape of `model/modelunrest.{h,cpp}` — it is the shortest complete example.
-2. **Register the source files** in `model/CMakeLists.txt`.
-3. **Register the name.** Either add a `validModelName` clause reachable from
-   `ModelMarkov::getModelByName` (`modelmarkov.cpp:1954`), or — for amino acids — add a branch to
-   `ModelProtein::init` (`modelprotein.cpp:1106–1245`) next to the `GTR20` and `NONREV` branches.
-   Confirm it is reachable from `createModel` (`modelmixture.cpp:3122`).
-4. **Implement the Optimization interface**: `getNDim`, `setVariables`, `getVariables`,
-   `setBounds`, and `setRates` if the parameterization is indirect. Honour the 1-indexing and the
-   `changed` flag.
-5. **Implement the three checkpoint methods** with the save/restore ordering from §11.
-6. **Implement `writeInfo(ostream&)`** for the `.iqtree` report, and `getNameParams()` so the
-   model round-trips through its own name string.
-7. **Update the parameter counts** — `getNDim()` and `getNDimFreq()` — so AIC/BIC are right.
-8. **Optionally register with ModelFinder** by adding the name to the tables in
-   `main/phylotesting.cpp:160–230`.
-9. **Add reporting** in `main/phyloanalysis.cpp` if a new output artifact is needed
-   (`reportNexusFile` at 420 is the template), plus a citation block at 162–177.
-10. **Smoke-test** against `example/aa_example.phy` before anything larger.
+1. **Class and files.** Model classes subclass `ModelMarkov` and live in `model/`.
+   `model/modelunrest.{h,cpp}` is the shortest complete example of a non-reversible class.
+2. **Build list.** Every source file must appear in `model/CMakeLists.txt`, which has no glob.
+3. **Name dispatch.** A name is reachable either through a `validModelName` clause reached from
+   `ModelMarkov::getModelByName` (`modelmarkov.cpp:1954`), as `UNREST` and the Lie-Markov models
+   are, or through the `if/else` chain in `ModelProtein::init` (`modelprotein.cpp:1106–1245`), as
+   `GTR20` and `NONREV` are. Both routes start from `createModel` (`modelmixture.cpp:3122`).
+4. **Optimization interface.** `getNDim`, `setVariables`, `getVariables`, `setBounds`, and, for
+   an indirect parameterization, `setRates` (§5), with the 1-indexing and `changed`-flag
+   conventions.
+5. **Checkpointing.** `startCheckpoint`, `saveCheckpoint`, `restoreCheckpoint`, with the
+   save/restore ordering of §11.
+6. **Reporting.** `writeInfo(ostream&)` feeds the `.iqtree` report, and `getNameParams()` lets
+   the model round-trip through its own name string.
+7. **Parameter counts.** `getNDim()` and `getNDimFreq()` feed AIC, AICc and BIC (§7).
+8. **ModelFinder.** Candidate names come from the tables in `main/phylotesting.cpp:160–230`.
+9. **Output files.** `main/phyloanalysis.cpp` writes the report and the NEXUS model file
+   (`reportNexusFile` at 422), and chooses a citation block at 162–177.
 
 ---
 
@@ -702,12 +735,16 @@ This is the plumbing, not the science.
 - **Off-by-one.** Parameter vectors are 1-indexed. Rate arrays are 0-indexed.
 - **Forgetting `clearAllPartialLH()`** after changing Q or π — stale likelihoods, no warning.
 - **Assuming π is an input for non-reversible models.** It is an output of
-  `decomposeRateMatrixNonrev` on every single evaluation.
+  `decomposeRateMatrixNonrev` on every evaluation, except under `FREQ_USER_DEFINED` without
+  `optimize_from_given_params` (§9).
 - **Assuming a non-reversible model has an unrooted tree.** `setReversible(false)` roots it.
 - **Editing `cmaple/`** because a grep for `NONREV` landed there. Different engine.
 - **Reading `model/modelgtr.cpp` or `model/modelnonrev.*`.** Not built.
-- **`ModelMarkov::setRates()` is `ASSERT(0)`.** If your model uses an indirect parameterization
-  you must override it, and you must actually call it from `getVariables`.
+- **`ModelMarkov::setRates()` is `ASSERT(0)`, and the base `getVariables` never calls it.** A
+  class that maps its own parameters into `rates[]` through `setRates()` has to call it itself,
+  as `ModelLieMarkov::getVariables` does (§5).
+- **Whether `ASSERT` is active depends on `NDEBUG`,** which the gcc and clang Release flags do
+  not appear to define (§17). An `ASSERT` that a build compiles out does not check anything.
 - **Complex eigen arrays alias the real ones.** `ceval`/`cevec`/`cinv_evec` point into the same
   allocation as `eigenvalues`/`eigenvectors`/`inv_eigenvectors`. Do not free or reallocate one
   without the other.
@@ -716,62 +753,91 @@ This is the plumbing, not the science.
 - **OpenMP.** `PartitionModel::targetFunk` runs partitions in parallel. Anything it touches must
   be thread-safe or per-partition.
 - **`fixed_parameters`** short-circuits `getNDim()` to 0 and is toggled around linked-model
-  optimization (`partitionmodel.cpp:781–807`). Respect it.
+  optimization (`partitionmodel.cpp:842–868`).
 
 ---
 
-## 16. Insertion points for a constrained-π nQ
+## 16. Code locations that handle π, rates, and their optimization
 
-A factual list of the seams, for orientation only. No design is implied.
+Where the current code handles each concern that bears on π-constrained estimation. This is a
+map of existing code for orientation; it implies no design.
 
 | Concern | Location |
 |---|---|
-| Where π is currently solved from Q | `modelmarkov.cpp:1267` inside `decomposeRateMatrixNonrev` |
+| Where π is solved from Q | `modelmarkov.cpp:1267` inside `decomposeRateMatrixNonrev` (virtual, `modelmarkov.h:345`) |
 | The Q→π solver itself | `computeStateFreqFromQMatrix`, `modelmarkov.cpp:2119` |
-| Existing "pin π and skip the solve" switch | the `freq_type != FREQ_USER_DEFINED \|\| optimize_from_given_params` guards at `modelmarkov.cpp:1252` and `1266` |
-| Existing one-shot "reweight Q by a π" | `adaptStateFrequency`, `modelmarkov.cpp:914` |
-| Dimension count to adjust | `getNDim` (`964`) and `getNDimFreq` (`978`) |
+| The switch that pins π and skips the solve | the `freq_type != FREQ_USER_DEFINED \|\| optimize_from_given_params` guards at `modelmarkov.cpp:1252` and `1266` |
+| One-shot reweighting of Q by a new π | `adaptStateFrequency`, `modelmarkov.cpp:914`; called from the `PartitionModel` constructor, `partitionmodel.cpp:116–165` |
+| Reversible-to-non-reversible seed conversion | `setReversible`, `modelmarkov.cpp:75–152` (uses the current `state_freq`, lines 112–119) |
+| Dimension counts | `getNDim` (`964`) and `getNDimFreq` (`978`); linked count in `PartitionModel::getNParameters`, `partitionmodel.cpp:242` |
 | Free-parameter ↔ rate-matrix map | `setVariables` (`1018`), `getVariables` (`1038`), `setRates` (`1949`, base asserts) |
-| **Working precedent for the whole feature (4-state DNA)** | `ModelLieMarkov::setBasis`, `modelliemarkov.cpp:1087`, with `piToTau` at `1032` and `BDF[]` at `247` |
-| Reduced-parameterization template | `ModelLieMarkov::setRates`, `modelliemarkov.cpp:1194` |
-| Live but unsound path to be left alone or warned about | `-m NONREV+F{...}`: `ModelProtein::init` sets `FREQ_USER_DEFINED`, which makes `decomposeRateMatrixNonrev` skip the stationarity solve while leaving Q unconstrained |
-| Box constraints | `setBounds`, `modelmarkov.cpp:1139`; `ModelUnrest::setBounds`, `modelunrest.cpp:84` |
-| Penalty / invalid-region signalling | `targetFunk`, `modelmarkov.cpp:1104–1110` |
-| Where a target π could be supplied | `Params` + `parseArg` (`tools.cpp` ~2896 for the `--init-model` pattern); or a `+F{...}` string via `createModel` (`modelmixture.cpp:3205–3215`); or a NEXUS frequency vector via `ModelsBlock` |
+| Basis shift to a fixed π (4-state DNA) | `ModelLieMarkov::setBasis`, `modelliemarkov.cpp:1087`, with `piToTau` at `1032` and `BDF[]` at `247` |
+| Separate parameter vector mapped into `rates[]` | `ModelLieMarkov::getVariables` (`919`) and `setRates` (`1194`) |
+| Nonstationary-root path `-m NONREV+F{...}` | `ModelProtein::init` sets `FREQ_USER_DEFINED` (`modelprotein.cpp:1239–1242`), so `decomposeRateMatrixNonrev` skips the stationarity solve while Q is unconstrained |
+| Box constraints | `setBounds`, `modelmarkov.cpp:1139`; `ModelUnrest::setBounds`, `modelunrest.cpp:84`; bounds `MIN_RATE`, `MAX_RATE` in `modelmarkov.h` |
+| Finite-difference gradient | `Optimization::derivativeFunk`, `utils/optimization.cpp:916` (virtual, `utils/optimization.h:145`) |
+| Invalid-region signalling | `targetFunk`, `modelmarkov.cpp:1104–1110` |
+| Where frequency vectors enter today | `+F{...}` in a model string via `createModel` (`modelmixture.cpp:3205–3215`) and `ModelFactory`; a NEXUS frequency vector via `ModelsBlock`; `--model-joint` strings are handed to each partition's `ModelFactory` |
+| Candidate lists | `-mset` / `-madd` are split on commas by `convert_string_vec` (`utils/tools.cpp:588`), so a model string containing a comma cannot be passed there |
 | Amino-acid model entry point | `ModelProtein::init`, `modelprotein.cpp:1207` (`NONREV` branch) |
-| Multi-partition estimation | `PartitionModel::optimizeLinkedModel`, `partitionmodel.cpp:692` |
-| Emitting the estimated matrix | `reportNexusFile`, `phyloanalysis.cpp:420` |
-| Consistency check that exists today | the π-mismatch warning in `readParameters`, `modelmarkov.cpp:1833–1842` |
+| Multi-partition estimation | `PartitionModel::optimizeLinkedModel`, `partitionmodel.cpp:753` |
+| Emitting an estimated matrix | `reportNexusFile`, `phyloanalysis.cpp:422` (6 significant digits, §12) |
+| The existing π consistency check | the π-mismatch warning in `readParameters`, `modelmarkov.cpp:1833–1842` |
 
 ---
 
-## 17. Build and test loop on this machine (Windows / MSVC)
+## 17. Building IQ-TREE 3
 
-From a prior session on this machine, configuring from a clean clone needs explicit paths and a
-CMake policy override:
+What is known about building this tree. The commands used on the project machine live in
+`CLAUDE.md`; whether a build has succeeded there is recorded in `CHANGELOG.md`.
+
+- **MSVC cannot compile this code.** `tree/phylokernelnew.h` declares variable-length arrays,
+  for example `size_t mix_addr_nstates_malign[ncat_mix], ...` at line 2290 with `ncat_mix` a
+  runtime value. These are a GCC and Clang extension that MSVC does not support. The same header
+  parallelizes loops over `size_t` indices, which needs OpenMP 3.0, while MSVC implements
+  OpenMP 2.0. MSVC can still complete the configure step, so the failure shows up only at
+  compile time.
+- **Upstream CI** (`.github/workflows/ci.yaml`) builds on Linux (Ubuntu 22.04, clang 22) and on
+  Windows by cross-compiling with clang against a MinGW sysroot. It has no MSVC job. Its Linux
+  job passes `-DUSE_MUTSEL=ON`, which needs a Rust toolchain, and `-DIQTREE_FLAGS=static`. The
+  Rust subproject is off unless `USE_MUTSEL` is set to `ON` (`CMakeLists.txt:291`).
+- **Dependencies.** Eigen3 and Boost are hard `find_package` requirements and are not vendored,
+  unlike most third-party code here. OpenMP provides multithreading.
+- **`-DCMAKE_POLICY_VERSION_MINIMUM=3.5` is required on every platform**, because vendored
+  `zlib-1.2.7`, `yaml-cpp`, and `terraphast` declare a `cmake_minimum_required` below 3.5, which
+  modern CMake rejects outright.
+- **Build type and `NDEBUG`.** The default build type is Release (`CMakeLists.txt:134–135`). For
+  gcc and clang the root `CMakeLists.txt` replaces `CMAKE_CXX_FLAGS_RELEASE` with flags that do
+  not include `-DNDEBUG` (lines 400 and 420), and no other part of the build defines `NDEBUG`
+  (`ncl/ncl.h:72` defines it only for the Metrowerks compiler). Read from the build files, not
+  yet confirmed from a build's configure output: in gcc and clang builds `ASSERT` appears to stay
+  active in Release.
+- **Line endings.** A Windows checkout with `core.autocrlf=true` has CRLF line endings, and the
+  `test_scripts/*.sh` harness then fails under bash. A clone made inside Linux does not have
+  this problem.
+- **PowerShell quoting.** PowerShell splits the unquoted argument
+  `-DCMAKE_POLICY_VERSION_MINIMUM=3.5` into `-DCMAKE_POLICY_VERSION_MINIMUM=3` and `.5`, which
+  is confirmable with `cmake -E echo -DCMAKE_POLICY_VERSION_MINIMUM=3.5`. The failure presents as
+  `Invalid CMAKE_POLICY_VERSION_MINIMUM value "3"` reported once per vendored subproject, and the
+  bad value is then cached in `build/CMakeCache.txt`, so a retry needs a fresh build directory.
+
+Fast functional checks. None of these has yet been run on the project machine:
 
 ```bash
-cd build
-"C:/Program Files/CMake/bin/cmake.exe" \
-    -DEIGEN3_INCLUDE_DIR="C:/ProgramData/chocolatey/lib/eigen/include/eigen3" \
-    -DCMAKE_POLICY_VERSION_MINIMUM=3.5 ..
-"C:/Program Files/CMake/bin/cmake.exe" --build . --config Release
-```
-
-Notes: CMake is not on `PATH`; Eigen3 and Boost are hard `find_package` requirements and are not
-vendored; `-DCMAKE_POLICY_VERSION_MINIMUM=3.5` is required because the vendored
-`zlib-1.2.7/CMakeLists.txt` declares a `cmake_minimum_required` that modern CMake refuses.
-
-Fast functional checks:
-
-```bash
-iqtree3 -s example/aa_example.phy -m LG+G4          # reversible baseline
-iqtree3 -s example/aa_example.phy -m NONREV         # non-reversible path, rooted tree
+iqtree3 -s example/aa_example.phy -m LG+G4          # reversible, protein
+iqtree3 -s example/aa_example.phy -m NONREV         # non-reversible, protein, rooted tree
 iqtree3 -s example/aa_example.phy -m NQ.pfam        # built-in nQ matrix
 iqtree3 -s example/example.phy -m UNREST            # smallest non-reversible model, DNA
-iqtree3 -s example/example.phy -p example/example.nex --model-joint NONREV   # nQMaker path
+iqtree3 -s test_scripts/test_data/turtle_aa.fasta -p test_scripts/test_data/turtle_aa.nex \
+        --model-joint NONREV                        # nQMaker path, 3 protein partitions
 ```
 
-Inspect the resulting `.iqtree` report for the Q matrix and the state frequencies, and check the
-π block against the stationary vector of the reported Q. Broader regression coverage lives in
-`test_scripts/` (`test_iqtree.ps1`, `verify_results.ps1`, `test_configs.txt`).
+`example/example.phy` is DNA, and `NONREV` is recognized only for protein data
+(`modelprotein.cpp:1207`), so it cannot exercise the protein nQMaker path;
+`test_scripts/test_data/turtle_aa.{fasta,nex}` (16 taxa, 3 protein partitions) can. The
+`.iqtree` report prints the Q matrix and state frequencies. The upstream regression harness in
+`test_scripts/` (`test_iqtree.sh`, `verify_results.sh`, expected values in
+`test_data/expect_ans.txt`) runs DNA and protein analyses of the turtle data (tree search,
+ModelFinder with default candidates, partitions, mixtures, concordance factors), compared at a
+tolerance of 1 log-likelihood unit. None of its commands names `NONREV`, `NQ.*`, `GTR20`,
+`UNREST`, a Lie-Markov model, or `--model-joint`.

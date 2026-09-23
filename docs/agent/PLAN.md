@@ -1,8 +1,9 @@
 # Plan: π-constrained non-reversible amino-acid models
 
-> **Status: placeholder.** Peter is writing this document. Nothing below the next heading has
-> been filled in yet. An agent reading this should treat the project goal as not yet formally
-> specified, and should ask rather than infer.
+> **Status, 2026-09-23: goal written, everything else placeholder.** Peter owns this document.
+> The goal section below was written from the design documents in `docs/agent/design/` and the
+> decisions D01 to D10 in `docs/agent/DECISIONS.md`. Every other section is still unwritten; an
+> agent should treat those questions as open and ask rather than infer.
 
 ## What this document is for
 
@@ -22,19 +23,41 @@ and put history in `CHANGELOG.md` rather than here.
 | Document | Lifecycle | Read when |
 |---|---|---|
 | `docs/agent/PLAN.md` (this file) | overwritten | start of every task |
-| `docs/agent/ARCHITECTURE.md` | corrected in place as findings land | before writing code |
-| `docs/agent/FILE_INDEX.md` | corrected in place | when locating code |
+| `docs/agent/design/` | fixed copies; a revision is a new file | before planning, or before changing the method |
 | `docs/agent/DECISIONS.md` | append only, never edited | before changing a settled choice |
+| `docs/agent/ARCHITECTURE.md` | corrected in place as findings land | before writing code |
+| `docs/agent/AA_MODEL_INFERENCE.md` | corrected in place | when the method of an existing model matters |
+| `docs/agent/FILE_INDEX.md` | corrected in place | when locating code |
 | `CHANGELOG.md` | append only | to resume, or to check whether something was already tried |
+
+Plans live in this file and decisions in `DECISIONS.md` (programming decisions as numbered
+entries, the design's mathematical decisions as D01 to D10). `ARCHITECTURE.md`,
+`AA_MODEL_INFERENCE.md`, and `FILE_INDEX.md` describe IQ-TREE's code as it currently is and
+prescribe nothing.
 
 ## Sections to fill in
 
 ### Goal
 
-One paragraph stating precisely what the feature does, in terms a reviewer would accept. The
-working statement so far, to be replaced: given a target stationary frequency vector π, estimate
-by maximum likelihood the non-reversible amino-acid rate matrix Q that has π as its stationary
-distribution, under otherwise the same conditions as existing nQ estimation.
+Add to IQ-TREE 3 a non-reversible amino-acid substitution model whose stationary distribution is
+fixed to a supplied target vector π*, and estimate its rate matrix by maximum likelihood within
+the existing nQMaker joint-estimation workflow (Dang et al. 2022, doi:10.1093/sysbio/syac007).
+Given one strictly positive π* in IQ-TREE's state order, the model is the set of 20-state
+generators Q with positive off-diagonal rates, zero row sums, π*Q = 0, and unit mean rate at π*.
+It has 360 free parameters, contains every positive reversible generator with equilibrium π*
+(189 parameters), and, as an unbounded model, is nested in the 379-parameter `NONREV` family.
+The root distribution is π*, and π* is never re-solved from Q. The substantive change is
+confined to nQMaker's shared-matrix update (step 3a): its optimizer variables become 360
+jump-chain log-ratio coordinates (D01), and every trial matrix is built so that π*Q = 0 holds by
+construction at every likelihood evaluation, not only at convergence. IQ-TREE's likelihood
+engine, model selection, tree inference, and branch-length and rate-parameter optimization are
+reused, with peripheral changes to target input, seeding, parameter counting, and output. The
+estimate is the non-reversible counterpart of the reversible workflow of Wheeler et al. (2025;
+doi:10.64898/2025.12.01.691663 as given in the Part 2 slide deck, not verified), which takes
+exchangeabilities from filtered training alignments and composition from the target data, a
+frequency replacement that is exact only for reversible models. The work is done on branch
+`nq-constrained-pi` of the fork `petergoodman/iqtree3` and is intended for eventual submission
+upstream as a pull request (`DECISIONS.md`, entry 001).
 
 ### Scientific motivation and success criteria
 
