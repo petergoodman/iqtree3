@@ -20,7 +20,7 @@ Labels are those of PLAN.md. Source anchors refer to `63c330d9` and were verifie
 | `model/fixedeqchart.{h,cpp}` | S1; T3 in S5 | Pure functions over Eigen types, with no IQ-TREE headers and no process exit (section 2.1) |
 | `model/modelnonrevfixedeq.{h,cpp}` | S2 to S4 | Class `ModelNonrevFixedEq : public ModelProtein`, public name "NQC" held in one constant (decision 002; section 2.2) |
 | `unittest/` | S1 | Standalone CMake project that compiles `model/fixedeqchart.cpp` directly and fetches googletest at cmaple's pinned commit (verified, `cmaple/CMakeLists.txt:281-293`; decision 012); `fixtures/` in plain text at 17 significant digits with a provenance header; its own `.gitattributes` (decision 014) |
-| `test_scripts/fixedeq/` | S0 onward | `environment.yml` and its exported lock (decision 013); the `oracle/` package; `tests/`; `regression/` and `differential/` drivers; `make_fixtures.py`; its own `.gitattributes` |
+| `test_scripts/fixedeq/` | S0 onward | `environment.yml` and its exported lock (decision 013); the `oracle/` package; `tests/`; `regression/` and `differential/` drivers; `make_fixtures.py`; its own `.gitattributes`, and a `.gitignore` for Python caches |
 | `.github/workflows/fixedeq.yaml` | S1 | Fork-only workflow that builds and runs the unit tests and the oracle's tests on Linux, and from S2 a short NQC run |
 
 Run outputs never go into the working copy; they go under `~/iqtree3-runs/` in WSL. Fixtures and
@@ -158,6 +158,8 @@ seed identity).
   defaults to false, verified `utils/tools.cpp:7276`); +I; sums in log space with scaling.
 - Derivative rules: IQ-TREE's legacy step and the scaled step, with a central reference checked
   over several step sizes.
+- IQ-TREE's optimizer, ported from `utils/optimization.cpp` with its failed-line-search path, for
+  the S2 toy comparison (decision 017).
 - A port of the target estimator (PLAN.md, "Where π* comes from").
 - A direct balanced-flux reference optimizer for small problems (S5).
 
@@ -211,7 +213,8 @@ lives in `test_scripts/fixedeq/regression/` with its provenance.
 - Nesting: fit `GTR20+F{π*}`, then seed NQC at that fit with its trees and rate parameters.
   IQ-TREE roots the GTR20 tree through its own conversion, and the reversible likelihood does not
   depend on the root, so NQC's first log-likelihood must equal the GTR20 fit's and its final one
-  must not be lower.
+  must not be lower. How the GTR20 fit is carried into the NQC run, and the tolerance on
+  "equal", are set after S0 probe (g).
 - Target immutability: π* compared bitwise after construction, linking, each linked update,
   checkpoint, restart and export.
 - Counting: 360 plus rate and branch parameters, with the matrix counted once for linked
@@ -246,10 +249,16 @@ S0, with no IQ-TREE source:
   under `-m` and `--model-joint`; (b) whether a number such as `1e+00` inside `+F{...}` breaks
   parsing; (c) whether `-S -te <trees> -blfix` with fixed rate parameters freezes every
   nuisance; (d) which output carries 10 or more significant digits of the log-likelihood; (e)
-  whether `-S` with the turtle NEXUS partition file behaves as `-p` does apart from tree linkage.
+  whether `-S` with the turtle NEXUS partition file behaves as `-p` does apart from tree linkage;
+  (f) whether the root moves in a Level 1 and a Level 2 fit under `-te`, run once from an unrooted
+  tree and once from a rooted one, comparing the root edge and the two branch lengths beside the
+  root in the input and output trees (decision 016); (g) how precisely a fitted `GTR20+F{π*}`
+  matrix on `example/aa_example.phy` carries into a new run through each route that needs no
+  source change (the 6-digit `.iqtree` block, and the 10-digit checkpoint values written as a
+  `-m FILE`), with the tree and rate parameters fixed, recording the log-likelihood difference.
 - Also: the unmodified sanitizer build, and the G0 run manifest (state order, reference rule,
-  chart, target provenance, domain, derivative policy, root, tree and rate policy, starts,
-  source commit).
+  chart, target provenance, domain, derivative policy, root policy (decision 016), tree and rate
+  policy, starts, source commit).
 
 S1:
 
@@ -264,7 +273,7 @@ S2:
 - Tests first: layer 3 at the seed; IQ-TREE's scaled gradient against the oracle's central
   reference at several steps; attempts to overwrite the target; invalid targets; the reported
   score equal to the re-evaluated score at the returned coordinates; the compiled optimizer
-  against the Python port on one small identical problem; rejection of unsupported combinations;
+  against the oracle's port (decision 017) on one small identical problem; rejection of unsupported combinations;
   the full layer 4 comparison.
 
 S3:
@@ -311,6 +320,7 @@ marked as added 2026-10-03 were read at HEAD `4c5f061f` that day.
 | `model/modelprotein.cpp:1079-1088, 1107-1249` | the constructor calls `init`; `init`, with the NONREV branch at 1207-1233 |
 | `model/modelprotein.cpp:1333-1348, 1350-1366` | `getNameParams`; two-state tip likelihoods for B, Z and J |
 | `model/modelprotein.cpp:1256-1276`; `model/modelfactory.cpp:1504, 1550` | `ModelProtein` checkpoints `rates[]` and decomposes on restore; the +I+G optimization restores the model on each restart and at the end (added 2026-10-03) |
+| `tree/phylotree.cpp:5906`; `tree/iqtree.cpp:3257-3259`; `model/modelfactory.cpp:1733-1734`; `utils/tools.cpp:4699-4706, 7117-7118` | `convertToRooted` (midpoint or `-o` outgroup); root search inside NNI; `--root-find` after model optimization; `-te` sets no search iterations; `root_move_dist` 2 and `root_find` false by default (added 2026-10-03) |
 | `model/modelsubst.cpp:199-209`; `tree/phylotreesse.cpp:366-373` | base tip likelihoods; tip partials come from `computeTipLikelihood` |
 | `model/modelmixture.cpp:724, 3122-3267` | `frequency NAME = ...;` syntax; `createModel` |
 | `model/modelfactory.cpp:259, 284-305, 489-509, 599-605` | `+F` tokenization; `model_joint`; `+F{...}`; `+F<name>` lookup |

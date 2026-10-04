@@ -1,7 +1,7 @@
 # Plan: π-constrained non-reversible amino-acid models
 
-> **Status, 2026-10-03: code plan approved by Peter on 2026-09-23 and amended by decision 015 on
-> 2026-10-03; approach accepted by the IQ-TREE maintainers (reported by Peter, 2026-10-01); no
+> **Status, 2026-10-03: code plan approved by Peter on 2026-09-23 and amended by decisions 015 to
+> 017 on 2026-10-03; approach accepted by the IQ-TREE maintainers (reported by Peter, 2026-10-01); no
 > source code changed yet.** Peter owns
 > this document. Its companion, `docs/agent/CODE_PLAN.md`, holds the file-level change map, the
 > NQC class specification and the test specification; it is subordinate to this document and is
@@ -198,7 +198,8 @@ counts states, runs an 8-round fixed point that distributes ambiguity codes
 `alignment/alignment.cpp:5882-5909`). Missing sequences count as unknown states under `-p` but
 not under `-S` (verified, `model/partitionmodel.cpp:132-133`), so the partition type is part of
 the record, together with the gap and ambiguity treatment, any smoothing, and the vector at 17
-significant digits.
+significant digits. The real π* is computed only after the confirmatory plan is in the
+repository, because computing it reads the training data; S0 to S4 use test targets.
 
 A kept script in the oracle reproduces the estimator. It is cross-checked against IQ-TREE's own
 "Mean state frequencies" line for a linked `+FO` run under the same partition type, which
@@ -241,7 +242,8 @@ authoritative coordinates and lossless checkpoint; 005 derivative-step delegatio
 input; 007 domain and step settings; 008 unsupported combinations; 009 surfacing failed line
 searches; 010 export format; 011 reference destinations; 012 C++ test framework; 013 oracle
 location and environment; 014 line endings; 015 Q built in the class's decomposition, which
-calls the unchanged base (superseding 004). Mathematical decisions: D01 to D10.
+calls the unchanged base (superseding 004); 016 root policy for S0 to S4; 017 the oracle's port
+of IQ-TREE's optimizer. Mathematical decisions: D01 to D10.
 
 ### Test strategy
 
@@ -300,11 +302,16 @@ competing implementations, G5 native and outer workflow, G6 scientific validatio
 | 12 | A continuity source the chart does not remove: `computeTransMatrixNonrev` switches from the eigen path to scaling-and-squaring when P's row sums deviate by more than 1e-4 (verified, `model/modelmarkov.cpp:489-500`), and the decomposition sets `nondiagonalizable` on a singular eigenvector matrix (verified, `model/modelmarkov.cpp:1330-1336`); shared with `NONREV`, frequency unmeasured | count "INFO: Switch to scaling-squaring" lines (printed under `-v`) in S2 and S3 fits |
 | 13 | Resolved 2026-10-03: whether decision 004's `ModelMarkov` edit was still needed | decision 015, which supersedes 004; `ModelMarkov` is no longer edited |
 | 14 | S5's recording-only edit to `dfpmin` and `lnsrch` (decision 009) touches the optimizer the maintainers advised leaving unchanged, and cannot be made by override (private, non-virtual, verified `utils/optimization.h:229-232`) | Peter, with the maintainers, before S5 |
+| 15 | Resolved 2026-10-03 for S0 to S4: the root policy, on which a non-reversible likelihood depends | decision 016; the policy for scientific runs at G5 |
+| 16 | How precisely a fitted `GTR20+F{π*}` incumbent reaches an NQC run: the report prints Q at 6 digits, decision 010 exports only NQC, and checkpoints hold 10 digits | S0 probe (g), then a decision entry before S3 |
+| 17 | Thresholds marked provisional (1e-10 residuals, 1e-12 relative Q entries, the 1e-6 target sum) must be final, or declared reported rather than asserted, before their tests are written, because a threshold is not relaxed after a failure | Peter, before S1 |
+| 18 | No fallback is recorded if S3 profiling shows training runs impractical while analytic gradients are out of scope | Peter, after S3 profiling |
 
 ## Current state
 
-The design is settled (D01 to D10) and programming decisions 001 to 015 are recorded, 015
-superseding 004. The IQ-TREE maintainers accepted the log-ratio jump-chain approach and stressed
+The design is settled (D01 to D10) and programming decisions 001 to 017 are recorded, 015
+superseding 004; 016 sets the root policy for S0 to S4 and 017 the oracle's optimizer port.
+The planning documents are committed on the branch. The IQ-TREE maintainers accepted the log-ratio jump-chain approach and stressed
 that BFGS needs a continuous objective (reported by Peter, 2026-10-01; the mapping of their notes
 to the code is in `CHANGELOG.md`). The unmodified branch builds in WSL2 and passes the smoke tests recorded in
 `CHANGELOG.md`. No source code has changed. The oracle, regression baseline and fixtures do not
@@ -312,8 +319,10 @@ exist yet.
 
 ## Next step
 
-Write the regression driver in `test_scripts/fixedeq/regression/` and record the baseline from
-the unmodified binary: copy `~/iqtree3-build/iqtree3` to `~/iqtree3-baseline/` with its SHA-256,
+Create the conda environment `iqtree3-fixedeq` from `test_scripts/fixedeq/environment.yml` and
+export its lock (decision 013). Then confirm that upstream `master` is still `63c330d9` (if it
+has moved, sync first by the procedure in `CLAUDE.md`), write the regression driver in
+`test_scripts/fixedeq/regression/` and record the baseline from the unmodified binary: copy `~/iqtree3-build/iqtree3` to `~/iqtree3-baseline/` with its SHA-256,
 run the baseline list of `CODE_PLAN.md` section 3.4 twice under `~/iqtree3-runs/baseline/`,
 and write the summary with its provenance to the repository.
 

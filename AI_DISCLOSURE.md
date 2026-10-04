@@ -8,6 +8,27 @@ Entries record the tool and model version, what it did, and which files or secti
 No AI-generated scientific claim, numerical result, or citation in this project has been accepted
 without human verification against source.
 
+## 2026-10-03 (second session)
+
+**Tool:** Claude Code (VS Code extension).
+**Model:** Claude Opus 5.5, 1M context, model id `claude-opus-5-5[1m]`.
+**Operator:** Peter Goodman.
+
+**What it did.** Explained the plan, its open items and slice S0 in chat. On the operator's three
+choices, recorded decisions 016 (root policy for S0 to S4) and 017 (the oracle's port of IQ-TREE's
+optimizer), added two S0 probes and four risks to the planning documents, and committed the
+documentation work of the three preceding sessions unchanged.
+
+**Verification.** Every source anchor cited in the new text was read in this session at HEAD
+`4c5f061f`. Only read-only commands were run before the commits (git state, `git ls-remote`,
+conda and folder listings in WSL). IQ-TREE was not built or run, and no numerical result was
+produced.
+
+**Files modified.** `docs/agent/DECISIONS.md`, `docs/agent/CODE_PLAN.md`, `docs/agent/PLAN.md`,
+`CHANGELOG.md`, `AI_DISCLOSURE.md`.
+
+**Source code modified.** None.
+
 ## 2026-10-03
 
 **Tool:** Claude Code (VS Code extension).

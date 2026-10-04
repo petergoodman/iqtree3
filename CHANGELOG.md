@@ -7,6 +7,46 @@ from the top entry.
 This is a fork of `iqtree/iqtree3`. Entries here describe work on the fork, not upstream
 development.
 
+## 2026-10-03 (second session): root and optimizer-port decisions, S0 probes, documents committed
+
+### Done
+
+Explained the plan, its open items, and S0 in plain terms to Peter in chat (not recorded in the
+documents). Peter then made three calls, recorded as follows:
+
+- Root policy for test runs: IQ-TREE roots an unrooted tree itself, and the root edge is not
+  searched. Recorded as decision 016, which states the four root rules of synthesis section 7.5.
+  In Level 2 fits the two branch lengths beside the root follow IQ-TREE's ordinary branch-length
+  optimization; that reading of "not moved" is the agent's, for Peter to revise.
+- Two S0 probes added to `CODE_PLAN.md` section 4: (f) whether the root moves under `-te`; (g)
+  how precisely a fitted `GTR20+F{π*}` matrix carries into a new run.
+- The oracle's optimizer copy matches IQ-TREE: decision 017, a port written from
+  `utils/optimization.cpp`, which states that floating-point identity across languages is not
+  expected and that the toy-comparison tolerance is fixed before the test is written.
+
+Also added to `PLAN.md`: risks 15 to 18 (root policy resolved for S0 to S4; GTR20 incumbent
+transfer; provisional thresholds to be made final before S1; no fallback for an impractical
+runtime), and the rule that the real π* is computed only after the confirmatory plan exists.
+`CODE_PLAN.md` gained a `.gitignore` in the file map, the optimizer port in layer 1, a note on the
+nesting test, and one anchor row.
+
+Read-only checks: upstream `master` is `63c330d9` (`git ls-remote`), so no sync is needed; no
+`iqtree3-fixedeq` environment exists in WSL; conda warns that adding `defaults` implicitly is
+deprecated; the root `.gitignore` has no Python cache rule; the root anchors in decision 016 were
+read.
+
+Commit `049d02ee` holds the three earlier sessions' documentation work, unchanged. This entry's
+edits are the next commit.
+
+### Failed
+
+Nothing failed.
+
+### Next
+
+1. Create the conda environment, then write the regression driver and record the baseline
+   (PLAN.md, next step).
+
 ## 2026-10-03: decision 015 replaces 004; `ModelMarkov` is no longer edited
 
 ### Done

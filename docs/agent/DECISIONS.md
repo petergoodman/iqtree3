@@ -1,8 +1,8 @@
 # Decisions
 
-> **Status, 2026-10-03.** Programming decisions 001 to 015 are recorded; 002 to 014 were
-> approved by Peter with the code plan on 2026-09-23, and 015, which supersedes 004, on
-> 2026-10-03. Ten mathematical and methodological design
+> **Status, 2026-10-03.** Programming decisions 001 to 017 are recorded; 002 to 014 were
+> approved by Peter with the code plan on 2026-09-23, and 015 (which supersedes 004), 016 and
+> 017 on 2026-10-03. Ten mathematical and methodological design
 > decisions, D01 to D10, are recorded from the design synthesis and are revisable (see that
 > section's preamble). The items under "Pending programming candidates" were discussed on
 > 2026-09-15; the first three are now resolved by the entries named in their notes. An agent must
@@ -391,6 +391,72 @@ Number programming entries sequentially from 001 and never reuse a number.
 - **Affects:** `model/modelnonrevfixedeq.{h,cpp}`; `model/modelmarkov.{h,cpp}` are no longer
   changed; entry 008's rejection of `-optfromgiven` becomes load-bearing; S2 tests (the built Q
   compared with the oracle after the base rescaling, target immutability).
+
+## 016. Root the tree by IQ-TREE's conversion and do not search the root in S0 to S4
+
+- **Date:** 2026-10-03
+- **Status:** accepted
+- **Decision:** Every NQC run and every comparison run in S0 to S4 follows four root rules, stated
+  separately as synthesis section 7.5 requires. Root frequencies: π*. Input rooting: an unrooted
+  input tree is rooted by IQ-TREE's own conversion, at the midpoint of the longest path, or on
+  the pendant branch of the `-o` outgroup when one is given; an already rooted input tree keeps
+  its root. Root-edge search: none; fits run on a fixed topology under `-te`, with no tree search
+  and without `--root-find`. Root split: the two branch lengths beside the root are fixed in
+  Level 1 fits (`-blfix`) and left to IQ-TREE's ordinary branch-length optimization in Level 2
+  fits. S0 probe (f) checks at run time that the root edge does not move and records what happens
+  to the split. The root policy for scientific runs is set at gate G5.
+- **Why:** Peter's choice on 2026-10-03, following the design's default
+  (`design/constrained_nq_plan_agent.md`, root-position row: inherit nQMaker, whose root position
+  is not moved under `-te` during step 3). A non-reversible likelihood depends on the root, so the
+  S2 and S3 fits and the layer 3 and 5 comparisons are reproducible only under a stated policy,
+  and the G0 manifest records it. In source: `convertToRooted` places the root as described
+  (verified, `tree/phylotree.cpp:5906` onward); the root edge is changed only by
+  `optimizeRootPosition`, which is called inside NNI search when the tree is rooted and
+  `root_move_dist` is positive (verified, `tree/iqtree.cpp:3257-3259`; default 2,
+  `utils/tools.cpp:7117`) and after model optimization when `--root-find` is on (verified,
+  `model/modelfactory.cpp:1733-1734`; `root_find` defaults to false, `utils/tools.cpp:7118`);
+  `-te` sets `min_iterations = 0` and a fixed-iteration stop (verified,
+  `utils/tools.cpp:4699-4706`). That a `-te` run never reaches the NNI call has been read, not
+  run; probe (f) settles it.
+- **Alternatives rejected:** searching the root during fits, by tree search or `--root-find`,
+  which adds a discrete nuisance that comparisons on matched rooted trees cannot absorb (deferred
+  to G5); requiring an outgroup, which the test data do not supply; fixing the root split in
+  Level 2 fits as well, which departs from the native branch-length optimization that synthesis
+  section 7.5 asks ordinary fits to preserve.
+- **Affects:** S0 probe (f) and the G0 manifest; the Level 1 and Level 2 fits of S2 and S3; test
+  layers 3 and 5; the trees given to `-te` in every NQC test.
+
+## 017. Port IQ-TREE's optimizer into the oracle from the C++ source
+
+- **Date:** 2026-10-03
+- **Status:** accepted
+- **Decision:** The oracle's optimizer, against which the S2 toy comparison runs the compiled
+  one, is a port written from `utils/optimization.cpp` at `63c330d9`, not copied from
+  `design/scripts/chart_fd_bfgs_compare.py`. It reproduces `minimizeMultiDimen`, `dfpmin`,
+  `lnsrch`, `fixBound` and the legacy forward-difference `derivativeFunk` with IQ-TREE's
+  constants and control flow, including the failed-line-search path: `lnsrch` restores the old
+  point, sets `check` and leaves the objective at the last trial value, and `dfpmin` never reads
+  `check`. It is called with the arguments `ModelMarkov::optimizeParameters` passes. The scaled
+  step of entry 005 is a separate function beside the legacy rule, and the stationary solve used
+  in the toy comparison is a column-pivoted QR, as in the C++ (`CODE_PLAN.md` section 2.1). The
+  match is in algorithm, constants and control flow; floating-point identity is not expected,
+  because NumPy and Eigen order sums differently and use different exponential and logarithm
+  routines. Agreement on the toy problem is checked against a tolerance fixed before that test is
+  written. The design script stays unedited.
+- **Why:** Peter's choice on 2026-10-03: the oracle's copy should match IQ-TREE. The design port
+  returns the old objective on a failed line search where the C++ leaves the last trial value
+  (synthesis section 5), and it solves the stationary system by NumPy least squares rather than
+  Eigen's column-pivoted QR (synthesis section 10.5), so a disagreement between it and the
+  compiled optimizer could come from the port rather than from the new code. Anchors (verified
+  2026-09-23, `CODE_PLAN.md` section 5): `fixBound`, `utils/optimization.cpp:149-156`; `lnsrch`,
+  645-718, failure path 687-690; `minimizeMultiDimen`, 750-778; `dfpmin`, 793-900, small-step
+  return 843-846; legacy `derivativeFunk`, 916-939; the single-model call,
+  `model/modelmarkov.cpp:1199`.
+- **Alternatives rejected:** reusing the design port unchanged, for the two differences above;
+  editing the design script, which must stay an unedited reference (design `README.md`;
+  entry 013).
+- **Affects:** `test_scripts/fixedeq/oracle/`; `CODE_PLAN.md` section 3.1; the S2 test that
+  compares the compiled optimizer with the port.
 
 ---
 
