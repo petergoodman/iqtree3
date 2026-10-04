@@ -212,8 +212,11 @@ the exit code. These contain the log-likelihood, the number of free parameters, 
 and the Q block. Wall time is recorded, not compared. An item identical in every baseline repeat
 must reproduce exactly; one whose repeats differ only in their numbers is held to the observed
 spread; one whose text differs otherwise cannot be compared. Run 11 is judged by decision 018
-instead. The driver is `test_scripts/fixedeq/regression/regress.py`; the baseline and its
-provenance are in `test_scripts/fixedeq/regression/baseline/`.
+instead; the driver applies that rule when comparing, so the stored baseline keeps run 11's items
+as recorded. The driver is `test_scripts/fixedeq/regression/regress.py`. The baseline of runs 1 to
+11 and its provenance are in `test_scripts/fixedeq/regression/baseline/`; run 12's, recorded
+later from the same frozen binary with run 8 rerun in each repeat to supply its inputs, is in
+`baseline/run12/`. A comparison reads both files (`compare --baseline` given once for each).
 
 ### 3.5 Layer 5: invariants and nesting
 

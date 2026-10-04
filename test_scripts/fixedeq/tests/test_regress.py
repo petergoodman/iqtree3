@@ -1,3 +1,4 @@
+import json
 import sys
 from pathlib import Path
 
@@ -107,3 +108,52 @@ def test_missing_and_extra_items_fail():
     base = baseline_of({"T": "a", "U": "b"}, {"T": "a", "U": "b"})
     assert regress.compare_run(base, {"items": {"T": "a"}})
     assert regress.compare_run(base, {"items": {"T": "a", "U": "b", "V": "c"}})
+
+
+RULE = regress.RULES["run11"]
+
+
+def run11_items(x="0.1", drawing="drawing 1"):
+    return {"REFERENCES": "Cite this.",
+            "SEQUENCE ALIGNMENT": "Input data: 16 sequences with 2 sites",
+            "SUBSTITUTION PROCESS": f"Linked model of substitution: NONREV+FO\nrate {x}",
+            "MAXIMUM LIKELIHOOD TREE": drawing,
+            "(treefile)": f"((A:{x},B:{x}):{x},C:{x});",
+            "(exit code)": "0"}
+
+
+def run11_baseline():
+    return baseline_of(run11_items("0.1", "drawing 1"), run11_items("0.2", "drawing 2"))
+
+
+def test_run11_rule_ignores_numbers_and_the_tree_drawing():
+    new = {"items": run11_items("0.9", "drawing 3")}
+    assert regress.compare_run(run11_baseline(), new, RULE) == []
+    assert regress.compare_run(run11_baseline(), new)
+
+
+@pytest.mark.parametrize("changes", [
+    {"REFERENCES": "Cite that."},
+    {"SEQUENCE ALIGNMENT": "Input data: 16 sequences with 3 sites"},
+    {"SUBSTITUTION PROCESS": "Linked model of substitution: GTR20+FO\nrate 0.1"},
+    {"(treefile)": "((A:0.1,C:0.1):0.1,B:0.1);"},
+    {"(exit code)": "1"},
+    {"SUBSTITUTION PROCESS": None},
+])
+def test_run11_rule_still_catches_wording_topology_and_exit_code(changes):
+    items = {k: v for k, v in {**run11_items(), **changes}.items() if v is not None}
+    assert regress.compare_run(run11_baseline(), {"items": items}, RULE)
+
+
+def test_run11_rule_fails_on_an_item_unstable_in_the_baseline():
+    base = baseline_of(run11_items(), {**run11_items("0.2"), "(treefile)": "((A:0.2,C:0.2):0.2,B:0.2);"})
+    assert base["items"]["(treefile)"]["mode"] == "unstable"
+    assert regress.compare_run(base, {"items": run11_items()}, RULE)
+
+
+def test_baselines_merge_but_a_run_in_two_is_refused(tmp_path):
+    for name, runs in [("a.json", {"run11": {}}), ("b.json", {"run12": {}}), ("c.json", {"run12": {}})]:
+        (tmp_path / name).write_text(json.dumps({"runs": runs}))
+    assert regress.load_baselines([tmp_path / "a.json", tmp_path / "b.json"]) == {"run11": {}, "run12": {}}
+    with pytest.raises(SystemExit):
+        regress.load_baselines([tmp_path / "b.json", tmp_path / "c.json"])

@@ -4,7 +4,7 @@
   freeze    copy an IQ-TREE binary into a directory and record its SHA-256
   run       run the baseline list with a binary into a new directory; write extract.json
   baseline  merge repeated extracts into baseline.json and baseline.md
-  compare   check an extract.json against baseline.json; exit status 1 on any difference
+  compare   check an extract.json against one or more baseline.json files; exit status 1 on any difference
 """
 import argparse
 import datetime
@@ -28,6 +28,8 @@ TURTLE = ["-s", "@test_scripts/test_data/turtle_aa.fasta"]
 NEX = "@test_scripts/test_data/turtle_aa.nex"
 FREQ = ("0.08,0.06,0.04,0.05,0.02,0.04,0.07,0.07,0.02,0.05,"
         "0.10,0.06,0.02,0.04,0.05,0.07,0.05,0.01,0.03,0.07")
+# relative names, because IQ-TREE prints the Q file's path inside the compared model section
+RUN10 = TURTLE + ["-p", NEX, "-m", "run08.Q.txt", "-te", "run08.treefile"]
 
 # name: (arguments, threads); "@" marks a path relative to the repository root
 RUNS = {
@@ -40,13 +42,17 @@ RUNS = {
     "run07": (["-s", DNA, "-m", "12.12"], 1),
     "run08": (TURTLE + ["-p", NEX, "--model-joint", "NONREV"], 1),
     "run09": (TURTLE + ["-S", NEX, "--model-joint", "NONREV"], 1),
-    # relative names, because IQ-TREE prints the Q file's path inside the compared model section
-    "run10": (TURTLE + ["-p", NEX, "-m", "run08.Q.txt", "-te", "run08.treefile"], 1),
+    "run10": (RUN10, 1),
     "run11": (TURTLE + ["-p", NEX, "--model-joint", "NONREV"], 4),
+    "run12": (RUN10, 4),
 }
+NEEDS_RUN08 = {"run10", "run12"}
 
 # report parts that hold paths, the build date or clock times
 SKIPPED = {"(header)", "ALISIM COMMAND", "TIME STAMP"}
+# decision 018: run 11 is judged only on these items; "skeleton" compares the text with its numbers removed
+RULES = {"run11": {"(exit code)": "exact", "REFERENCES": "exact", "SEQUENCE ALIGNMENT": "exact",
+                   "SUBSTITUTION PROCESS": "skeleton", "(treefile)": "skeleton"}}
 Q_HEADER = "Full Q matrix and state frequencies (can be used as input for IQ-TREE):"
 NUMBER = re.compile(r"[-+]?(?:\d+\.\d*|\.\d+|\d+)(?:[eE][-+]?\d+)?")
 SCALARS = {
@@ -184,12 +190,14 @@ def extract_run(rundir, name, exit_code):
     return rec
 
 
-def make_baseline(extracts):
-    """Merge repeated extracts. An item identical in every repeat is compared exactly; one whose
-    text differs only in its numbers gets a per-number spread (max minus min); anything else is
-    'unstable' and cannot be compared."""
+def make_baseline(extracts, names=None):
+    """Merge repeated extracts, of the named runs only if names are given. An item identical in
+    every repeat is compared exactly; one whose text differs only in its numbers gets a per-number
+    spread (max minus min); anything else is 'unstable' and cannot be compared."""
     runs = {}
     for name, (_, threads) in RUNS.items():
+        if names is not None and name not in names:
+            continue
         reps = [(label, ex["runs"][name]) for label, ex in extracts if name in ex["runs"]]
         if not reps:
             continue
@@ -227,21 +235,29 @@ def first_difference(a, b):
     return "one text is longer"
 
 
-def compare_run(base, new):
-    """The differences between one run's baseline entry and a new extract record."""
+def compare_run(base, new, rule=None):
+    """The differences between one run's baseline entry and a new extract record. A rule limits
+    the comparison to the items it names, each compared exactly or by its skeleton."""
     problems = []
     new_items = new.get("items", {})
-    for key in new_items:
-        if key not in base["items"]:
+    if rule is None:
+        for key in new_items:
+            if key not in base["items"]:
+                problems.append(f"{key}: not in the baseline")
+    for key in rule or base["items"]:
+        b, text = base["items"].get(key), new_items.get(key)
+        if b is None:
             problems.append(f"{key}: not in the baseline")
-    for key, b in base["items"].items():
-        text = new_items.get(key)
-        if text is None:
+        elif text is None:
             problems.append(f"{key}: missing")
+        elif rule and rule[key] == "skeleton" and b["mode"] != "unstable":
+            skeleton = b["skeleton"] if b["mode"] == "spread" else split_numbers(b["text"])[0]
+            if split_numbers(text)[0] != skeleton:
+                problems.append(f"{key}: text differs beyond its numbers")
         elif b["mode"] == "exact":
             if text != b["text"]:
                 problems.append(f"{key}: {first_difference(b['text'], text)}")
-        elif b["mode"] == "spread":
+        elif b["mode"] == "spread" and not rule:
             skeleton, numbers = split_numbers(text)
             if skeleton != b["skeleton"] or len(numbers) != len(b["numbers"]):
                 problems.append(f"{key}: text differs beyond its numbers")
@@ -253,7 +269,7 @@ def compare_run(base, new):
                 problems.append(f"{key}: {len(outside)} numbers outside their spread, "
                                 f"first {x} against {y} (spread {s:.3g})")
         else:
-            problems.append(f"{key}: unstable in the baseline, cannot be compared")
+            problems.append(f"{key}: {b['mode']} in the baseline, cannot be compared")
     return problems
 
 
@@ -290,7 +306,7 @@ def cmd_run(a):
         args, threads = RUNS[name]
         rundir = out / name
         rundir.mkdir()
-        if name == "run10":
+        if name in NEEDS_RUN08:
             src = out / "run08"
             try:
                 write(rundir / "run08.Q.txt", q_block(read(src / "run08.iqtree")))
@@ -359,6 +375,9 @@ def cmd_baseline(a):
     out = Path(a.out)
     if (out / "baseline.json").exists():
         sys.exit(f"{out / 'baseline.json'} exists; a baseline is never overwritten")
+    names = a.runs.split(",") if a.runs else None
+    if names and set(names) - set(RUNS):
+        sys.exit(f"unknown runs: {sorted(set(names) - set(RUNS))}")
     extracts = [(Path(p).expanduser().parent.name, json.loads(read(Path(p).expanduser())))
                 for p in a.extracts]
     provs = [ex["provenance"] for _, ex in extracts]
@@ -377,7 +396,7 @@ def cmd_baseline(a):
                          "git_clean": capture(a.git, "status", "--porcelain", cwd=REPO) == ""},
             "extracts": [dict(pr, label=label) for (label, _), pr in zip(extracts, provs)],
         },
-        "runs": make_baseline(extracts),
+        "runs": make_baseline(extracts, names),
     }
     out.mkdir(parents=True, exist_ok=True)
     write(out / "baseline.json", json.dumps(baseline, indent=1, ensure_ascii=False))
@@ -385,17 +404,28 @@ def cmd_baseline(a):
     print(f"wrote {out / 'baseline.json'} and baseline.md")
 
 
+def load_baselines(paths):
+    """The runs of several baseline files, merged; a run may appear in only one of them."""
+    runs = {}
+    for path in paths:
+        for name, entry in json.loads(read(Path(path).expanduser()))["runs"].items():
+            if name in runs:
+                sys.exit(f"{name} is in more than one baseline")
+            runs[name] = entry
+    return runs
+
+
 def cmd_compare(a):
-    baseline = json.loads(read(Path(a.baseline).expanduser()))
+    runs = load_baselines(a.baseline)
     new = json.loads(read(Path(a.extract).expanduser()))
     failed = False
     for name, rec in new["runs"].items():
-        if name not in baseline["runs"]:
+        if name not in runs:
             print(f"{name}: FAIL, not in the baseline")
             failed = True
             continue
-        problems = compare_run(baseline["runs"][name], rec)
-        print(f"{name}: {'FAIL' if problems else 'pass'}")
+        problems = compare_run(runs[name], rec, RULES.get(name))
+        print(f"{name}: {'FAIL' if problems else 'pass'}{' (decision 018 rule)' if name in RULES else ''}")
         for problem in problems:
             print(f"    {problem}")
         failed = failed or bool(problems)
@@ -420,9 +450,10 @@ def main():
     b = sub.add_parser("baseline", help="merge extract.json files into a baseline")
     b.add_argument("extracts", nargs="+")
     b.add_argument("--out", required=True)
+    b.add_argument("--runs", help="comma-separated run names to include (default: all)")
     b.add_argument("--git", default="git", help="git executable (git.exe under WSL)")
     c = sub.add_parser("compare", help="compare an extract.json with a baseline")
-    c.add_argument("--baseline", required=True)
+    c.add_argument("--baseline", required=True, action="append", help="baseline.json; may be repeated")
     c.add_argument("extract")
     a = parser.parse_args()
     {"freeze": cmd_freeze, "run": cmd_run, "baseline": cmd_baseline, "compare": cmd_compare}[a.command](a)
