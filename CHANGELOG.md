@@ -7,6 +7,71 @@ from the top entry.
 This is a fork of `iqtree/iqtree3`. Entries here describe work on the fork, not upstream
 development.
 
+## 2026-10-04 (third session, continued): design scripts rerun, 24 of 133 values not reproduced
+
+### Done
+
+Recorded decision 019 and wrote `test_scripts/fixedeq/design_rerun.py` with
+`tests/test_design_rerun.py` (commit `398449a6`; all 42 fixedeq tests pass). The driver holds 133
+values transcribed from P-positive section 12 (81 values, lines 299 to 316) and synthesis
+sections 10.2 and 10.3 (52 values, lines 362 to 385). Each value has a class under decision 019:
+36 exact, 71 digits, 24 zero and 2 bound. The test file, not in the approved plan, was added
+because the digit counting and class boundaries are numerical edge cases.
+
+Ran the driver at 23:35 UTC from the clean tree at `398449a6` into
+`~/iqtree3-runs/design-rerun/20261004T233525Z/`, with Python 3.12.14, NumPy 2.3.5 and SciPy 1.17.0.
+These are the versions synthesis section 10.1 states for its rerun; P-positive does not state its
+versions. Every copy's SHA-256 matched the design README. `model/modelprotein.cpp` was taken from
+`63c330d9` (SHA-256 `ad2b3426…`). All three scripts exited 0 (2.1 s, 0.1 s, 18.9 s), and
+`verify_constrained_nq.py` reported no hard failures. The full table is in `comparison.md` in the
+run directory.
+
+Result: 109 reproduced and 24 not. Every zero-class value and every stop label reproduced, and
+every exact value except one evaluation count. Not reproduced (rerun values rounded here to one
+digit more than printed; full values in `comparison.json`):
+
+| Script | Document:line | Quantity | Printed | Rerun |
+|---|---|---|---|---|
+| verify | P-positive:304 | `2.c2_dnu_formula_error` | 1.1e-10 | 4.826e-11 |
+| verify | P-positive:308 | signed coordinate, FD error at h = 1e-4 | 4.7e-4 | 4.649e-4 |
+| verify | P-positive:308 | signed coordinate, FD error at h = 1e-6 | 0.070 | 0.07524 |
+| verify | P-positive:308 | positive ratio, relative FD error at u = 1e-2 | 2.1e-6 | 1.157e-6 |
+| verify | P-positive:312 | `10.frechet_vs_central_difference` | 1.2e-10 | 1.256e-10 |
+| verify | P-positive:313 | cycle coordinate, correct target | -1.2e-6 | -1.092e-7 |
+| check | P-positive:316 | NQ.PFAM row sums, maximum (bound) | ≤ 2e-6 | 2.0000000000245516e-6 |
+| chart | synthesis:362 | E1 positive chart, median relative error | 8.02e-5 | 8.120e-5 |
+| chart | synthesis:362 | E1 positive chart, maximum | 0.00688 | 0.007035 |
+| chart | synthesis:362 | E1 log chart, maximum | 0.01969 | 0.019703 |
+| chart | synthesis:366 | sweep, logit 1e-2, log chart | 3.24e-6 | 3.949e-6 |
+| chart | synthesis:367 | sweep, logit 1e-4, log chart | 1.19e-4 | 6.112e-4 |
+| chart | synthesis:367 | sweep, logit 1e-4, positive chart | 7.72e-5 | 7.711e-5 |
+| chart | synthesis:368 | sweep, logit 1e-6, log chart | 9.55e-2 | 2.757e-2 |
+| chart | synthesis:369 | sweep, logit 1e-8, log chart | 6.39 | 0.2309 |
+| chart | synthesis:370 | sweep, logit 0, positive chart | 7.71e-5 | 7.720e-5 |
+| chart | synthesis:382 | E2 instance 0, positive, legacy: logL | -11343.902245 | -11343.9025434 |
+| chart | synthesis:382 | E2 instance 0, log, legacy: logL | -11303.734515 | -11303.7345135 |
+| chart | synthesis:383 | E2 instance 1, positive, legacy: logL | -12419.902818 | -12419.9003954 |
+| chart | synthesis:383 | E2 instance 1, positive, legacy: evaluations | 700 | 641 |
+| chart | synthesis:383 | E2 instance 1, log, legacy: logL | -12403.624673 | -12403.6246880 |
+| chart | synthesis:384 | E2 instance 2, positive, legacy: logL | -14544.987015 | -14544.9869813 |
+| chart | synthesis:384 | E2 instance 2, log, scaled: logL | -14543.503265 | -14543.5032655 |
+| chart | synthesis:385 | E2 instance 3, positive, legacy: logL | -12552.097580 | -12552.0936059 |
+
+By kind, 14 are finite-difference errors, 9 are optimizer end points or path counts, and 1 is the
+bound. The rerun's 641 evaluations for E2 instance 1 equal the "D-review" count that synthesis
+line 387 quotes against its own rerun's 700. As Peter instructed, the mismatches were reported to
+him and not investigated, and the oracle plan was not proposed.
+
+### Failed
+
+The rerun did not reproduce 24 of the 133 documented values (above). The procedure itself did
+not fail: every script ran, and no rule or table entry was changed after the results were seen.
+
+### Next
+
+1. Peter: decide how to treat the 24 values not reproduced (PLAN.md risk 10).
+2. Then propose the oracle plan (`CODE_PLAN.md` section 3.1) for Peter's approval.
+
 ## 2026-10-04 (third session): decision 018 in the regression driver, run 12 recorded
 
 ### Done

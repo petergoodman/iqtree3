@@ -17,19 +17,27 @@ without human verification against source.
 **What it did.** On a plan the operator approved, implemented decision 018 in the S0 regression
 driver (the comparison rule for run 11 and the added run 12), wrote tests for it, recorded run 12
 five times from the frozen unmodified binary, and wrote run 12's baseline to its own file without
-changing the existing baseline.
+changing the existing baseline. Then, on the operator's choice, recorded decision 019, wrote a
+driver that reruns the three design scripts from fingerprint-checked copies outside the
+repository and compares 133 values transcribed from the design documents, with tests, and ran
+it. Twenty-four values were not reproduced, which were reported to the operator without
+investigation.
 
-**Verification.** The driver's 21 tests passed in the project environment. The new rule was
-checked on the five recorded run 11 repeats (failing before the change, passing after). Every
-log-likelihood and count reported was produced by the driver from IQ-TREE's output files. IQ-TREE
-was run only from the unmodified binary; no source code was changed.
+**Verification.** The 42 tests in `test_scripts/fixedeq/tests/` passed in the project
+environment. The new regression rule was checked on the five recorded run 11 repeats (failing
+before the change, passing after). Every log-likelihood and count reported was produced by the
+regression driver from IQ-TREE's output files, and every rerun value by the design scripts
+themselves, compared by the rerun driver. The transcription of the 133 documented values was
+done by the tool and has not been checked by the operator. IQ-TREE was run only from the
+unmodified binary; no source code was changed.
 
 **Files created.** `test_scripts/fixedeq/regression/baseline/run12/baseline.json` and
-`baseline.md` (written by the driver).
+`baseline.md` (written by the driver), `test_scripts/fixedeq/design_rerun.py`,
+`test_scripts/fixedeq/tests/test_design_rerun.py`.
 
 **Files modified.** `test_scripts/fixedeq/regression/regress.py`,
-`test_scripts/fixedeq/tests/test_regress.py`, `docs/agent/CODE_PLAN.md`, `docs/agent/PLAN.md`,
-`CLAUDE.md`, `CHANGELOG.md`, `AI_DISCLOSURE.md`.
+`test_scripts/fixedeq/tests/test_regress.py`, `docs/agent/DECISIONS.md`, `docs/agent/CODE_PLAN.md`,
+`docs/agent/PLAN.md`, `CLAUDE.md`, `CHANGELOG.md`, `AI_DISCLOSURE.md`.
 
 **Source code modified.** None.
 

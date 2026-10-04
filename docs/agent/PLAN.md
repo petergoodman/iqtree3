@@ -298,7 +298,7 @@ competing implementations, G5 native and outer workflow, G6 scientific validatio
 | 7 | Active `ASSERT`s abort a linked round that lowers the log-likelihood by more than 0.1 (verified, `model/partitionmodel.cpp:938`, `model/partitionmodelplen.cpp:135`) | incumbent protection and tests in S2 and S3 |
 | 8 | The default coordinate domain may not contain LG rebuilt at a skewed π* | construction check and the domain option (decision 007) |
 | 9 | Real training data: a small real set for S5, and the full set with a written confirmatory plan for S7 | Peter |
-| 10 | The design scripts have not been rerun in this repository, and `e6_n20_big.py` cannot run | S0 reruns; mismatches reported |
+| 10 | The design scripts were rerun on 2026-10-04 under decision 019: 109 of the 133 documented values reproduced and 24 did not (listed in `CHANGELOG.md`): 14 finite-difference errors, 9 optimizer end points or path counts, and 1 bound. `e6_n20_big.py` cannot run | Peter, before the oracle is planned |
 | 11 | Scientific success criterion and manuscript details (placeholder above) | Peter |
 | 12 | A continuity source the chart does not remove: `computeTransMatrixNonrev` switches from the eigen path to scaling-and-squaring when P's row sums deviate by more than 1e-4 (verified, `model/modelmarkov.cpp:489-500`), and the decomposition sets `nondiagonalizable` on a singular eigenvector matrix (verified, `model/modelmarkov.cpp:1330-1336`); shared with `NONREV`, frequency unmeasured | count "INFO: Switch to scaling-squaring" lines (printed under `-v`) in S2 and S3 fits |
 | 13 | Resolved 2026-10-03: whether decision 004's `ModelMarkov` edit was still needed | decision 015, which supersedes 004; `ModelMarkov` is no longer edited |
@@ -324,13 +324,15 @@ regression baseline is recorded (2026-10-03) from the frozen unmodified binary
 provenance in `test_scripts/fixedeq/regression/baseline/`: runs 1 to 10 reproduce exactly between
 repeats, and run 11 does not and is judged by decision 018, which the driver implements
 (2026-10-04). Run 12 was recorded on 2026-10-04 from the same frozen binary into
-`baseline/run12/`: five identical repeats. The oracle and fixtures do not exist yet.
+`baseline/run12/`: five identical repeats. The three design scripts were rerun on 2026-10-04 by
+`test_scripts/fixedeq/design_rerun.py` (decision 019): 109 of 133 documented values reproduced,
+and 24 did not (risk 10). The oracle and fixtures do not exist yet.
 
 ## Next step
 
-Rerun the three supplied design scripts from copies outside the repository, in the
-`iqtree3-fixedeq` environment, and compare their outputs with the values the design documents
-report (risk 10); then write the oracle and its tests (`CODE_PLAN.md` section 3.1).
+Peter decides how to treat the 24 design values the rerun did not reproduce (risk 10). Then the
+oracle plan (`CODE_PLAN.md` section 3.1) is proposed for his approval, and the oracle and its
+tests are written.
 
 ## Checklists
 
