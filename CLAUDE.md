@@ -88,13 +88,16 @@ cmake --build ~/iqtree3-build -j 4
   Conda's FutureWarning about the `defaults` channel is harmless.
 - **Regression driver**: `test_scripts/fixedeq/regression/regress.py` (`freeze`, `run`,
   `baseline`, `compare`; `CODE_PLAN.md` section 3.4). The baseline in
-  `test_scripts/fixedeq/regression/baseline/` was recorded from the frozen unmodified binary
-  `~/iqtree3-baseline/iqtree3` (SHA-256 in `iqtree3.sha256` beside it), which is never rebuilt or
-  overwritten; its raw outputs are in `~/iqtree3-runs/baseline/`. After a source change, `run`
-  the new build into a new directory and `compare` its `extract.json` with
-  `baseline/baseline.json`. Pass `--git git.exe`: Linux git inside WSL sees hundreds of false
-  changes in this Windows working copy (line endings), while Windows `git.exe` reports the true
-  state. `run` refuses an unclean working tree, so do not edit repository files while it runs.
+  `test_scripts/fixedeq/regression/baseline/` (runs 1 to 11) and run 12's in `baseline/run12/`
+  were recorded from the frozen unmodified binary `~/iqtree3-baseline/iqtree3` (SHA-256 in
+  `iqtree3.sha256` beside it), which is never rebuilt or overwritten; their raw outputs are in
+  `~/iqtree3-runs/baseline/` and `~/iqtree3-runs/baseline/run12/`. After a source change, `run`
+  the new build into a new directory and `compare` its `extract.json` with both files:
+  `compare --baseline baseline/baseline.json --baseline baseline/run12/baseline.json`. Run 11 is
+  judged by the decision 018 rule built into `compare`. Pass `--git git.exe`: Linux git inside WSL
+  sees hundreds of false changes in this Windows working copy (line endings), while Windows
+  `git.exe` reports the true state. `run` refuses an unclean working tree, untracked files
+  included, so do not create or edit repository files while it runs.
 
 ## Layout
 

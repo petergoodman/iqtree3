@@ -1,0 +1,492 @@
+{
+ "provenance": {
+  "baseline": {
+   "script": "test_scripts/fixedeq/regression/regress.py",
+   "command": [
+    "/mnt/c/Users/peter/BioInformatics/iqtree3/test_scripts/fixedeq/regression/regress.py",
+    "baseline",
+    "--runs",
+    "run12",
+    "--out",
+    "/mnt/c/Users/peter/BioInformatics/iqtree3/test_scripts/fixedeq/regression/baseline/run12",
+    "--git",
+    "git.exe",
+    "rep1/extract.json",
+    "rep2/extract.json",
+    "rep3/extract.json",
+    "rep4/extract.json",
+    "rep5/extract.json"
+   ],
+   "started_utc": "2026-10-04T23:32:00+00:00",
+   "git_commit": "f9bb0e96772d24af83ec3907250402653e687ed9",
+   "git_clean": true
+  },
+  "extracts": [
+   {
+    "script": "test_scripts/fixedeq/regression/regress.py",
+    "command": [
+     "test_scripts/fixedeq/regression/regress.py",
+     "run",
+     "--binary",
+     "/home/petergoodman/iqtree3-baseline/iqtree3",
+     "--git",
+     "git.exe",
+     "--build-dir",
+     "/home/petergoodman/iqtree3-build",
+     "--runs",
+     "run08,run12",
+     "--out",
+     "/home/petergoodman/iqtree3-runs/baseline/run12/rep1"
+    ],
+    "started_utc": "2026-10-04T23:19:21+00:00",
+    "git_commit": "f9bb0e96772d24af83ec3907250402653e687ed9",
+    "git_clean": true,
+    "python": "3.12.14 (main, Sep  2 2026, 23:27:36) [GCC 15.3.0]",
+    "platform": "Linux-5.15.146.1-microsoft-standard-WSL2-x86_64-with-glibc2.36",
+    "debian": "12.0",
+    "cpu_count": 12,
+    "packages": {
+     "libc6": "2.36-9+deb12u14",
+     "libstdc++6": "12.2.0-14+deb12u1",
+     "libgcc-s1": "12.2.0-14+deb12u1",
+     "zlib1g": "1:1.2.13.dfsg-1",
+     "libomp-14-dev": "1:14.0.6-12",
+     "clang-14": "1:14.0.6-12",
+     "lld-14": "1:14.0.6-12"
+    },
+    "environment": {
+     "LANG": "en_US.UTF-8"
+    },
+    "inputs": {
+     "example/aa_example.phy": "3fbba9a599ce8f99355fa0a7765088e423ba97f9c4b45b51cf5cebbdf9f420a4",
+     "example/example.phy": "235d54823a51869429052fbf6e8362b1b89a3bb490c99b849eb3c52a5deeb7c9",
+     "test_scripts/test_data/turtle_aa.fasta": "b67253c4ea71dc55b18f61f5e8501ffc046e391f92a2c0e523dd27feaa0ff28d",
+     "test_scripts/test_data/turtle_aa.nex": "a43605ee6ddad6bd4a94a07fc9c09ab2c66bc34a6082151a73ac4bdd1b1e0743"
+    },
+    "binary": {
+     "path": "/home/petergoodman/iqtree3-baseline/iqtree3",
+     "sha256": "9a72950bf61187f9923372f49badde3aa527864f57de795c5ad751d7c04fb501"
+    },
+    "build": {
+     "dir": "/home/petergoodman/iqtree3-build",
+     "build_type": "Release",
+     "compiler": "/usr/bin/clang++",
+     "compiler_version": "Debian clang version 14.0.6",
+     "cxx_flags": [
+      "CXX_FLAGS =  -std=c++17 -fopenmp -pthread  -O3 -ffunction-sections -fdata-sections   -I/usr/include/eigen3 -I/usr/include -D__SSE3 -msse3"
+     ],
+     "link_flags": [
+      "-L/mnt/c/Users/peter/BioInformatics/iqtree3/lib",
+      "-O3",
+      "-Wl,--gc-sections",
+      "-Wl,-rpath,/mnt/c/Users/peter/BioInformatics/iqtree3/lib:",
+      "-fdata-sections",
+      "-ffunction-sections",
+      "-fopenmp",
+      "-fuse-ld=lld",
+      "-ldl",
+      "-lm",
+      "-pthread",
+      "-rdynamic",
+      "-std=c++17"
+     ]
+    },
+    "finished_utc": "2026-10-04T23:22:17+00:00",
+    "label": "rep1"
+   },
+   {
+    "script": "test_scripts/fixedeq/regression/regress.py",
+    "command": [
+     "test_scripts/fixedeq/regression/regress.py",
+     "run",
+     "--binary",
+     "/home/petergoodman/iqtree3-baseline/iqtree3",
+     "--git",
+     "git.exe",
+     "--build-dir",
+     "/home/petergoodman/iqtree3-build",
+     "--runs",
+     "run08,run12",
+     "--out",
+     "/home/petergoodman/iqtree3-runs/baseline/run12/rep2"
+    ],
+    "started_utc": "2026-10-04T23:22:19+00:00",
+    "git_commit": "f9bb0e96772d24af83ec3907250402653e687ed9",
+    "git_clean": true,
+    "python": "3.12.14 (main, Sep  2 2026, 23:27:36) [GCC 15.3.0]",
+    "platform": "Linux-5.15.146.1-microsoft-standard-WSL2-x86_64-with-glibc2.36",
+    "debian": "12.0",
+    "cpu_count": 12,
+    "packages": {
+     "libc6": "2.36-9+deb12u14",
+     "libstdc++6": "12.2.0-14+deb12u1",
+     "libgcc-s1": "12.2.0-14+deb12u1",
+     "zlib1g": "1:1.2.13.dfsg-1",
+     "libomp-14-dev": "1:14.0.6-12",
+     "clang-14": "1:14.0.6-12",
+     "lld-14": "1:14.0.6-12"
+    },
+    "environment": {
+     "LANG": "en_US.UTF-8"
+    },
+    "inputs": {
+     "example/aa_example.phy": "3fbba9a599ce8f99355fa0a7765088e423ba97f9c4b45b51cf5cebbdf9f420a4",
+     "example/example.phy": "235d54823a51869429052fbf6e8362b1b89a3bb490c99b849eb3c52a5deeb7c9",
+     "test_scripts/test_data/turtle_aa.fasta": "b67253c4ea71dc55b18f61f5e8501ffc046e391f92a2c0e523dd27feaa0ff28d",
+     "test_scripts/test_data/turtle_aa.nex": "a43605ee6ddad6bd4a94a07fc9c09ab2c66bc34a6082151a73ac4bdd1b1e0743"
+    },
+    "binary": {
+     "path": "/home/petergoodman/iqtree3-baseline/iqtree3",
+     "sha256": "9a72950bf61187f9923372f49badde3aa527864f57de795c5ad751d7c04fb501"
+    },
+    "build": {
+     "dir": "/home/petergoodman/iqtree3-build",
+     "build_type": "Release",
+     "compiler": "/usr/bin/clang++",
+     "compiler_version": "Debian clang version 14.0.6",
+     "cxx_flags": [
+      "CXX_FLAGS =  -std=c++17 -fopenmp -pthread  -O3 -ffunction-sections -fdata-sections   -I/usr/include/eigen3 -I/usr/include -D__SSE3 -msse3"
+     ],
+     "link_flags": [
+      "-L/mnt/c/Users/peter/BioInformatics/iqtree3/lib",
+      "-O3",
+      "-Wl,--gc-sections",
+      "-Wl,-rpath,/mnt/c/Users/peter/BioInformatics/iqtree3/lib:",
+      "-fdata-sections",
+      "-ffunction-sections",
+      "-fopenmp",
+      "-fuse-ld=lld",
+      "-ldl",
+      "-lm",
+      "-pthread",
+      "-rdynamic",
+      "-std=c++17"
+     ]
+    },
+    "finished_utc": "2026-10-04T23:24:39+00:00",
+    "label": "rep2"
+   },
+   {
+    "script": "test_scripts/fixedeq/regression/regress.py",
+    "command": [
+     "test_scripts/fixedeq/regression/regress.py",
+     "run",
+     "--binary",
+     "/home/petergoodman/iqtree3-baseline/iqtree3",
+     "--git",
+     "git.exe",
+     "--build-dir",
+     "/home/petergoodman/iqtree3-build",
+     "--runs",
+     "run08,run12",
+     "--out",
+     "/home/petergoodman/iqtree3-runs/baseline/run12/rep3"
+    ],
+    "started_utc": "2026-10-04T23:24:40+00:00",
+    "git_commit": "f9bb0e96772d24af83ec3907250402653e687ed9",
+    "git_clean": true,
+    "python": "3.12.14 (main, Sep  2 2026, 23:27:36) [GCC 15.3.0]",
+    "platform": "Linux-5.15.146.1-microsoft-standard-WSL2-x86_64-with-glibc2.36",
+    "debian": "12.0",
+    "cpu_count": 12,
+    "packages": {
+     "libc6": "2.36-9+deb12u14",
+     "libstdc++6": "12.2.0-14+deb12u1",
+     "libgcc-s1": "12.2.0-14+deb12u1",
+     "zlib1g": "1:1.2.13.dfsg-1",
+     "libomp-14-dev": "1:14.0.6-12",
+     "clang-14": "1:14.0.6-12",
+     "lld-14": "1:14.0.6-12"
+    },
+    "environment": {
+     "LANG": "en_US.UTF-8"
+    },
+    "inputs": {
+     "example/aa_example.phy": "3fbba9a599ce8f99355fa0a7765088e423ba97f9c4b45b51cf5cebbdf9f420a4",
+     "example/example.phy": "235d54823a51869429052fbf6e8362b1b89a3bb490c99b849eb3c52a5deeb7c9",
+     "test_scripts/test_data/turtle_aa.fasta": "b67253c4ea71dc55b18f61f5e8501ffc046e391f92a2c0e523dd27feaa0ff28d",
+     "test_scripts/test_data/turtle_aa.nex": "a43605ee6ddad6bd4a94a07fc9c09ab2c66bc34a6082151a73ac4bdd1b1e0743"
+    },
+    "binary": {
+     "path": "/home/petergoodman/iqtree3-baseline/iqtree3",
+     "sha256": "9a72950bf61187f9923372f49badde3aa527864f57de795c5ad751d7c04fb501"
+    },
+    "build": {
+     "dir": "/home/petergoodman/iqtree3-build",
+     "build_type": "Release",
+     "compiler": "/usr/bin/clang++",
+     "compiler_version": "Debian clang version 14.0.6",
+     "cxx_flags": [
+      "CXX_FLAGS =  -std=c++17 -fopenmp -pthread  -O3 -ffunction-sections -fdata-sections   -I/usr/include/eigen3 -I/usr/include -D__SSE3 -msse3"
+     ],
+     "link_flags": [
+      "-L/mnt/c/Users/peter/BioInformatics/iqtree3/lib",
+      "-O3",
+      "-Wl,--gc-sections",
+      "-Wl,-rpath,/mnt/c/Users/peter/BioInformatics/iqtree3/lib:",
+      "-fdata-sections",
+      "-ffunction-sections",
+      "-fopenmp",
+      "-fuse-ld=lld",
+      "-ldl",
+      "-lm",
+      "-pthread",
+      "-rdynamic",
+      "-std=c++17"
+     ]
+    },
+    "finished_utc": "2026-10-04T23:27:01+00:00",
+    "label": "rep3"
+   },
+   {
+    "script": "test_scripts/fixedeq/regression/regress.py",
+    "command": [
+     "test_scripts/fixedeq/regression/regress.py",
+     "run",
+     "--binary",
+     "/home/petergoodman/iqtree3-baseline/iqtree3",
+     "--git",
+     "git.exe",
+     "--build-dir",
+     "/home/petergoodman/iqtree3-build",
+     "--runs",
+     "run08,run12",
+     "--out",
+     "/home/petergoodman/iqtree3-runs/baseline/run12/rep4"
+    ],
+    "started_utc": "2026-10-04T23:27:02+00:00",
+    "git_commit": "f9bb0e96772d24af83ec3907250402653e687ed9",
+    "git_clean": true,
+    "python": "3.12.14 (main, Sep  2 2026, 23:27:36) [GCC 15.3.0]",
+    "platform": "Linux-5.15.146.1-microsoft-standard-WSL2-x86_64-with-glibc2.36",
+    "debian": "12.0",
+    "cpu_count": 12,
+    "packages": {
+     "libc6": "2.36-9+deb12u14",
+     "libstdc++6": "12.2.0-14+deb12u1",
+     "libgcc-s1": "12.2.0-14+deb12u1",
+     "zlib1g": "1:1.2.13.dfsg-1",
+     "libomp-14-dev": "1:14.0.6-12",
+     "clang-14": "1:14.0.6-12",
+     "lld-14": "1:14.0.6-12"
+    },
+    "environment": {
+     "LANG": "en_US.UTF-8"
+    },
+    "inputs": {
+     "example/aa_example.phy": "3fbba9a599ce8f99355fa0a7765088e423ba97f9c4b45b51cf5cebbdf9f420a4",
+     "example/example.phy": "235d54823a51869429052fbf6e8362b1b89a3bb490c99b849eb3c52a5deeb7c9",
+     "test_scripts/test_data/turtle_aa.fasta": "b67253c4ea71dc55b18f61f5e8501ffc046e391f92a2c0e523dd27feaa0ff28d",
+     "test_scripts/test_data/turtle_aa.nex": "a43605ee6ddad6bd4a94a07fc9c09ab2c66bc34a6082151a73ac4bdd1b1e0743"
+    },
+    "binary": {
+     "path": "/home/petergoodman/iqtree3-baseline/iqtree3",
+     "sha256": "9a72950bf61187f9923372f49badde3aa527864f57de795c5ad751d7c04fb501"
+    },
+    "build": {
+     "dir": "/home/petergoodman/iqtree3-build",
+     "build_type": "Release",
+     "compiler": "/usr/bin/clang++",
+     "compiler_version": "Debian clang version 14.0.6",
+     "cxx_flags": [
+      "CXX_FLAGS =  -std=c++17 -fopenmp -pthread  -O3 -ffunction-sections -fdata-sections   -I/usr/include/eigen3 -I/usr/include -D__SSE3 -msse3"
+     ],
+     "link_flags": [
+      "-L/mnt/c/Users/peter/BioInformatics/iqtree3/lib",
+      "-O3",
+      "-Wl,--gc-sections",
+      "-Wl,-rpath,/mnt/c/Users/peter/BioInformatics/iqtree3/lib:",
+      "-fdata-sections",
+      "-ffunction-sections",
+      "-fopenmp",
+      "-fuse-ld=lld",
+      "-ldl",
+      "-lm",
+      "-pthread",
+      "-rdynamic",
+      "-std=c++17"
+     ]
+    },
+    "finished_utc": "2026-10-04T23:29:20+00:00",
+    "label": "rep4"
+   },
+   {
+    "script": "test_scripts/fixedeq/regression/regress.py",
+    "command": [
+     "test_scripts/fixedeq/regression/regress.py",
+     "run",
+     "--binary",
+     "/home/petergoodman/iqtree3-baseline/iqtree3",
+     "--git",
+     "git.exe",
+     "--build-dir",
+     "/home/petergoodman/iqtree3-build",
+     "--runs",
+     "run08,run12",
+     "--out",
+     "/home/petergoodman/iqtree3-runs/baseline/run12/rep5"
+    ],
+    "started_utc": "2026-10-04T23:29:21+00:00",
+    "git_commit": "f9bb0e96772d24af83ec3907250402653e687ed9",
+    "git_clean": true,
+    "python": "3.12.14 (main, Sep  2 2026, 23:27:36) [GCC 15.3.0]",
+    "platform": "Linux-5.15.146.1-microsoft-standard-WSL2-x86_64-with-glibc2.36",
+    "debian": "12.0",
+    "cpu_count": 12,
+    "packages": {
+     "libc6": "2.36-9+deb12u14",
+     "libstdc++6": "12.2.0-14+deb12u1",
+     "libgcc-s1": "12.2.0-14+deb12u1",
+     "zlib1g": "1:1.2.13.dfsg-1",
+     "libomp-14-dev": "1:14.0.6-12",
+     "clang-14": "1:14.0.6-12",
+     "lld-14": "1:14.0.6-12"
+    },
+    "environment": {
+     "LANG": "en_US.UTF-8"
+    },
+    "inputs": {
+     "example/aa_example.phy": "3fbba9a599ce8f99355fa0a7765088e423ba97f9c4b45b51cf5cebbdf9f420a4",
+     "example/example.phy": "235d54823a51869429052fbf6e8362b1b89a3bb490c99b849eb3c52a5deeb7c9",
+     "test_scripts/test_data/turtle_aa.fasta": "b67253c4ea71dc55b18f61f5e8501ffc046e391f92a2c0e523dd27feaa0ff28d",
+     "test_scripts/test_data/turtle_aa.nex": "a43605ee6ddad6bd4a94a07fc9c09ab2c66bc34a6082151a73ac4bdd1b1e0743"
+    },
+    "binary": {
+     "path": "/home/petergoodman/iqtree3-baseline/iqtree3",
+     "sha256": "9a72950bf61187f9923372f49badde3aa527864f57de795c5ad751d7c04fb501"
+    },
+    "build": {
+     "dir": "/home/petergoodman/iqtree3-build",
+     "build_type": "Release",
+     "compiler": "/usr/bin/clang++",
+     "compiler_version": "Debian clang version 14.0.6",
+     "cxx_flags": [
+      "CXX_FLAGS =  -std=c++17 -fopenmp -pthread  -O3 -ffunction-sections -fdata-sections   -I/usr/include/eigen3 -I/usr/include -D__SSE3 -msse3"
+     ],
+     "link_flags": [
+      "-L/mnt/c/Users/peter/BioInformatics/iqtree3/lib",
+      "-O3",
+      "-Wl,--gc-sections",
+      "-Wl,-rpath,/mnt/c/Users/peter/BioInformatics/iqtree3/lib:",
+      "-fdata-sections",
+      "-ffunction-sections",
+      "-fopenmp",
+      "-fuse-ld=lld",
+      "-ldl",
+      "-lm",
+      "-pthread",
+      "-rdynamic",
+      "-std=c++17"
+     ]
+    },
+    "finished_utc": "2026-10-04T23:31:40+00:00",
+    "label": "rep5"
+   }
+  ]
+ },
+ "runs": {
+  "run12": {
+   "arguments": [
+    "-s",
+    "@test_scripts/test_data/turtle_aa.fasta",
+    "-p",
+    "@test_scripts/test_data/turtle_aa.nex",
+    "-m",
+    "run08.Q.txt",
+    "-te",
+    "run08.treefile",
+    "-seed",
+    "1",
+    "-T",
+    "4",
+    "--prefix",
+    "run12"
+   ],
+   "threads": 4,
+   "repeats": [
+    "rep1",
+    "rep2",
+    "rep3",
+    "rep4",
+    "rep5"
+   ],
+   "exit_codes": [
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   "scalars": [
+    {
+     "log_likelihood": "-4974.5436",
+     "free_parameters": "33",
+     "tree_length": "0.7132",
+     "wall_clock_s": "0.03896284103"
+    },
+    {
+     "log_likelihood": "-4974.5436",
+     "free_parameters": "33",
+     "tree_length": "0.7132",
+     "wall_clock_s": "0.03110909462"
+    },
+    {
+     "log_likelihood": "-4974.5436",
+     "free_parameters": "33",
+     "tree_length": "0.7132",
+     "wall_clock_s": "0.0327501297"
+    },
+    {
+     "log_likelihood": "-4974.5436",
+     "free_parameters": "33",
+     "tree_length": "0.7132",
+     "wall_clock_s": "0.03344488144"
+    },
+    {
+     "log_likelihood": "-4974.5436",
+     "free_parameters": "33",
+     "tree_length": "0.7132",
+     "wall_clock_s": "0.03354907036"
+    }
+   ],
+   "driver_wall_s": [
+    0.1,
+    0.1,
+    0.1,
+    0.1,
+    0.1
+   ],
+   "log_header": [
+    "IQ-TREE version 3.1.4 for Linux x86 64-bit built Sep 23 2026",
+    "Host:    LAPTOP-KJ1BFDKL (AVX2, FMA3, 6 GB RAM)",
+    "Kernel:  AVX+FMA - 4 threads (12 CPU cores detected)"
+   ],
+   "items": {
+    "REFERENCES": {
+     "mode": "exact",
+     "text": "REFERENCES\n----------\n\nTo cite IQ-TREE 3 please use:\n\nThomas K.F. Wong, Nhan Ly-Trong, Huaiyan Ren, Piyumal Demotte, Hector Banos,\nAndrew J. Roger, Edward Susko, Chris Bielow, Nicola De Maio, Nick Goldman,\nMatthew W. Hahn, Mario dos Reis, Le Sy Vinh, Gavin Huttley, Robert Lanfear, Bui Quang Minh (2026)\nIQ-TREE 3: Phylogenomic Inference Software using Complex Evolutionary Models.\nMolecular Biology and Evolution, msag117.\nhttps://doi.org/10.1093/molbev/msag117\n\nSince you used partition models please also cite:\n\nOlga Chernomor, Arndt von Haeseler, and Bui Quang Minh (2016)\nTerrace aware data structure for phylogenomic inference from\nsupermatrices. Syst. Biol., 65:997-1008.\nhttps://doi.org/10.1093/sysbio/syw037\n"
+    },
+    "SEQUENCE ALIGNMENT": {
+     "mode": "exact",
+     "text": "SEQUENCE ALIGNMENT\n------------------\n\nNOTE: Alignment sequence type is auto-detected. If in doubt, specify it via -st option.\nInput data: 16 taxa with 3 partitions and 774 total sites (4.86111% missing data)\n\n  ID\tType\tSeq\tSite\tUnique\tInfor\tInvar\tConst\tName\n   1\tAA\t16\t172\t109\t15\t123\t123\tENSGALG00000016122.macse_AA_gb\n   2\tAA\t15\t216\t128\t53\t123\t123\tENSGALG00000016996.macse_AA_gb\n   3\tAA\t15\t386\t227\t43\t267\t267\tENSGALG00000010671.macse_AA_gb\n\nColumn meanings:\n  Unique: Number of unique site patterns\n  Infor:  Number of parsimony-informative sites\n  Invar:  Number of invariant sites\n  Const:  Number of constant sites (can be subset of invariant sites)\n"
+    },
+    "SUBSTITUTION PROCESS": {
+     "mode": "exact",
+     "text": "SUBSTITUTION PROCESS\n--------------------\n\nEdge-linked-proportional partition model with separate substitution models and separate rates across sites\n\n  ID  Model           Speed  Parameters\n   1  run08.Q.txt    0.5931  run08.Q.txt\n   2  run08.Q.txt    1.5372  run08.Q.txt\n   3  run08.Q.txt    0.8807  run08.Q.txt\n"
+    },
+    "USER TREE": {
+     "mode": "exact",
+     "text": "USER TREE\n---------\n\nLog-likelihood of the tree: -4974.5436 (s.e. 155.3087)\nUnconstrained log-likelihood (without tree): -3741.2976\nNumber of free parameters (#branches + #model parameters): 33\nAkaike information criterion (AIC) score: 10015.0872\nCorrected Akaike information criterion (AICc) score: 10018.1197\nBayesian information criterion (BIC) score: 10168.5891\n\nMarginal log-likelihood of the tree: -5361.9684\nMarginal Akaike information criterion (mAIC) score: 10789.9368\n\nTotal tree length (sum of branch lengths): 0.7132\nSum of internal branch lengths: 0.1618 (22.6810% of tree length)\n\nWARNING: 1 near-zero internal branches (<0.0013) should be treated with caution\n         Such branches are denoted by '**' in the figure below\n\nNOTE: Tree is ROOTED at virtual root '__root__'\n\n            +-----------------Anolis\n         +--|\n         |  +----podarcis\n   +-----|\n   |     +----------python\n+**|\n|  |          +--Gallus\n|  |     +----|\n|  |     |    +---Taeniopygia\n|  |  +--|\n|  |  |  |          +----caretta\n|  |  |  |       +--|\n|  |  |  |       |  +--chelonoidis_nigra\n|  |  |  |    +--|\n|  |  |  |    |  +--emys_orbicularis\n|  |  |  +----|\n|  |  |       +-----phrynops\n|  +--|\n|     |   +**alligator\n|     +---|\n|         +**caiman\n|\n|                  +----------Homo\n|             +----|\n|             |    +---Monodelphis\n|   +---------|\n|   |         +-----------------------Ornithorhynchus\n+---|\n|   |        +---------------------------------------------Xenopus\n|   +--------|\n|            +------------------------------------------protopterus\n|\n+**__root__\n\nTree in newick format:\n\n((((Anolis:0.0539319899,podarcis:0.0145074583):0.0048174425,python:0.0323853505):0.0190574091,(((Gallus:0.0015369058,Taeniopygia:0.0130350346):0.0149465718,(((caretta:0.0153809737,chelonoidis_nigra:0.0052513249):0.0021609551,emys_orbicularis:0.0033887443):0.0078060825,phrynops:0.0196466492):0.0164156086):0.0045423801,(alligator:0.0000010427,caiman:0.0000020253):0.0141975079):0.0059090026):0.0000022230,(((Homo:0.0323569758,Monodelphis:0.0141861164):0.0165758960,Ornithorhynchus:0.0710155886):0.0293530286,(Xenopus:0.1337248050,protopterus:0.1268599538):0.0280919516):0.0120733923):0.0000000000;\n"
+    },
+    "(treefile)": {
+     "mode": "exact",
+     "text": "((((Anolis:0.0539319899,podarcis:0.0145074583):0.0048174425,python:0.0323853505):0.0190574091,(((Gallus:0.0015369058,Taeniopygia:0.0130350346):0.0149465718,(((caretta:0.0153809737,chelonoidis_nigra:0.0052513249):0.0021609551,emys_orbicularis:0.0033887443):0.0078060825,phrynops:0.0196466492):0.0164156086):0.0045423801,(alligator:0.0000010427,caiman:0.0000020253):0.0141975079):0.0059090026):0.0000022230,(((Homo:0.0323569758,Monodelphis:0.0141861164):0.0165758960,Ornithorhynchus:0.0710155886):0.0293530286,(Xenopus:0.1337248050,protopterus:0.1268599538):0.0280919516):0.0120733923):0.0000000000;\n"
+    },
+    "(exit code)": {
+     "mode": "exact",
+     "text": "0"
+    }
+   }
+  }
+ }
+}

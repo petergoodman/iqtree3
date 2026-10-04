@@ -7,6 +7,54 @@ from the top entry.
 This is a fork of `iqtree/iqtree3`. Entries here describe work on the fork, not upstream
 development.
 
+## 2026-10-04 (third session): decision 018 in the regression driver, run 12 recorded
+
+### Done
+
+Peter approved a plan for this session with three choices: run 11 is judged literally on the five
+parts decision 018 names; the design-script rerun is a kept driver in the repository; and rerun
+values are matched in four classes (to be recorded as decision 019).
+
+Implemented decision 018 in `test_scripts/fixedeq/regression/regress.py` (commit `f9bb0e96`).
+`compare` judges run 11 only on its exit code, its REFERENCES and SEQUENCE ALIGNMENT exactly, and
+its SUBSTITUTION PROCESS and tree file with the numbers removed. A section added to or missing
+from a later run 11 report is not checked, because run 8, the same command at `-T 1`, is compared
+in full. Run 12 (run 10 at `-T 4`) joined the run list. `baseline --runs` writes a baseline of
+selected runs, and `compare` accepts several `--baseline` files and refuses a run found in two.
+There are nine new tests in `test_regress.py`, and all 21 pass in `iqtree3-fixedeq`. On the five
+existing extracts, `compare` failed run 11 in each before the change (its tree drawing is
+unstable) and passed every run after it.
+
+Recorded run 12 from the frozen binary (SHA-256 `9a72950b…c04fb501`, equal to
+`~/iqtree3-build/iqtree3`): five repeats, 23:19 to 23:31 UTC, into
+`~/iqtree3-runs/baseline/run12/rep1` to `rep5`, each running run 8 first to supply run 12's Q
+matrix and tree. All exited 0. Run 12's baseline is in
+`test_scripts/fixedeq/regression/baseline/run12/`, and the existing `baseline.json` and
+`baseline.md` are unchanged. Results, from the driver's output:
+
+- Run 12 was identical in every compared item across all five repeats: log-likelihood
+  -4974.5436, 33 free parameters, tree length 0.7132.
+- Run 8, rerun five more times, passed `compare` against the original baseline each time
+  (-4974.5432).
+- Run 12's report at `-T 4` is identical to run 10's at `-T 1` in every compared item. This was
+  checked by an ad hoc read-only script in the session scratchpad, run in the project
+  environment. At the report's printed precision (log-likelihood to 4 decimals), a fixed
+  evaluation does not depend on the thread count, and run 11's variation arises in the joint fit.
+  PLAN.md risk 19 is updated.
+
+`CODE_PLAN.md` section 3.4 and the `CLAUDE.md` regression-driver bullet now describe the second
+baseline file and the two-file `compare`.
+
+### Failed
+
+Nothing failed.
+
+### Next
+
+1. Record decision 019, then rerun the three design scripts with the kept driver and compare
+   their outputs with the documents' values (PLAN.md risk 10).
+2. Propose the oracle plan (`CODE_PLAN.md` section 3.1) for Peter's approval.
+
 ## 2026-10-03 (second session, closing): decision 018 and handoff to a new session
 
 ### Done

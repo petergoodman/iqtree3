@@ -8,6 +8,31 @@ Entries record the tool and model version, what it did, and which files or secti
 No AI-generated scientific claim, numerical result, or citation in this project has been accepted
 without human verification against source.
 
+## 2026-10-04 (third session)
+
+**Tool:** Claude Code (VS Code extension).
+**Model:** Claude Opus 5.5, 1M context, model id `claude-opus-5-5[1m]`.
+**Operator:** Peter Goodman.
+
+**What it did.** On a plan the operator approved, implemented decision 018 in the S0 regression
+driver (the comparison rule for run 11 and the added run 12), wrote tests for it, recorded run 12
+five times from the frozen unmodified binary, and wrote run 12's baseline to its own file without
+changing the existing baseline.
+
+**Verification.** The driver's 21 tests passed in the project environment. The new rule was
+checked on the five recorded run 11 repeats (failing before the change, passing after). Every
+log-likelihood and count reported was produced by the driver from IQ-TREE's output files. IQ-TREE
+was run only from the unmodified binary; no source code was changed.
+
+**Files created.** `test_scripts/fixedeq/regression/baseline/run12/baseline.json` and
+`baseline.md` (written by the driver).
+
+**Files modified.** `test_scripts/fixedeq/regression/regress.py`,
+`test_scripts/fixedeq/tests/test_regress.py`, `docs/agent/CODE_PLAN.md`, `docs/agent/PLAN.md`,
+`CLAUDE.md`, `CHANGELOG.md`, `AI_DISCLOSURE.md`.
+
+**Source code modified.** None.
+
 ## 2026-10-03 (second session)
 
 **Tool:** Claude Code (VS Code extension).
