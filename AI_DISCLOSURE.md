@@ -17,12 +17,16 @@ without human verification against source.
 **What it did.** Explained the plan, its open items and slice S0 in chat. On the operator's three
 choices, recorded decisions 016 (root policy for S0 to S4) and 017 (the oracle's port of IQ-TREE's
 optimizer), added two S0 probes and four risks to the planning documents, and committed the
-documentation work of the three preceding sessions unchanged.
+documentation work of the three preceding sessions unchanged. Wrote the conda environment file
+for the oracle and created the environment in WSL, with its lock file.
 
 **Verification.** Every source anchor cited in the new text was read in this session at HEAD
-`4c5f061f`. Only read-only commands were run before the commits (git state, `git ls-remote`,
-conda and folder listings in WSL). IQ-TREE was not built or run, and no numerical result was
-produced.
+`4c5f061f`. Before the environment was created, only read-only commands were run (git state,
+`git ls-remote`, conda and folder listings in WSL). The package versions reported were printed
+by the created environment. IQ-TREE was not built or run, and no numerical result was produced.
+
+**Files created.** `test_scripts/fixedeq/environment.yml`, `test_scripts/fixedeq/environment.lock.txt`
+(written by conda), `test_scripts/fixedeq/.gitattributes`, `test_scripts/fixedeq/.gitignore`.
 
 **Files modified.** `docs/agent/DECISIONS.md`, `docs/agent/CODE_PLAN.md`, `docs/agent/PLAN.md`,
 `CHANGELOG.md`, `AI_DISCLOSURE.md`.

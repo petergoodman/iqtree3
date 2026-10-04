@@ -1,0 +1,12 @@
+# Conda environment for the fixedeq oracle, drivers and tests (DECISIONS.md, entry 013).
+# NumPy and SciPy match the versions the design synthesis used for its reruns
+# (docs/agent/design/project2_unified_discrepancy_synthesis.md, section 10).
+name: iqtree3-fixedeq
+channels:
+  - conda-forge
+  - nodefaults
+dependencies:
+  - python=3.12
+  - numpy=2.3.5
+  - scipy=1.17.0
+  - pytest=8.4

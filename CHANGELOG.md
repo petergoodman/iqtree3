@@ -35,8 +35,19 @@ Read-only checks: upstream `master` is `63c330d9` (`git ls-remote`), so no sync 
 deprecated; the root `.gitignore` has no Python cache rule; the root anchors in decision 016 were
 read.
 
-Commit `049d02ee` holds the three earlier sessions' documentation work, unchanged. This entry's
-edits are the next commit.
+Commit `049d02ee` holds the three earlier sessions' documentation work, unchanged; `87eb5115`
+holds the decisions and plan edits above. Both were pushed to the fork.
+
+Created the conda environment `iqtree3-fixedeq` in WSL (decision 013) from the new
+`test_scripts/fixedeq/environment.yml`: conda-forge only, with Python 3.12, NumPy 2.3.5 and SciPy
+1.17.0 (the versions the design synthesis used for its reruns), and pytest 8.4. Conda 25.7.0
+resolved 45 packages, all from conda-forge, and the environment reports Python 3.12.14, NumPy
+2.3.5, SciPy 1.17.0 and pytest 8.4.2. The exact package list with checksums is in
+`test_scripts/fixedeq/environment.lock.txt`. Added the directory's own `.gitattributes` (decision
+014) and a `.gitignore` for Python caches. The environment lives at
+`~/anaconda3/envs/iqtree3-fixedeq`, outside the repository. Conda still prints a notice about the
+`defaults` channel and a deprecation warning about adding it implicitly; both come from the base
+installation's configuration, which was not changed.
 
 ### Failed
 
@@ -44,8 +55,8 @@ Nothing failed.
 
 ### Next
 
-1. Create the conda environment, then write the regression driver and record the baseline
-   (PLAN.md, next step).
+1. Confirm upstream `master` is unchanged, then write the regression driver and record the
+   baseline (PLAN.md, next step).
 
 ## 2026-10-03: decision 015 replaces 004; `ModelMarkov` is no longer edited
 

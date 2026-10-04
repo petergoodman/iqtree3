@@ -314,14 +314,14 @@ superseding 004; 016 sets the root policy for S0 to S4 and 017 the oracle's opti
 The planning documents are committed on the branch. The IQ-TREE maintainers accepted the log-ratio jump-chain approach and stressed
 that BFGS needs a continuous objective (reported by Peter, 2026-10-01; the mapping of their notes
 to the code is in `CHANGELOG.md`). The unmodified branch builds in WSL2 and passes the smoke tests recorded in
-`CHANGELOG.md`. No source code has changed. The oracle, regression baseline and fixtures do not
-exist yet.
+`CHANGELOG.md`. No source code has changed. The conda environment `iqtree3-fixedeq` exists in WSL,
+built from `test_scripts/fixedeq/environment.yml` with its lock in `environment.lock.txt`. The
+oracle, regression baseline and fixtures do not exist yet.
 
 ## Next step
 
-Create the conda environment `iqtree3-fixedeq` from `test_scripts/fixedeq/environment.yml` and
-export its lock (decision 013). Then confirm that upstream `master` is still `63c330d9` (if it
-has moved, sync first by the procedure in `CLAUDE.md`), write the regression driver in
+Confirm that upstream `master` is still `63c330d9` (if it has moved, sync first by the procedure
+in `CLAUDE.md`), then write the regression driver in
 `test_scripts/fixedeq/regression/` and record the baseline from the unmodified binary: copy `~/iqtree3-build/iqtree3` to `~/iqtree3-baseline/` with its SHA-256,
 run the baseline list of `CODE_PLAN.md` section 3.4 twice under `~/iqtree3-runs/baseline/`,
 and write the summary with its provenance to the repository.
