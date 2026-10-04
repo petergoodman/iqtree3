@@ -47,7 +47,7 @@ Key declarations:
   `targetFunk()`, `optimizeParameters()`, `setRates()`.
 - `decomposeRateMatrix()`, `decomposeRateMatrixNonrev()`, `decomposeRateMatrixRev()`.
 - `getStateFrequency() / setStateFrequency() / adaptStateFrequency()`.
-- `MIN_RATE = 1e-4`, `TOL_RATE = 1e-4`, `MAX_RATE = 100` (lines 29–31) — the default box
+- `MIN_RATE = 1e-4`, `TOL_RATE = 1e-4`, `MAX_RATE = 100` (lines 30–32) — the default box
   constraints applied to every rate parameter.
 
 **Load when:** always.
@@ -465,7 +465,7 @@ Listed so you do not spend tokens discovering they are irrelevant.
 
 **"Understand how nQ is currently inferred"** (≈3.5k lines):
 `docs/agent/ARCHITECTURE.md` → `model/modelmarkov.h` → `modelmarkov.cpp` lines 964–1400 and
-2094–2131 → `model/modelprotein.cpp` lines 1106–1245.
+2119–2131 → `model/modelprotein.cpp` lines 1107–1249.
 
 **"Add a new constrained non-reversible model class"** — add:
 `model/modelunrest.{h,cpp}` (whole) → `model/modelliemarkov.cpp` lines 886–940 and 1087–1230 →
@@ -473,9 +473,9 @@ Listed so you do not spend tokens discovering they are irrelevant.
 
 **"Wire it to the command line and the reports"** — add:
 `utils/tools.h` 469–482 plus the specific `Params` fields → `utils/tools.cpp` parse sites 2896,
-4998, 5003 and usage 5940–5990 → `main/phyloanalysis.cpp` 162–177 and 420–459 →
+5018, 5023 and usage 5978–6030 → `main/phyloanalysis.cpp` 164–179 and 422–461 →
 `main/phylotesting.cpp` 160–230.
 
 **"Make it work across partitions (nQMaker workflow)"** — add:
-`model/partitionmodel.cpp` 61–120, 294–336, 672–807 → `model/modelfactory.cpp` 208–226,
-1258–1360.
+`model/partitionmodel.cpp` 61–169, 295–338, 733–868 → `model/modelfactory.cpp` 209–228,
+284–305, 1253–1377.

@@ -888,7 +888,7 @@ rescale site rates so the mean rate is 1, absorbing the factor into branch lengt
 ```
 
 Model and rate parameters are optimised **sequentially**, not jointly, unless
-`--opt-model-rate-joint` is passed, in which case `ModelFactory::optimizeAllParameters` runs one
+`-jointopt` is passed, in which case `ModelFactory::optimizeAllParameters` runs one
 BFGS over the concatenated vector (`model/modelfactory.cpp:1331-1377`). Defaults:
 `num_param_iterations = 100`, `modelEps = 0.01`, `loglh_epsilon = 0.001`, and
 `modelfinder_eps = 0.1` for candidate evaluation inside ModelFinder.
@@ -1714,7 +1714,8 @@ verification that the Halpern and Bruno fitness definition makes `pi^s` stationa
 third is corroborated by a unit test in the Rust source.
 
 **Not verified.** No claim here rests on running IQ-TREE. Nothing in this document was checked
-against numerical output, because the build is not currently working on this machine.
+against numerical output, because the build was not yet working when it was written (it was built
+and smoke-tested on 2026-09-23; see `CHANGELOG.md`).
 
 ---
 

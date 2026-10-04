@@ -813,7 +813,8 @@ What is known about building this tree. The commands used on the project machine
 - **googletest is fetched at configure time.** `cmaple/CMakeLists.txt:281–293` downloads
   googletest at a pinned commit with `FetchContent` and builds `gtest` and `gtest_main`, which
   `cmaple/unittest/` uses. A configure therefore needs network access, and gtest targets exist in
-  every build that integrates CMAPLE (the default).
+  every build that integrates CMAPLE (the default except on Windows, where `USE_CMAPLE` is not
+  an option, `CMakeLists.txt:255–258`).
 - **`-DCMAKE_POLICY_VERSION_MINIMUM=3.5`** is needed only with CMake 4.x, which rejects projects
   declaring `cmake_minimum_required` below 3.5, as vendored `zlib-1.2.7` does (2.4.4). With
   CMake 3.25 and the system zlib (the configure prints "Using system zlib" when one is found),
@@ -834,7 +835,7 @@ What is known about building this tree. The commands used on the project machine
   `Invalid CMAKE_POLICY_VERSION_MINIMUM value "3"` reported once per vendored subproject, and the
   bad value is then cached in `build/CMakeCache.txt`, so a retry needs a fresh build directory.
 
-Fast functional checks. None of these has yet been run on the project machine:
+Fast functional checks, all run on the project machine on 2026-09-23 (see `CHANGELOG.md`):
 
 ```bash
 iqtree3 -s example/aa_example.phy -m LG+G4          # reversible, protein

@@ -7,6 +7,266 @@ from the top entry.
 This is a fork of `iqtree/iqtree3`. Entries here describe work on the fork, not upstream
 development.
 
+## 2026-10-03: decision 015 replaces 004; `ModelMarkov` is no longer edited
+
+### Done
+
+Peter chose to build Q in the NQC class's `decomposeRateMatrixNonrev` override, write the 380
+rates into `rates[]`, and call the unchanged `ModelMarkov::decomposeRateMatrixNonrev`, which was
+decision 004's recorded fallback. Recorded as decision 015, which supersedes 004, after comparing
+three placements of the z-to-Q build in source:
+
+- in `getVariables` with the unchanged base decomposition (the maintainers' description and the
+  `ModelLieMarkov` pattern): rejected, because the base decomposition then trusts `rates[]`, and
+  `ModelProtein::restoreCheckpoint` writes `rates[]` at 10 significant digits and decomposes
+  (`model/modelprotein.cpp:1265-1276`) on the default +I+G path (`model/modelfactory.cpp:1504,
+  1550`);
+- in the decomposition override with 004's helper split: rejected, because it edits the routine
+  every non-reversible model uses, and its only reason (`-optfromgiven`) is covered by
+  decision 008;
+- in the decomposition override with the unchanged base: adopted. Every decomposition passes
+  through the override, and a bitwise check of `state_freq` after the base call catches any later
+  change to the base routine's π guards.
+
+Exact form of the change 004 would have made, recorded for reference: five lines inserted between
+`model/modelmarkov.cpp:1282` and `1284` (call the helper, close the function, open the helper,
+declare `int i, j;`), so that lines 1284-1386 became the helper's body unchanged, plus one
+protected declaration in `model/modelmarkov.h`.
+
+Files changed: `docs/agent/DECISIONS.md` (entry 015; entry 004's status line now "superseded by
+015"; preamble), `docs/agent/PLAN.md` (status, change map, decision list, S2 row, risk 13
+resolved, current state), `docs/agent/CODE_PLAN.md` (`ModelMarkov` row removed and listed as not
+touched, decomposition and checkpoint paragraphs, S2 file list, three anchors), `AI_DISCLOSURE.md`.
+No source code was touched; IQ-TREE was neither built nor run.
+
+Also given in chat, not recorded in the documents: an explanation of C++ inheritance and virtual
+overriding as used by IQ-TREE's model classes, and a step-by-step walkthrough of the nQ inference
+call path.
+
+### Failed
+
+An earlier chat reply in this exchange treated 004's recorded fallback as the same thing as the
+`getVariables` placement, and recommended that placement. Tracing the checkpoint restore path
+showed they differ; the recommendation was corrected before Peter decided.
+
+### Next
+
+1. S0: write the regression driver and record the baseline from the unmodified binary (PLAN.md,
+   next step).
+2. Peter, optionally: tell the maintainers that Q is built in the decomposition override rather
+   than in `getVariables`, and why (decision 015).
+
+## 2026-10-01: maintainer meeting notes mapped to the code
+
+### Done
+
+Peter reported a meeting with the IQ-TREE maintainers: they accepted the plan's method (log-ratio
+jump-chain coordinates converted to a valid Q that has π* as its equilibrium by construction) and
+stressed that IQ-TREE's BFGS needs a continuous objective. They named functions and gave advice,
+which Peter wrote down; this session mapped each to the code, read in source at HEAD `4c5f061f`:
+
+- Transition probability matrix: `ModelMarkov::computeTransMatrix`, which calls
+  `computeTransMatrixNonrev` for non-reversible models (`model/modelmarkov.cpp:463-512`), computes
+  P(t) from the cached eigensystem or by scaling and squaring.
+- Optimize parameters, at three levels: `ModelFactory::optimizeParameters`
+  (`model/modelfactory.cpp:1570`) alternates branch lengths with `optimizeParametersOnly`, which
+  calls the model's and the rate model's `optimizeParameters` (1275-1315);
+  `ModelMarkov::optimizeParameters` (`model/modelmarkov.cpp:1166-1244`) fits Q for one
+  alignment; `PartitionModel::optimizeLinkedModel` (`model/partitionmodel.cpp:753-840`) fits a
+  linked Q and never calls the model's `optimizeParameters`.
+- `getNDim` (`model/modelmarkov.cpp:964-976`) returns `num_params` for a non-reversible model and 0
+  when fixed.
+- `setVariables` copies model state into the 1-indexed optimizer vector and `getVariables` copies
+  it back, returning whether anything changed (`model/modelmarkov.cpp:1018-1089`); the "+1" in
+  `memcpy(variables+1, ...)` is the 1-indexing.
+- `minimizeMultiDimen` (`utils/optimization.cpp:750-778`) wraps `dfpmin`, which takes gradients
+  from the virtual `derivativeFunk` and steps with `lnsrch`, clamping trial points by `fixBound`
+  (149-156, 682-686).
+- Every function above is virtual except `minimizeMultiDimen`; `dfpmin` and `lnsrch` are private
+  and non-virtual (`utils/optimization.h:129-176, 229-232`; `model/modelmarkov.h:189-469`).
+
+Comparison with the plan, reported to Peter:
+
+- Matches: a new class (decision 002), 360 dimensions with no frequency degrees of freedom,
+  1-indexed vectors, `minimizeMultiDimen` unchanged (the scaled step enters through the virtual
+  `derivativeFunk`, decision 005), transition matrices reused (D06), minimal shared-file changes
+  (decision 001).
+- Differs in placement only: the maintainers described the Q-to-z conversion inside
+  `setVariables`; the plan stores z as authoritative state (decision 003), encodes the start once,
+  and builds Q from z in the decomposition override. `ModelLieMarkov` is the in-tree precedent for
+  the plan's layout (`model/modelliemarkov.cpp:899-933`).
+- Decision 004 rests on `-optfromgiven` overwriting π* in the unchanged base decomposition, but
+  decision 008 rejects `-optfromgiven` for NQC and the flag is set only from the command line
+  (`utils/tools.cpp:3316`, default false at 7284). With `FREQ_USER_DEFINED` the base skips the π
+  reset and solve (`model/modelmarkov.cpp:1252, 1266`), so 004's recorded fallback needs no
+  `ModelMarkov` edit; recorded as PLAN.md risk 13 for Peter.
+- With `num_params = 360` and `FREQ_USER_DEFINED`, the base `getNDim` and `getNDimFreq` already
+  return 360 (0 when fixed) and 0, so the overrides listed in CODE_PLAN.md section 2.2 may be
+  unnecessary; to settle in S2.
+- S5's recording-only edit to `dfpmin` and `lnsrch` (decision 009) is in tension with the advice
+  to leave the optimizer unchanged; PLAN.md risk 14.
+
+Continuity under BFGS: the log-ratio chart is smooth on all of R^360 and every point gives
+π*Q = 0 and unit mean rate exactly (P-log section 3.3; P-positive Theorem 10, read this session),
+and the fixed reference destinations (D01, decision 011) keep coordinates from jumping. NQC never
+reaches the `min_state_freq` guard that returns 1e30 inside `ModelMarkov::targetFunk`
+(`model/modelmarkov.cpp:1103-1108`), which `NONREV` can hit because it re-solves π at every
+evaluation. Box clamping in `lnsrch` is shared with every IQ-TREE model and handled by D03. One
+source is not in the plan: `computeTransMatrixNonrev` switches from the eigen path to scaling and
+squaring when P's row sums deviate by more than 1e-4 (`model/modelmarkov.cpp:489-500`), and the
+decomposition sets `nondiagonalizable` on a singular eigenvector matrix (1330-1336). It is shared
+with `NONREV`, its frequency is unmeasured, and it prints "INFO: Switch to scaling-squaring" under
+`-v` (`utils/tools.cpp:1136-1137`); PLAN.md risk 12.
+
+Edited `docs/agent/PLAN.md` (status block, current state, risks 12 to 14) and `AI_DISCLOSURE.md`.
+No decision was changed and no source code was touched. IQ-TREE was neither built nor run.
+
+### Failed
+
+Nothing was attempted that failed. Peter's notes end mid-sentence at "make as little"; it was read
+as "as little change to existing code as possible", which is unverified.
+
+### Next
+
+1. Peter: decide whether decision 004 is superseded by its fallback (PLAN.md risk 13), and, if
+   useful, confirm with the maintainers that storing z rather than deriving it in `setVariables`
+   is acceptable.
+2. S0: write the regression driver and record the baseline from the unmodified binary (PLAN.md,
+   next step).
+
+## 2026-09-23 (second session): code plan written and approved
+
+### Done
+
+Read the planning, design and reference documents in the order the task prompt set, then read in
+source every file the plan touches and verified each anchor the plan cites at HEAD `4c5f061f`,
+which matches `63c330d9` outside documentation and configuration. Wrote the code plan, which
+Peter approved:
+
+- `docs/agent/PLAN.md`: every section filled, covering the scope of the first release (gates G0
+  to G3, slices S0 to S4), constraints, where π* comes from, a summary of the code plan, the test
+  strategy, slices S0 to S7, risks and open questions, current state and next step. The
+  scientific motivation and success criteria are drafted for Peter's confirmation, and the
+  scientific criterion is a placeholder.
+- `docs/agent/CODE_PLAN.md` (new, at Peter's request): the companion to PLAN.md, holding the
+  file-level change map, the NQC class specification, the test specification, the per-slice
+  lists and the source-anchor table. It is subordinate to PLAN.md, is never read without it, and
+  records no decisions.
+- `docs/agent/DECISIONS.md`: programming decisions 002 to 014, and notes resolving three of the
+  pending candidates.
+- `CLAUDE.md`: the hard rule that agents never contact the IQ-TREE maintainers, the companion
+  document in the reading order, and the opening line.
+
+Peter's answers this session: the provisional model name is NQC; agents never contact the IQ-TREE
+maintainers, and development on the fork never waits on upstream; CODE_PLAN.md is added, PLAN.md
+stays the full-scope plan that points to it, and neither overlaps DECISIONS.md.
+
+Findings from the source that the design documents lack, each read in source:
+
+- A third optimizer entry point: `-jointopt` runs `ModelFactory::optimizeAllParameters` with the
+  model's bounds hard-coded to [MIN_RATE, MAX_RATE] (`model/modelfactory.cpp:1331-1377`), so NQC
+  must reject it.
+- The default +I+G optimization saves and restores the model through its checkpoint
+  (`model/modelfactory.cpp:1395-1505`; `opt_gammai` defaults to true, `utils/tools.cpp:7082`),
+  and checkpoints store doubles at 10 significant digits (`utils/checkpoint.h:22`), so NQC stores
+  its own state at 17 digits.
+- `ModelProtein::computeTipLikelihood` treats B, Z and J as two-state ambiguities
+  (`model/modelprotein.cpp:1350-1366`), the `ModelSubst` default treats them as unknown
+  (`model/modelsubst.cpp:199-209`), and tip partials come from this function
+  (`tree/phylotreesse.cpp:366-373`), so a class outside `ModelProtein` would change the
+  likelihood of such data.
+- `ModelMarkov::getModelByName` receives no `ModelsBlock` (`model/modelmarkov.cpp:1954-1968`);
+  `createModel` has one.
+- A `+` or `*` inside a number splits a `+F{...}` model string (`model/modelfactory.cpp:259,
+  296`); not yet run.
+- `ModelMarkov::readStateFreq(string)` accepts NaN and hands non-numeric tokens to AliSim's
+  random-distribution parser (`model/modelmarkov.cpp:1761-1796`, `utils/tools.cpp:408-428`).
+- `freqTypeString` returns an empty string for protein `FREQ_USER_DEFINED`
+  (`model/modelmarkov.cpp:204-206`), which explains the dropped `+F{...}` in printed model names
+  observed in the first session of the day.
+- `searchGAMMAInvarByRestarting` (`main/phyloanalysis.cpp:4384`) has no callers.
+- `--show-lh` fixes branch lengths, keeps identical sequences, ignores checkpoints and turns on
+  debug output (`utils/tools.cpp:3428-3437`); `-blfix` also switches off the +I+G restart path
+  (`utils/tools.cpp:3389-3395`).
+- Under `-p`, partition rates are re-optimized in every round
+  (`model/partitionmodelplen.cpp:150-157`), which matters for a fixed-nuisance fit.
+- Active `ASSERT`s abort a linked round whose log-likelihood falls by more than 0.1
+  (`model/partitionmodel.cpp:938`, `model/partitionmodelplen.cpp:135`).
+
+Checks run, all read-only:
+
+- `git rev-parse HEAD 63c330d9`, `git diff --stat 63c330d9 HEAD` and
+  `git config --get core.autocrlf`: HEAD differs from the baseline only in documentation,
+  `.claude/settings.json` and `.gitignore`; `core.autocrlf=true`; there is no `.gitattributes`.
+- `MSYS_NO_PATHCONV=1 wsl.exe -d Debian -- bash -lc "ls -d ~/miniforge3 ~/miniconda3 ~/anaconda3
+  ~/mambaforge; command -v conda mamba micromamba python3 git; python3 --version; ls
+  ~/iqtree3-build/iqtree3 ~/iqtree3-smoke; nproc; free -g"`: `~/anaconda3` exists; `conda`,
+  `mamba` and `micromamba` are not on the PATH of such a shell; the system `python3` is 3.11.2;
+  the built binary and the smoke-test outputs exist; 12 processors; 6 GB of memory.
+- `MSYS_NO_PATHCONV=1 wsl.exe -d Debian -- bash -lc "~/anaconda3/bin/conda --version;
+  ~/anaconda3/bin/conda env list; ~/anaconda3/bin/conda config --show solver channels"`:
+  environments `base`, `geodiff` and `rdkit_env`; solver libmamba; channel `defaults`. The version
+  command printed a truncated path instead of a version number; not investigated.
+
+IQ-TREE was neither built nor run in this session.
+
+### Corrections to reference documents
+
+Found while planning and reported to Peter; the first five were applied later in the session, as
+the last paragraph of this section records:
+
+- `AA_MODEL_INFERENCE.md` section 4.6 names an option `--opt-model-rate-joint`, which does not
+  exist; the flag that sets `optimize_model_rate_joint` is `-jointopt` (`utils/tools.cpp:3381`).
+- `ARCHITECTURE.md` section 17 says the fast functional checks have not been run on the project
+  machine, and `AA_MODEL_INFERENCE.md` section 16 says the build is not working; both are stale
+  since the previous entry.
+- `ARCHITECTURE.md` section 17 says googletest targets exist in every build that integrates CMAPLE
+  "(the default)"; CMAPLE is not an option on Windows (`CMakeLists.txt:255-258`).
+- `FILE_INDEX.md` line 50 places `MIN_RATE`, `TOL_RATE` and `MAX_RATE` at `modelmarkov.h:29-31`;
+  they are at lines 30-32.
+- `FILE_INDEX.md`'s "Minimum viable context sets" gives `tools.cpp` parse sites 4998 and 5003
+  (they are 5018 and 5023) and ranges in `partitionmodel.cpp` and `modelfactory.cpp` that disagree
+  with its own Tier 3 anchors.
+- None of the three reference documents records the current-code facts listed under the findings
+  above (checkpoint precision, the +I+G checkpoint round trip, tip ambiguity handling, the missing
+  `ModelsBlock`, `readStateFreq`'s behaviour, `freqTypeString`, the dead restart routine).
+
+A read-only re-check later in the session, at Peter's request (`sed` and `grep` on the three
+documents and on each cited source line), located every item above exactly and found more anchors
+of the same kind. In `FILE_INDEX.md`'s "Minimum viable context sets" the corrected anchors are:
+`tools.cpp` parse sites 5018 and 5023, usage 5978-6030 (the non-reversible model list is at
+5998-5999); `phyloanalysis.cpp` 164-179 and 422-461; `partitionmodel.cpp` 61-169, 295-338 and
+733-868 (672-709 is the end of `computeMarginalLhForPartitions`, and 807 falls inside a
+commented-out block); `modelfactory.cpp` 209-228, 284-305 and 1253-1377 (1259-1273 is a
+commented-out function); `modelmarkov.cpp` 2119-2131 (2093-2117 is a commented-out older version
+of the same function); `modelprotein.cpp` 1107-1249. Elsewhere, the citation block given as
+165-177 at `ARCHITECTURE.md:653` and `FILE_INDEX.md:319`, and as 162-177 at `ARCHITECTURE.md:719`,
+is at 164-179; `reportNexusFile`, given as 422-459 at `ARCHITECTURE.md:664`, ends at 461;
+`ModelProtein::init`, given as 1106-1245 at `ARCHITECTURE.md:707` and `FILE_INDEX.md:100`, is at
+1107-1249; `PartitionModel::targetFunk`, given as 299-336 at `FILE_INDEX.md:284`, ends at 338.
+
+Applied later in the session at Peter's request, as minimal corrections: the first five items
+above, at six locations (`AA_MODEL_INFERENCE.md` sections 4.6 and 16; `ARCHITECTURE.md` section 17,
+in two places; `FILE_INDEX.md` line 50 and its "Minimum viable context sets", which now carries
+the corrected anchors of the previous paragraph). Not applied: the anchors that paragraph lists as
+elsewhere, and the missing current-code facts of the sixth item.
+
+### Failed
+
+A read-only search subagent, launched to sweep for other code paths that change model state,
+stalled after 600 seconds without reporting. The same questions were answered by direct searches
+of optimizer call sites, external writers of rates and frequencies, and `createModel` callers,
+which found the `-jointopt` and +I+G checkpoint paths. One question put to Peter referred to
+slices S1 and S2 before the plan had defined them, so he could not answer it as asked.
+
+### Next
+
+1. S0: write the regression driver and record the baseline from the unmodified binary (PLAN.md,
+   next step), then complete the rest of S0.
+2. Peter: confirm or replace the drafted scientific motivation and success criteria in PLAN.md,
+   and supply the generating tool and model for the synthesis and for P-log, for
+   `AI_DISCLOSURE.md` (carried over).
+
 ## 2026-09-23: design imported, reference documents corrected, goal written
 
 ### Done

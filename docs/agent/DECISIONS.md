@@ -1,10 +1,12 @@
 # Decisions
 
-> **Status, 2026-09-23.** One programming decision is recorded (001). Ten mathematical and
-> methodological design decisions, D01 to D10, are recorded from the design synthesis and are
-> revisable (see that section's preamble). The items under "Pending programming candidates" were
-> discussed on 2026-09-15 and have not been confirmed by Peter. An agent must not treat a pending
-> item as a decision.
+> **Status, 2026-10-03.** Programming decisions 001 to 015 are recorded; 002 to 014 were
+> approved by Peter with the code plan on 2026-09-23, and 015, which supersedes 004, on
+> 2026-10-03. Ten mathematical and methodological design
+> decisions, D01 to D10, are recorded from the design synthesis and are revisable (see that
+> section's preamble). The items under "Pending programming candidates" were discussed on
+> 2026-09-15; the first three are now resolved by the entries named in their notes. An agent must
+> not treat a pending item as a decision.
 
 ## What this document is for
 
@@ -63,6 +65,332 @@ Number programming entries sequentially from 001 and never reuse a number.
 - **Affects:** every code change; the git procedure in `CLAUDE.md`; how far edits to shared files
   (`utils/optimization.cpp`, `model/partitionmodel.cpp`, `main/phyloanalysis.cpp`,
   `main/phylotesting.cpp`) may go.
+
+## 002. Implement NQC as a `ModelProtein` subclass dispatched from `createModel`
+
+- **Date:** 2026-09-23
+- **Status:** accepted
+- **Decision:** The π-constrained model is a new class `ModelNonrevFixedEq`, derived from
+  `ModelProtein`, in `model/modelnonrevfixedeq.{h,cpp}`. `createModel` dispatches it by name in
+  its protein branch, before `new ModelProtein`, and passes the `ModelsBlock`. Its public name is
+  "NQC", provisional until Peter settles the public name with the maintainers, and is held in one
+  constant. `NONREV` is not modified.
+- **Why:** Tip partial likelihoods come from the model's `computeTipLikelihood` (verified,
+  `tree/phylotreesse.cpp:366-373`). `ModelProtein` treats B, Z and J as two-state ambiguities
+  (verified, `model/modelprotein.cpp:1350-1366`), while the `ModelSubst` default treats every
+  non-single state as fully unknown (verified, `model/modelsubst.cpp:199-209`), so a class outside
+  the `ModelProtein` hierarchy would give the same data a different likelihood than `NONREV` or
+  `GTR20` and break nesting comparisons. `createModel` holds the `ModelsBlock` needed to read the
+  LG, WAG and JTT seeds and `--init-model` names (verified, `model/modelmixture.cpp:3122-3267`),
+  whereas `ModelMarkov::getModelByName` receives none (verified, `model/modelmarkov.cpp:1954-1968`).
+  A separate name keeps the live `NONREV+F{...}` meaning intact and permits the nested comparison
+  with `NONREV`. `ModelProtein`'s constructor calls `init(name)`, which cannot parse a new name
+  (verified, `model/modelprotein.cpp:1079-1088`, `1107-1249`), so the subclass constructs its base
+  with the seed model's name and converts in its own constructor.
+- **Alternatives rejected:** a name branch inside `ModelProtein::init`, which would put constraint
+  code into a file that is mostly data tables and need type switches in every `ModelProtein`
+  method; a `ModelMarkov` subclass registered through `validModelName` and `getModelByName`, as
+  `UNREST` is, rejected for the tip-likelihood and `ModelsBlock` reasons above.
+- **Affects:** `model/modelnonrevfixedeq.{h,cpp}`, `model/modelmixture.cpp` (`createModel`),
+  `model/CMakeLists.txt`; resolves the pending candidates on a new name and on one class for both
+  invocation paths.
+
+## 003. Store the 360 coordinates as authoritative state and checkpoint them losslessly
+
+- **Date:** 2026-09-23
+- **Status:** accepted
+- **Decision:** The model keeps its 360 log-ratio coordinates in a separate array that is its
+  authoritative state; `rates[]` holds the 380 derived physical rates and `rate_matrix` the
+  derived normalized Q. The class checkpoints its own state under its own keys: chart identifier
+  and version, target, references, coordinates and target as 17-significant-digit strings,
+  domain, derivative policy, fixed or fitted status, and accepted score. Restore verifies target,
+  references, chart and domain against the constructed object and rejects any mismatch.
+- **Why:** Synthesis section 7.1: the pinned quantity is a jump weight, not a physical rate, so
+  every physical rate can change when the coordinates move, and using `rates[]` for both is
+  ambiguous; `ModelLieMarkov` already maps a separate parameter vector into `rates[]` (verified,
+  `model/modelliemarkov.cpp:899-933`). IQ-TREE writes checkpoint doubles at 10 significant digits
+  (verified, `utils/checkpoint.h:22, 352`), and the default +I+G path saves and restores the model
+  through its checkpoint (verified, `model/modelfactory.cpp:1395-1505`; `opt_gammai` defaults to
+  true, `utils/tools.cpp:7082`), so a 10-digit checkpoint would perturb the model during ordinary
+  fits, not only at restart.
+- **Alternatives rejected:** coordinates or auxiliary weights inside `rates[]` (P-positive section
+  6), superseded by synthesis section 7.1; `CKP_ARRAY_SAVE` at 10 digits, which is lossy; raising
+  `CKP_PRECISION` globally, which changes every model's checkpoint and is not opt-in.
+- **Affects:** `model/modelnonrevfixedeq.{h,cpp}`; checkpoint and restart tests; +I+G fits.
+
+## 004. Move the numerical half of `decomposeRateMatrixNonrev` into a protected helper
+
+- **Date:** 2026-09-23
+- **Status:** superseded by 015
+- **Decision:** The eigen-decomposition part of `ModelMarkov::decomposeRateMatrixNonrev`
+  (verified, `model/modelmarkov.cpp:1284-1386`) moves unchanged into a protected non-virtual
+  helper that the base routine then calls. The NQC class overrides `decomposeRateMatrixNonrev`:
+  it builds Q from its coordinates, validates it, installs `rates[]` and `rate_matrix`, and calls
+  the helper, never touching `state_freq`.
+- **Why:** The base routine resets π to uniform and re-solves it from Q unless the frequency type
+  is user-defined and `-optfromgiven` is off (verified, `model/modelmarkov.cpp:1252-1254`,
+  `1266-1267`). `optimize_from_given_params` is a process-wide global that cannot be switched per
+  object inside the OpenMP loop, so delegating to the unchanged base would let that flag overwrite
+  π* with a numerical approximation. Synthesis section 7.2 prefers a narrow shared numerical hook
+  over duplicating the eigen and fallback code. Moving the statements unchanged keeps legacy
+  behaviour identical, which the regression baseline checks.
+- **Alternatives rejected:** writing physical rates into `rates[]` and calling the unchanged base,
+  which needs no shared change but is exposed to `-optfromgiven` (kept as the fallback if the
+  refactor shows any regression); copying about 100 lines of decomposition code into the class.
+- **Affects:** `model/modelmarkov.{h,cpp}`, `model/modelnonrevfixedeq.cpp`; the regression
+  baseline.
+
+## 005. Reach the scaled derivative step through a `PartitionModel::derivativeFunk` override
+
+- **Date:** 2026-09-23
+- **Status:** accepted
+- **Decision:** The NQC class overrides `derivativeFunk` for single-model optimization, and
+  `PartitionModel` gains a `derivativeFunk` override that delegates to a small hook interface
+  implemented by the linked model, falling back to `Optimization::derivativeFunk` for every other
+  model. The step is h = η max(s, |x|) with η = 1e-4 and s = 1 (D02), exactly representable, and
+  taken backward when the forward probe would leave the declared domain; a central stencil exists
+  for validation only. The same interface carries the linked-compatibility check and the post-fit
+  hook of entry 009.
+- **Why:** Linked optimization runs `minimizeMultiDimen` on the `PartitionModel` object (verified,
+  `model/partitionmodel.cpp:786`), and `PartitionModel` does not override `derivativeFunk`, so a
+  model-class override alone is not reached (verified; the only override outside `Optimization`
+  is `tree/phylotreemixlen.h:165`). Delegating from `PartitionModel` leaves
+  `utils/optimization.cpp` untouched, and legacy models call the same base routine as before.
+- **Alternatives rejected:** a virtual step hook inside `Optimization::derivativeFunk` with a
+  legacy default, which is general but edits the routine every optimizer uses; positive
+  coordinates to avoid any change, contrary to D01 and D02. The third optimizer entry point,
+  `ModelFactory::optimizeAllParameters` under `-jointopt`, hard-codes [MIN_RATE, MAX_RATE] bounds
+  on the model's coordinates (verified, `model/modelfactory.cpp:1331-1377`), so it is rejected by
+  entry 008 rather than hooked.
+- **Affects:** `model/partitionmodel.{h,cpp}`, `model/modelnonrevfixedeq.{h,cpp}`; gradient step
+  tests in both paths.
+
+## 006. Take the target through the existing `+F` routes and validate it strictly in the model
+
+- **Date:** 2026-09-23
+- **Status:** accepted
+- **Decision:** In the first release π* arrives only as `NQC+F{p1,...,p20}` or as `NQC+F<NAME>`
+  with the vector defined in an `--mdef` file. The model parses `freq_params` itself: exactly 20
+  finite entries, each greater than 0 and at least `min_state_freq`; a sum within 1e-6 of 1 is
+  normalized once and both vectors are reported; anything else is rejected with a message, and
+  nothing is floored or substituted. `+FO`, `+F`, `+FQ` and a missing `+F` are rejected with a
+  pointer to `NONREV`. Every report and export prints π* at 17 significant digits.
+- **Why:** Both routes already reach the model through `ModelFactory` with no shared-code change
+  (verified, `model/modelfactory.cpp:489-509` and `599-605`, with the `frequency NAME = ...;`
+  syntax at `model/modelmixture.cpp:724`). The existing reader is unsuitable for an immutable
+  target: it accepts NaN, turns non-numeric tokens into random draws from AliSim distributions,
+  and renormalizes with only a warning (verified, `model/modelmarkov.cpp:1761-1796`,
+  `utils/tools.cpp:408-428`). Known limits of the literal route: a `+` or `*` inside a number
+  splits the model string (verified, `model/modelfactory.cpp:259, 296`); commas prevent its use in
+  `-mset` and `-madd` (verified, `utils/tools.cpp:588`, `main/phylotesting.cpp:1095`); and protein
+  model names drop the vector when printed (verified, `model/modelmarkov.cpp:204-206`,
+  `model/modelprotein.cpp:1333-1348`). The named route avoids the first two. The 1e-6 sum
+  tolerance is a proposed setting that covers vectors printed at 8 significant digits.
+- **Alternatives rejected:** a new option such as `--target-freq FILE`, left for Peter to raise
+  with the maintainers because it defines public interface; `NQC{...}` braces, which conflate the
+  target with model parameters.
+- **Affects:** `model/fixedeqchart.cpp` (parser), `model/modelnonrevfixedeq.cpp`; the run
+  manifest; the S0 parsing checks.
+
+## 007. Hold domain and step settings as class defaults, with parse-only options
+
+- **Date:** 2026-09-23
+- **Status:** accepted
+- **Decision:** The coordinate domain defaults to the D03 historical benchmark domain, z in
+  [log 1e-5, log 10], and the step to D02's η = 1e-4 and s = 1. Two parse-only options, declared
+  in `utils/tools.h`, defaulted and parsed in `parseArg`, documented in `usage_iqtree()` and read
+  at the point of use, let a run set the domain (added in S2) and the step (added when the step
+  study needs it). A start not representable with margin is rejected with a message that prints
+  the domain required. Option names are provisional until Peter settles public names.
+- **Why:** D03 requires explicit and recorded domains, containment of every start, and
+  expansion-sensitivity checks, and LG rebuilt at a skewed target can fall outside the default
+  domain, so run-time settings are needed from the first compiled slice. Options follow IQ-TREE's
+  convention of global settings read through `Params`.
+- **Alternatives rejected:** `NQC{...}` braces, which mean initial parameter values elsewhere in
+  IQ-TREE and carry commas; compiled-in constants, which cannot be varied for sensitivity checks;
+  a domain chosen automatically for each start, which breaks matched comparisons across starts.
+- **Affects:** `utils/tools.{h,cpp}`, `model/modelnonrevfixedeq.cpp`; D03 sensitivity runs.
+
+## 008. Reject every model combination the first release does not support
+
+- **Date:** 2026-09-23
+- **Status:** accepted
+- **Decision:** NQC stops with an error message for: non-protein data; `+FO`, `+F`, `+FQ` or no
+  `+F`; `-optfromgiven` (verified, `utils/tools.cpp:3315-3318`); `-jointopt` (verified,
+  `utils/tools.cpp:3381-3382`); mixtures `MIX{...}` and `+FMIX` (verified,
+  `model/modelmixture.cpp:3441-3518, 4499`); tree mixtures and HMM models (verified,
+  `tree/iqtreemix.cpp:1382, 1612`, `tree/iqtreemixhmm.cpp:246`); site-specific frequency models
+  (verified, `model/modelfactory.cpp:643-687`); `--link-exchange-rates`; `--eigen`; ModelFinder
+  runs that include NQC; and AliSim simulation from the class, for which the exported fixed matrix
+  is used instead. How a mixture context is detected is settled in S2.
+- **Why:** Each path bypasses the class's invariants or has not been designed. `-jointopt`
+  optimizes the model's coordinates with hard-coded rate bounds and the legacy derivative
+  (verified, `model/modelfactory.cpp:1331-1377`), which would clamp log-ratios at 1e-4 or above;
+  `-optfromgiven` releases the equilibrium in the base decomposition (entry 004); the `--eigen`
+  path is already broken for non-reversible models (reported, `AA_MODEL_INFERENCE.md` section 15;
+  the base branch verified at `model/modelmarkov.cpp:1284-1289`); the others need their own
+  designs (synthesis section 2, out-of-scope list).
+- **Alternatives rejected:** allowing them silently, unsafe for the reasons above; supporting them
+  all in the first release, beyond its scope.
+- **Affects:** `model/modelnonrevfixedeq.cpp`; rejection tests in S2.
+
+## 009. Surface failed line searches by post-fit checks first, and record status later
+
+- **Date:** 2026-09-23
+- **Status:** accepted
+- **Decision:** From S2, the NQC paths re-evaluate the returned point after each fit, check the
+  invariants, record bound activity and restore the incumbent if the score fell, and at export
+  compute a central-difference first-order diagnostic in log-ratio coordinates; the stop is
+  labelled "unclassified" unless that diagnostic passes. In S5, `dfpmin` and `lnsrch` gain
+  recording-only fields for line-search failures and the stop reason, with no change to any
+  trajectory. The line search itself is not repaired unless Peter relays maintainer approval of
+  that broader change.
+- **Why:** When the step falls below its minimum, `lnsrch` restores the old point, sets
+  `check = 1` and leaves `*f` at the last trial (verified, `utils/optimization.cpp:687-690`);
+  `dfpmin` never reads `check`, and the zero displacement then passes its small-step test
+  (verified, `utils/optimization.cpp:832-846`). A return therefore does not certify convergence
+  (synthesis section 5). Post-fit checks need no change to the shared optimizer, and exact stop
+  reasons matter first for the G4 comparisons.
+- **Alternatives rejected:** status propagation from the start, which edits
+  `utils/optimization.cpp` before it is needed; repairing the line search, which changes legacy
+  trajectories.
+- **Affects:** `model/modelnonrevfixedeq.cpp`, the `PartitionModel` post-fit hook, and in S5
+  `utils/optimization.{h,cpp}`.
+
+## 010. Export the fitted matrix at 17 digits in the `-m FILE` format, with a metadata file
+
+- **Date:** 2026-09-23
+- **Status:** accepted
+- **Decision:** After the final model optimization, a hook in `main/phyloanalysis.cpp`, active
+  only when an NQC model exists, writes `<prefix>.NQC.qmat`, holding the 20 rows of the normalized
+  Q and the π* row at 17 significant digits, and `<prefix>.NQC.info`, holding the target, state
+  order, chart and version, references, domain, derivative policy, residuals, bound activity,
+  stop classification, seed identity and source commit. Re-import uses the existing `-m FILE`
+  path. The `.iqtree` report block is left as it is.
+- **Why:** The report prints the matrix at 6 significant digits (verified,
+  `main/phyloanalysis.cpp:633`), `.best_model.nex` omits the rates, and re-import from the 6-digit
+  block reproduced the log-likelihood only to 4e-4 (reported, `CHANGELOG.md`, 2026-09-23). The
+  existing reader loads a full-Q file whose first entry is negative as a non-reversible model and
+  keeps the file's π as the root distribution (verified, `model/modelmarkov.cpp:1809-1812`,
+  `model/modelprotein.cpp:1234-1248`), so no reader change is needed.
+- **Alternatives rejected:** raising the report block's precision, which edits shared report code
+  for every model; a NEXUS block through `reportNexusFile`, which writes 6 digits, labels every
+  model `GTRPMIX` and writes a uniform frequency line (reported, `ARCHITECTURE.md` section 12).
+- **Affects:** `main/phyloanalysis.cpp`, `model/modelnonrevfixedeq.cpp`; export and re-import
+  tests.
+
+## 011. Recompute reference destinations deterministically in every model object
+
+- **Date:** 2026-09-23
+- **Status:** accepted
+- **Decision:** Every NQC object computes its reference destinations from LG rebuilt at π*, read
+  from the built-in models block, as the row maxima with ties going to the lower amino-acid index,
+  whatever start it is given. The references are stored in the checkpoint, the export metadata
+  and the report, and verified on restore and across linked objects before optimization.
+  User-supplied references are deferred.
+- **Why:** D01 and synthesis section 3.4 fix the rule and require one shared definition for every
+  linked object and every start. A deterministic function of π* gives every object the same
+  references without shared mutable state, which would be unsafe inside the OpenMP loop.
+- **Alternatives rejected:** copying references from a first object, which introduces shared
+  state and ordering dependence; user-supplied references in the first release.
+- **Affects:** `model/fixedeqchart.cpp`, `model/modelnonrevfixedeq.cpp`; linked-compatibility and
+  restart tests.
+
+## 012. Test the pure module with googletest in a standalone CMake project
+
+- **Date:** 2026-09-23
+- **Status:** accepted
+- **Decision:** C++ unit tests live in `unittest/`, a standalone CMake project that compiles
+  `model/fixedeqchart.cpp` directly and fetches googletest at the commit cmaple pins (verified,
+  `cmaple/CMakeLists.txt:281-293`). The class's behaviour is tested through the binary. Fixtures
+  are plain text at 17 significant digits, written by the oracle with a provenance header, and
+  never regenerated to make a test pass. Integration into the main build is revisited only if
+  class-level C++ tests become necessary.
+- **Why:** The pure module depends only on Eigen, so it needs no IQ-TREE libraries, and a
+  standalone project changes no shared build file. cmaple's googletest targets do not exist on
+  Windows, where `USE_CMAPLE` is not an option (verified, `CMakeLists.txt:255-258`), and depending
+  on them ties the tests to a vendored subproject.
+- **Alternatives rejected:** reusing cmaple's targets inside the main build; an opt-in test
+  subdirectory in the main build, which needs a guarded edit to the root `CMakeLists.txt` that
+  nothing yet requires.
+- **Affects:** `unittest/`, `.github/workflows/fixedeq.yaml`.
+
+## 013. Keep the Python oracle in `test_scripts/fixedeq/`, in a conda environment in WSL
+
+- **Date:** 2026-09-23
+- **Status:** accepted
+- **Decision:** The oracle, drivers and fixture generator live in `test_scripts/fixedeq/`. They
+  run in a conda environment named `iqtree3-fixedeq`, created in WSL from
+  `test_scripts/fixedeq/environment.yml` (conda-forge only, with pinned python, numpy, scipy and
+  pytest), with a lock file exported after creation. Because `conda` is not on the PATH of shells
+  started by `wsl.exe`, commands run as `~/anaconda3/bin/conda run -n iqtree3-fixedeq ...`. The
+  system Python is never used or modified.
+- **Why:** `docs/agent/design/scripts/` must stay unedited reference copies (design README).
+  `test_scripts/` holds IQ-TREE's test harness, and a new subdirectory there adds files without
+  conflicting with upstream. The oracle must run beside the IQ-TREE binary in WSL for the
+  differential tests. Checked read-only on 2026-09-23: `~/anaconda3` exists with the libmamba
+  solver and the `defaults` channel, `conda` is not on the PATH in `wsl.exe` shells, and the
+  system `python3` is 3.11.2. Conda-forge avoids depending on the `defaults` channel.
+- **Alternatives rejected:** placing derived code beside the design scripts; a top-level `oracle/`
+  directory; a virtual environment built on the system Python.
+- **Affects:** `test_scripts/fixedeq/`; every oracle, fixture, regression and differential
+  command.
+
+## 014. Write drivers in Python and scope line-ending rules to the new directories
+
+- **Date:** 2026-09-23
+- **Status:** accepted
+- **Decision:** Test and regression drivers are Python files run as `python file.py`, and one-off
+  command scripts for `wsl.exe` are written with LF line endings. The new directories carry their
+  own `.gitattributes` (`*.sh text eol=lf` and `*.py text eol=lf`); no root `.gitattributes` is
+  added and `core.autocrlf` is not changed.
+- **Why:** This checkout has `core.autocrlf=true` and no `.gitattributes` (verified), and shell
+  scripts with CRLF endings fail under WSL bash, while Python reads either ending. Scoped
+  attribute files fix the new directories without changing how upstream's scripts check out in
+  this working copy.
+- **Alternatives rejected:** a root `.gitattributes`, which also affects upstream's files;
+  changing `core.autocrlf`, a machine-level setting outside the repository.
+- **Affects:** `test_scripts/fixedeq/`, `unittest/`.
+
+## 015. Build Q in the class's decomposition override and call the unchanged base decomposition
+
+- **Date:** 2026-10-03
+- **Status:** accepted
+- **Decision:** Supersedes 004. The NQC class's `decomposeRateMatrixNonrev` override builds Q from
+  the stored coordinates (entry 003) into per-object workspace, validates it, writes its 380
+  off-diagonal rates into `rates[]`, and calls the unchanged `ModelMarkov::decomposeRateMatrixNonrev`.
+  After that call it checks that `state_freq` is bitwise equal to π* and stops with an error if it
+  is not. A failed build writes nothing and sets the flag that makes the class's `targetFunk`
+  return 1e30. `setVariables` and `getVariables` only copy the coordinates out of and into the
+  model; they do not build Q. `ModelMarkov` is not edited.
+- **Why:** When the frequency type is `FREQ_USER_DEFINED` and `-optfromgiven` is off, the base
+  routine skips the π reset and the stationarity solve (verified, `model/modelmarkov.cpp:1252,
+  1266`). Entry 008 rejects `-optfromgiven` for NQC, and the flag is set only from the command line
+  (verified, `utils/tools.cpp:3316`, default false at 7284), so the reason given for 004 no longer
+  holds. The base routine then unpacks `rates[]` into `rate_matrix`, rescales by
+  total_num_subst / Σ π*_i (−q_ii), a factor equal to 1 up to rounding because the built Q has unit
+  mean rate at π*, and eigendecomposes. Building Q in the decomposition override rather than in
+  `getVariables` makes every eigensystem come from the coordinates, because every decomposition
+  passes through that override. In particular `ModelProtein::restoreCheckpoint` writes `rates[]`
+  from the checkpoint at 10 significant digits and then decomposes (verified,
+  `model/modelprotein.cpp:1265-1276`; `utils/checkpoint.h:22`), and the default +I+G optimization
+  restores the model on each restart and at the end (verified, `model/modelfactory.cpp:1504,
+  1550`); that decomposition is dispatched to the override, so the 10-digit rates never become Q.
+  The IQ-TREE maintainers advised caution with changes to `ModelMarkov` (reported by Peter,
+  2026-10-01). The check after the base call turns any later change to the base routine's π
+  guards into an error rather than a silent change of the target.
+- **Alternatives rejected:** 004's helper split, which leaves Q bitwise as built but edits the
+  routine every non-reversible model uses, against the maintainers' advice and with no remaining
+  reason. Building Q in `getVariables` with the unchanged base decomposition, the placement the
+  maintainers described and the one `ModelLieMarkov` uses through `setRates` (verified,
+  `model/modelliemarkov.cpp:919-933, 615-625`): the base decomposition would then trust `rates[]`,
+  so the checkpoint restore above, or any later writer of `rates[]`, would set Q until the next
+  changed coordinate vector, and the `changed` test in `targetFunk` (verified,
+  `model/modelmarkov.cpp:1092-1100`) would leave that Q as the base point of the next
+  finite-difference gradient.
+- **Affects:** `model/modelnonrevfixedeq.{h,cpp}`; `model/modelmarkov.{h,cpp}` are no longer
+  changed; entry 008's rejection of `-optfromgiven` becomes load-bearing; S2 tests (the built Q
+  compared with the oracle after the base rescaling, target immutability).
 
 ---
 
@@ -277,6 +605,9 @@ of a file that is mostly data tables.
 > Note, 2026-09-23: both design plans also propose a new name (`NQC` provisionally), and D09(5)
 > qualifies the likelihood-ratio statement above.
 
+> Resolved, 2026-09-23: entry 002 (a new class, `ModelNonrevFixedEq`, provisional name NQC;
+> `NONREV` unchanged).
+
 ### Candidate: support single-alignment and multi-partition paths through one subclass
 
 Supporting evidence: `PartitionModel::optimizeLinkedModel` is parameterization-agnostic. It
@@ -293,6 +624,10 @@ with a shared constrained Q would be a different feature.
 > models with `FREQ_ESTIMATE` or `FREQ_EMPIRICAL` (`model/partitionmodel.cpp:116-165`); and
 > linked objects need an explicit compatibility check.
 
+> Resolved, 2026-09-23: entries 002, 005 and 009 (one class serves both paths, with the
+> linked-path hooks in `PartitionModel`); the supported invocations are in `PLAN.md`, "Scope of
+> the first release".
+
 ### Candidate: follow the Lie-Markov reduced-parameterization pattern
 
 Supporting evidence: `ModelLieMarkov::setBasis` already implements this exact feature for
@@ -304,6 +639,8 @@ transfers to 20 states and what does not.
 > passage of `ARCHITECTURE.md` section 9 has been removed as design advice. `ModelLieMarkov`
 > remains relevant only as a precedent for storing coordinates separately from `rates[]` and
 > mapping them in `getVariables` (synthesis section 7.1).
+
+> Resolved, 2026-09-23: D01 and entry 003.
 
 ### Candidate: baseline and branching strategy
 

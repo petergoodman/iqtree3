@@ -8,6 +8,76 @@ Entries record the tool and model version, what it did, and which files or secti
 No AI-generated scientific claim, numerical result, or citation in this project has been accepted
 without human verification against source.
 
+## 2026-10-03
+
+**Tool:** Claude Code (VS Code extension).
+**Model:** Claude Opus 5.5, 1M context, model id `claude-opus-5-5[1m]`.
+**Operator:** Peter Goodman.
+
+**What it did.** Compared three placements of the coordinate-to-matrix build against the source,
+recommended one, and on the operator's decision recorded it as programming decision 015, which
+supersedes decision 004, with the matching updates to the plan and code plan. Explained C++
+overriding and the nQ inference call path in chat.
+
+**Verification.** Every source anchor cited was read in this session at HEAD `4c5f061f`. Only
+read-only commands were run. IQ-TREE was not built or run, and no numerical result was produced.
+
+**Files modified.** `docs/agent/DECISIONS.md`, `docs/agent/PLAN.md`, `docs/agent/CODE_PLAN.md`,
+`CHANGELOG.md`, `AI_DISCLOSURE.md`.
+
+**Source code modified.** None.
+
+## 2026-10-01
+
+**Tool:** Claude Code (VS Code extension).
+**Model:** Claude Opus 5.5, 1M context, model id `claude-opus-5-5[1m]`.
+**Operator:** Peter Goodman.
+
+**What it did.** Mapped the functions and advice from the operator's notes of a meeting with the
+IQ-TREE maintainers to the source, compared them with the approved plan, and recorded the
+comparison and three new risks (a transition-matrix method switch as a continuity source,
+whether decision 004 is still needed, and the deferred optimizer edit of S5).
+
+**Verification.** Every source anchor cited was read in this session at HEAD `4c5f061f`. Only
+read-only commands were run. IQ-TREE was not built or run, and no numerical result was produced.
+
+**Files modified.** `CHANGELOG.md`, `docs/agent/PLAN.md`, `AI_DISCLOSURE.md`.
+
+**Source code modified.** None.
+
+## 2026-09-23 (second session)
+
+**Tool:** Claude Code (VS Code extension).
+**Model:** Claude Opus 5.5, 1M context, model id `claude-opus-5-5[1m]`, with one read-only search
+subagent that stalled and contributed nothing.
+**Operator:** Peter Goodman.
+
+**What it did.** Wrote the project's code plan from the design documents and a reading of the
+IQ-TREE source: the completed `docs/agent/PLAN.md`; a new companion, `docs/agent/CODE_PLAN.md`
+(change map, class specification, test specification, per-slice lists, source anchors); and
+thirteen programming decisions, entries 002 to 014 in `docs/agent/DECISIONS.md`, each with its
+options, trade-offs and recommendation, all approved by the operator. Drafted the plan's
+scientific motivation and success criteria for the operator's confirmation. Added to `CLAUDE.md`,
+on the operator's instruction, the rule that agents never contact the IQ-TREE maintainers, and
+added the companion document to its reading order. Later in the session, on the operator's
+instruction, applied five minimal corrections of fact to the reference documents: a nonexistent
+option name, two stale statements that the build had not been run, a missing Windows
+qualification, and line anchors that pointed at the wrong code.
+
+**Verification.** Every source anchor cited in the new text was read in this session in the
+source at HEAD `4c5f061f`, which matches `63c330d9` outside documentation. Only read-only checks
+were run (git state; conda and Python in WSL). IQ-TREE was not built or run, and no numerical
+result was produced. Statements taken from documents are labelled as reported, and plan choices
+as proposed.
+
+**Files created.** `docs/agent/CODE_PLAN.md`.
+
+**Files modified.** `docs/agent/PLAN.md`, `docs/agent/DECISIONS.md`, `CLAUDE.md`, `CHANGELOG.md`,
+`AI_DISCLOSURE.md`, and, for the corrections of fact, `docs/agent/ARCHITECTURE.md`,
+`docs/agent/AA_MODEL_INFERENCE.md` and `docs/agent/FILE_INDEX.md`.
+
+**Source code modified.** None.
+
 ## 2026-09-23
 
 **Tool:** Claude Code (VS Code extension).

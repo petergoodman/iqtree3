@@ -2,32 +2,37 @@
 
 Fork of `iqtree/iqtree3` (C++17, CMake). The project adds constrained maximum-likelihood
 estimation of non-reversible amino-acid rate matrices under a supplied target stationary
-frequency vector. The goal is stated in `docs/agent/PLAN.md` (written 2026-09-23); the plan's
-other sections are still open, so ask rather than infer.
+frequency vector. The goal, scope, code plan and next step are in `docs/agent/PLAN.md` (code
+plan approved 2026-09-23); where it is silent, ask rather than infer.
 
 Project facts only. Personal working preferences live in `~/.claude/CLAUDE.md`; personal
 project-specific notes go in `CLAUDE.local.md` (add it to `.gitignore` first).
 
 ## Read these before starting
 
-1. `docs/agent/PLAN.md`, goal, scope, current state, next step. Read every task.
-2. `docs/agent/DECISIONS.md`, settled choices not to be re-litigated: programming decisions as
+1. `docs/agent/PLAN.md`, goal, scope, code plan summary, current state, next step. Read every
+   task.
+2. `docs/agent/CODE_PLAN.md`, the file-level change map, the NQC class specification and the
+   test specification. Read only after `PLAN.md`, and only when implementing or testing a slice;
+   never read it on its own.
+3. `docs/agent/DECISIONS.md`, settled choices not to be re-litigated: programming decisions as
    numbered entries, and the design's mathematical decisions D01 to D10, which are revisable
    under their own change rule. Read before changing an approach.
-3. `docs/agent/design/`, the mathematical and methodological design (start with its
+4. `docs/agent/design/`, the mathematical and methodological design (start with its
    `README.md`; the unified synthesis governs conflicts). Read before planning or changing the
    method.
-4. `docs/agent/ARCHITECTURE.md`, IQ-TREE's current programming architecture around substitution
+5. `docs/agent/ARCHITECTURE.md`, IQ-TREE's current programming architecture around substitution
    models. Read before writing code. Start at its "Baseline and staleness" section.
-5. `docs/agent/AA_MODEL_INFERENCE.md`, the mathematics and algorithms of how IQ-TREE currently
+6. `docs/agent/AA_MODEL_INFERENCE.md`, the mathematics and algorithms of how IQ-TREE currently
    infers each class of amino-acid model. Read when the behaviour of an existing model matters.
-6. `docs/agent/FILE_INDEX.md`, tiered index of which file to open and when. Use instead of
+7. `docs/agent/FILE_INDEX.md`, tiered index of which file to open and when. Use instead of
    grepping the tree.
-7. `CHANGELOG.md`, history including approaches that failed. The top entry is the current state.
-8. `AI_DISCLOSURE.md`, appended to whenever an AI contribution here is substantive.
+8. `CHANGELOG.md`, history including approaches that failed. The top entry is the current state.
+9. `AI_DISCLOSURE.md`, appended to whenever an AI contribution here is substantive.
 
-Items 4 to 6 describe the code as it is and prescribe nothing. Instructions about what to build
-come only from `PLAN.md`, `DECISIONS.md`, and the design documents.
+Items 5 to 7 describe the code as it is and prescribe nothing. Instructions about what to build
+come only from `PLAN.md` with its companion `CODE_PLAN.md`, `DECISIONS.md`, and the design
+documents.
 
 `model/CLAUDE.md` loads automatically for work under `model/`, where most of this project lives.
 
@@ -120,8 +125,12 @@ cmake --build ~/iqtree3-build -j 4
 
 - `origin` is the fork `petergoodman/iqtree3`. `upstream` is `iqtree/iqtree3`, and its **push
   URL is deliberately disabled** (`DISABLED_NO_PUSH_TO_UPSTREAM`) so that nothing can reach the
-  official repository by accident. Do not re-enable it; contributing back is done by opening a
-  pull request from the fork on GitHub.
+  official repository by accident. Do not re-enable it; contributing back is done by Peter
+  opening a pull request from the fork on GitHub.
+- **Never contact the IQ-TREE maintainers.** No agent opens issues or pull requests, comments,
+  posts to discussions, or emails anyone at `iqtree/iqtree3`. Peter handles all communication
+  with them; questions meant for the maintainers go to the open questions in
+  `docs/agent/PLAN.md`. Development on the fork never waits on upstream.
 - Work happens on `nq-constrained-pi`. **Never commit to `master`**, which is kept as an exact
   mirror of upstream so that syncing stays a fast-forward.
 - Baseline is `63c330d9` (upstream tag `v3.1.4`). The anchors in `docs/agent/` are verified
