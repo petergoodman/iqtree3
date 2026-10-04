@@ -186,8 +186,8 @@ from the precision available, with a target of 1e-8 relative.
 
 The binary is `~/iqtree3-baseline/iqtree3`, copied from the unmodified build with its SHA-256
 recorded. Every run starts in its own new directory under `~/iqtree3-runs/baseline/`, uses
-`-seed 1` and `-T 1` except run 11, and is repeated twice; run 11 is repeated five times to
-measure its spread:
+`-seed 1` and `-T 1` except runs 11 and 12, and is repeated twice; runs 11 and 12 are repeated
+five times to measure their spread:
 
 1. `-s example/aa_example.phy -m LG+G4`
 2. `-s example/aa_example.phy -m NONREV`
@@ -204,14 +204,15 @@ measure its spread:
     with the same repeat's run 8 Q block and tree file copied under these relative names,
     because the report prints the Q file's path
 11. run 8 with `-T 4`
+12. run 10 with `-T 4` (decision 018)
 
 Compared per run: every section of the `.iqtree` report except the opening header, "ALISIM
 COMMAND" and "TIME STAMP", which hold paths, the build date and clock times; the tree file; and
 the exit code. These contain the log-likelihood, the number of free parameters, the tree length
 and the Q block. Wall time is recorded, not compared. An item identical in every baseline repeat
 must reproduce exactly; one whose repeats differ only in their numbers is held to the observed
-spread; one whose text differs otherwise cannot be compared, and run 11's rule is open (PLAN.md
-risk 19). The driver is `test_scripts/fixedeq/regression/regress.py`; the baseline and its
+spread; one whose text differs otherwise cannot be compared. Run 11 is judged by decision 018
+instead. The driver is `test_scripts/fixedeq/regression/regress.py`; the baseline and its
 provenance are in `test_scripts/fixedeq/regression/baseline/`.
 
 ### 3.5 Layer 5: invariants and nesting
@@ -225,7 +226,9 @@ provenance are in `test_scripts/fixedeq/regression/baseline/`.
   checkpoint, restart and export.
 - Counting: 360 plus rate and branch parameters, with the matrix counted once for linked
   partitions.
-- Determinism: `-T 1` against `-T 4`, and permuted partition order.
+- Determinism: `-T 1` against `-T 4`, and permuted partition order. How the thread comparison
+  is defined is open (PLAN.md risk 19), because legacy joint fits already differ across thread
+  counts.
 - Export and re-import: log-likelihood equality with fixed nuisances.
 - An incompatible restart, with a different target, is rejected.
 

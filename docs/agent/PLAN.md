@@ -1,7 +1,7 @@
 # Plan: π-constrained non-reversible amino-acid models
 
 > **Status, 2026-10-03: code plan approved by Peter on 2026-09-23 and amended by decisions 015 to
-> 017 on 2026-10-03; approach accepted by the IQ-TREE maintainers (reported by Peter, 2026-10-01); no
+> 018 on 2026-10-03; approach accepted by the IQ-TREE maintainers (reported by Peter, 2026-10-01); no
 > source code changed yet.** Peter owns
 > this document. Its companion, `docs/agent/CODE_PLAN.md`, holds the file-level change map, the
 > NQC class specification and the test specification; it is subordinate to this document and is
@@ -243,7 +243,8 @@ input; 007 domain and step settings; 008 unsupported combinations; 009 surfacing
 searches; 010 export format; 011 reference destinations; 012 C++ test framework; 013 oracle
 location and environment; 014 line endings; 015 Q built in the class's decomposition, which
 calls the unchanged base (superseding 004); 016 root policy for S0 to S4; 017 the oracle's port
-of IQ-TREE's optimizer. Mathematical decisions: D01 to D10.
+of IQ-TREE's optimizer; 018 the regression rule for run 11 and the added run 12. Mathematical
+decisions: D01 to D10.
 
 ### Test strategy
 
@@ -306,7 +307,7 @@ competing implementations, G5 native and outer workflow, G6 scientific validatio
 | 16 | How precisely a fitted `GTR20+F{π*}` incumbent reaches an NQC run: the report prints Q at 6 digits, decision 010 exports only NQC, and checkpoints hold 10 digits | S0 probe (g), then a decision entry before S3 |
 | 17 | Thresholds marked provisional (1e-10 residuals, 1e-12 relative Q entries, the 1e-6 target sum) must be final, or declared reported rather than asserted, before their tests are written, because a threshold is not relaxed after a failure | Peter, before S1 |
 | 18 | No fallback is recorded if S3 profiling shows training runs impractical while analytic gradients are out of scope | Peter, after S3 profiling |
-| 19 | Baseline run 11 (`--model-joint NONREV` under `-p` at `-T 4`) does not reproduce: five repeats of the unmodified binary ended at log-likelihoods from -4975.0215 to -4974.5963, none equal to the `-T 1` run's -4974.5432, with the same topology and 442 of the model section's 447 numbers varying (largest spread 0.046). Its tree drawing varies too, so the spread rule of `CODE_PLAN.md` section 3.4 cannot judge it, and S3's `-T 1` against `-T 4` test meets the same behaviour in legacy code | Peter: a comparison rule for run 11 before S2, and the S3 thread test's definition before S3 |
+| 19 | Baseline run 11 (`--model-joint NONREV` under `-p` at `-T 4`) does not reproduce: five repeats of the unmodified binary ended at log-likelihoods from -4975.0215 to -4974.5963, none equal to the `-T 1` run's -4974.5432, with the same topology and 442 of the model section's 447 numbers varying (largest spread 0.046). Its tree drawing varies too, so the spread rule of `CODE_PLAN.md` section 3.4 cannot judge it, and S3's `-T 1` against `-T 4` test meets the same behaviour in legacy code | Partly resolved 2026-10-03: run 11's rule and the added run 12 are decision 018; the S3 thread test's definition, Peter before S3 |
 
 ## Current state
 
@@ -320,14 +321,16 @@ built from `test_scripts/fixedeq/environment.yml` with its lock in `environment.
 regression baseline is recorded (2026-10-03) from the frozen unmodified binary
 `~/iqtree3-baseline/iqtree3` by `test_scripts/fixedeq/regression/regress.py`, with its summary and
 provenance in `test_scripts/fixedeq/regression/baseline/`: runs 1 to 10 reproduce exactly between
-repeats, run 11 does not (risk 19). The oracle and fixtures do not exist yet.
+repeats, run 11 does not and is judged by decision 018, whose driver changes and run 12 are not
+yet made. The oracle and fixtures do not exist yet.
 
 ## Next step
 
-Rerun the three supplied design scripts from copies outside the repository, in the
-`iqtree3-fixedeq` environment, and compare their outputs with the values the design documents
-report (risk 10); then write the oracle and its tests (`CODE_PLAN.md` section 3.1). Before S2,
-Peter sets the comparison rule for run 11 (risk 19).
+Implement decision 018 in the regression driver and record run 12 from the frozen binary,
+without overwriting the existing baseline. Then rerun the three supplied design scripts from
+copies outside the repository, in the `iqtree3-fixedeq` environment, and compare their outputs
+with the values the design documents report (risk 10); then write the oracle and its tests
+(`CODE_PLAN.md` section 3.1).
 
 ## Checklists
 

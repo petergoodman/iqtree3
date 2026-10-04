@@ -21,6 +21,9 @@ documentation work of the three preceding sessions unchanged. Wrote the conda en
 for the oracle and created the environment in WSL, with its lock file. Then, on a plan the
 operator approved, wrote the S0 regression driver and its tests, froze the unmodified IQ-TREE
 binary, ran the 11 baseline runs (twice, and run 11 five times) and wrote the baseline summary.
+Finally, on the operator's choice, recorded decision 018 (the comparison rule for run 11 and an
+added run 12), audited the record for a handoff, and added the test setup's facts to
+`CLAUDE.md`.
 
 **Verification.** Every source anchor cited in the new text was read in this session at HEAD
 `4c5f061f`. The package versions reported were printed by the created environment. Every
@@ -34,7 +37,7 @@ was run only from the unmodified binary; no source code was changed.
 `test_scripts/fixedeq/regression/baseline/baseline.json` and `baseline.md` (written by the driver).
 
 **Files modified.** `docs/agent/DECISIONS.md`, `docs/agent/CODE_PLAN.md`, `docs/agent/PLAN.md`,
-`CHANGELOG.md`, `AI_DISCLOSURE.md`.
+`CLAUDE.md`, `CHANGELOG.md`, `AI_DISCLOSURE.md`.
 
 **Source code modified.** None.
 

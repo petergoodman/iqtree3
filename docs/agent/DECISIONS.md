@@ -1,8 +1,8 @@
 # Decisions
 
-> **Status, 2026-10-03.** Programming decisions 001 to 017 are recorded; 002 to 014 were
-> approved by Peter with the code plan on 2026-09-23, and 015 (which supersedes 004), 016 and
-> 017 on 2026-10-03. Ten mathematical and methodological design
+> **Status, 2026-10-03.** Programming decisions 001 to 018 are recorded; 002 to 014 were
+> approved by Peter with the code plan on 2026-09-23, and 015 (which supersedes 004) to 018 on
+> 2026-10-03. Ten mathematical and methodological design
 > decisions, D01 to D10, are recorded from the design synthesis and are revisable (see that
 > section's preamble). The items under "Pending programming candidates" were discussed on
 > 2026-09-15; the first three are now resolved by the entries named in their notes. An agent must
@@ -457,6 +457,33 @@ Number programming entries sequentially from 001 and never reuse a number.
   entry 013).
 - **Affects:** `test_scripts/fixedeq/oracle/`; `CODE_PLAN.md` section 3.1; the S2 test that
   compares the compiled optimizer with the port.
+
+## 018. Judge baseline run 11 by its fixed parts, and add run 12, run 10 at four threads
+
+- **Date:** 2026-10-03
+- **Status:** accepted
+- **Decision:** In regression comparisons, run 11 (`--model-joint NONREV` under `-p` at `-T 4`)
+  is judged only on the parts that did not vary across its five baseline repeats: the exit code;
+  the REFERENCES and SEQUENCE ALIGNMENT sections, exactly; and the SUBSTITUTION PROCESS section
+  and the tree file with every number removed, so that the wording and the topology must match
+  while the values may differ. Its "MAXIMUM LIKELIHOOD TREE" section is not compared, because its
+  ASCII drawing changes with the branch lengths and the topology is checked through the tree
+  file. A run 12, run 10 at `-T 4`, joins the baseline list; it is recorded five times from the
+  frozen binary `~/iqtree3-baseline/iqtree3` (SHA-256 `9a72950b…c04fb501`) and compared under the
+  general rules of `CODE_PLAN.md` section 3.4. Both are implemented in the regression driver
+  before S2.
+- **Why:** Peter's choice on 2026-10-03 (PLAN.md risk 19). The five repeats of run 11 ended at
+  log-likelihoods from -4975.0215 to -4974.5963, none equal to the `-T 1` run's -4974.5432, so
+  its numbers carry no regression signal; its wording and topology were identical in every
+  repeat and still catch a crash, a changed model description or a changed tree. Run 12 fixes
+  the tree and the matrix, so it exercises the multi-threaded likelihood code with far less room
+  for the optimizer's path to differ; that it reproduces exactly is expected, not yet observed.
+  The recommendation as first worded, "the same report text apart from the numbers", would have
+  failed on the tree drawing; this entry states the precise rule.
+- **Alternatives rejected:** holding run 11's numbers to their observed spread, which a genuine
+  repeat would often fail; dropping run 11, which would leave the threaded joint fit unchecked.
+- **Affects:** `test_scripts/fixedeq/regression/regress.py` and its tests; the baseline in
+  `test_scripts/fixedeq/regression/baseline/`; `CODE_PLAN.md` section 3.4.
 
 ---
 

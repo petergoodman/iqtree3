@@ -81,6 +81,20 @@ cmake --build ~/iqtree3-build -j 4
 - Regression scripts live in `test_scripts/`; CI runs `test_iqtree.sh` then `verify_results.sh`.
   They do not exercise `NONREV`, `NQ.*`, `GTR20`, or `--model-joint`, and `test_iqtree.sh` needs
   `/usr/bin/time`, which this Debian does not have installed (nor `bc`).
+- **Python runs only in the project's conda environment**, `iqtree3-fixedeq` in WSL (decision 013,
+  built from `test_scripts/fixedeq/environment.yml`), never in the Windows or Debian system
+  Python: `~/anaconda3/bin/conda run --no-capture-output -n iqtree3-fixedeq python ...`. Tests,
+  from the repository root: `... python -m pytest test_scripts/fixedeq/tests -q -p no:cacheprovider`.
+  Conda's FutureWarning about the `defaults` channel is harmless.
+- **Regression driver**: `test_scripts/fixedeq/regression/regress.py` (`freeze`, `run`,
+  `baseline`, `compare`; `CODE_PLAN.md` section 3.4). The baseline in
+  `test_scripts/fixedeq/regression/baseline/` was recorded from the frozen unmodified binary
+  `~/iqtree3-baseline/iqtree3` (SHA-256 in `iqtree3.sha256` beside it), which is never rebuilt or
+  overwritten; its raw outputs are in `~/iqtree3-runs/baseline/`. After a source change, `run`
+  the new build into a new directory and `compare` its `extract.json` with
+  `baseline/baseline.json`. Pass `--git git.exe`: Linux git inside WSL sees hundreds of false
+  changes in this Windows working copy (line endings), while Windows `git.exe` reports the true
+  state. `run` refuses an unclean working tree, so do not edit repository files while it runs.
 
 ## Layout
 
@@ -90,6 +104,8 @@ cmake --build ~/iqtree3-build -j 4
 - `main/` analysis driver and reports (`phyloanalysis.cpp`), ModelFinder (`phylotesting.cpp`).
 - `docs/agent/` documents for agents working on this project. Everything this fork adds to the
   documentation tree goes here, so upstream merges stay clean.
+- `test_scripts/fixedeq/` this project's Python environment, oracle, drivers, tests and
+  regression baseline; the rest of `test_scripts/` is upstream's.
 - `doc/` is generated Doxygen output from upstream, not ours, and is not worth reading.
 
 ## Conventions that differ from defaults

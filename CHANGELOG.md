@@ -7,6 +7,35 @@ from the top entry.
 This is a fork of `iqtree/iqtree3`. Entries here describe work on the fork, not upstream
 development.
 
+## 2026-10-03 (second session, closing): decision 018 and handoff to a new session
+
+### Done
+
+Peter accepted both recommendations from the baseline report, recorded as decision 018: run 11
+is judged only on its exit code, its REFERENCES and SEQUENCE ALIGNMENT sections, and its
+SUBSTITUTION PROCESS section and tree file with every number removed (its tree section is not
+compared, because the ASCII drawing changes with branch lengths); and a run 12, run 10 at
+`-T 4`, joins the baseline list, to be recorded five times from the frozen binary. PLAN.md risk
+19 is now partly resolved; the definition of S3's thread test stays open. `CODE_PLAN.md`
+sections 3.4 and 3.5 updated.
+
+Audit of the record, at Peter's request: all work through `6c90ff25` was committed and pushed,
+every piece was documented where the document roles put it, and the memory files were current.
+The one gap for a new agent was that `CLAUDE.md` said nothing about the test setup; it now
+states how to run Python in the `iqtree3-fixedeq` environment, how the regression driver and the
+frozen binary are used, why the driver needs `--git git.exe`, and that `test_scripts/fixedeq/`
+is this project's directory.
+
+### Failed
+
+Nothing failed.
+
+### Next
+
+1. Implement decision 018 in `regress.py`, with tests, and record run 12 from the frozen binary
+   without overwriting the existing baseline.
+2. Rerun the three design scripts, then plan and write the oracle (PLAN.md, next step).
+
 ## 2026-10-03 (second session, continued): S0 regression driver and baseline recorded
 
 ### Done
