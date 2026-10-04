@@ -7,6 +7,60 @@ from the top entry.
 This is a fork of `iqtree/iqtree3`. Entries here describe work on the fork, not upstream
 development.
 
+## 2026-10-03 (second session, continued): S0 regression driver and baseline recorded
+
+### Done
+
+Wrote `test_scripts/fixedeq/regression/regress.py` (commands `freeze`, `run`, `baseline`,
+`compare`) and `test_scripts/fixedeq/tests/test_regress.py` (12 tests, all passing in the
+`iqtree3-fixedeq` environment), committed as `086fef2f`. The driver runs each IQ-TREE command in
+a new directory, compares every report section except the header, "ALISIM COMMAND" and "TIME
+STAMP", plus the tree file and exit code, and records provenance: driver commit (from Windows
+`git.exe`, since Linux git sees 946 false changes from line endings), binary SHA-256, compiler
+and flags, package versions, system, environment variables and input checksums.
+
+A dry run into WSL `/tmp/regress-dryrun` (runs 6 and 7 twice, runs 8 and 10 once) checked the
+driver end to end before recording: runs 6 and 7 matched between repeats, `compare` passed them,
+run 8 reproduced the smoke test's -4974.5432 and run 10, reading `run08.Q.txt` by its relative
+name, reproduced -4974.5436.
+
+Pre-flight: upstream `master` still `63c330d9`; working tree clean at `086fef2f`; a rebuild of
+`~/iqtree3-build` compiled and linked nothing and left the binary's SHA-256 at `9a72950b…`.
+Froze it as `~/iqtree3-baseline/iqtree3` with `iqtree3.sha256`. Recorded rep1 and rep2 of the 11
+runs and three more repeats of run 11 under `~/iqtree3-runs/baseline/` (log in `driver.log`),
+06:12 to 06:31 UTC, and wrote `test_scripts/fixedeq/regression/baseline/baseline.json` and
+`baseline.md`. All runs exited 0. Results, from `baseline.md`:
+
+| Run | Model | Log-likelihood | Free parameters | Identical across repeats |
+|---|---|---|---|---|
+| 1 | LG+G4 | -7301.8799 | 34 | yes |
+| 2 | NONREV | -6999.7817 | 413 | yes |
+| 3 | NONREV+F{...} | -7018.7227 | 413 | yes |
+| 4 | NQ.pfam | -7577.8547 | 34 | yes |
+| 5 | GTR20 | -7088.9631 | 241 | yes |
+| 6 | UNREST (DNA) | -22669.6869 | 43 | yes |
+| 7 | 12.12 (DNA) | -22669.6808 | 43 | yes |
+| 8 | joint NONREV, `-p` | -4974.5432 | 412 | yes |
+| 9 | joint NONREV, `-S` | -4900.5282 | 465 | yes |
+| 10 | run 8's Q re-imported | -4974.5436 | 33 | yes |
+| 11 | run 8 at `-T 4`, 5 repeats | -4975.0215 to -4974.5963 | 412 | no |
+
+Run 11 does not reproduce, and none of its repeats equals run 8. The topology is the same in all
+five repeats, but 442 of the 447 numbers in its model section vary (largest spread 0.046), and
+its ASCII tree drawing changes with the branch lengths, so the tree section is marked
+"unstable". Recorded as PLAN.md risk 19. `CODE_PLAN.md` section 3.4 now states what is compared,
+the relative names in run 10 and the five repeats of run 11.
+
+### Failed
+
+Nothing failed. One ad hoc inspection of `baseline.json` (the run 11 spreads and the tree-section
+difference) was run with the Windows system Python, read-only, instead of the project environment.
+
+### Next
+
+1. Peter: a comparison rule for run 11 before S2, and a definition of the S3 thread test (risk 19).
+2. Rerun the three design scripts and write the oracle (PLAN.md, next step).
+
 ## 2026-10-03 (second session): root and optimizer-port decisions, S0 probes, documents committed
 
 ### Done

@@ -306,6 +306,7 @@ competing implementations, G5 native and outer workflow, G6 scientific validatio
 | 16 | How precisely a fitted `GTR20+F{π*}` incumbent reaches an NQC run: the report prints Q at 6 digits, decision 010 exports only NQC, and checkpoints hold 10 digits | S0 probe (g), then a decision entry before S3 |
 | 17 | Thresholds marked provisional (1e-10 residuals, 1e-12 relative Q entries, the 1e-6 target sum) must be final, or declared reported rather than asserted, before their tests are written, because a threshold is not relaxed after a failure | Peter, before S1 |
 | 18 | No fallback is recorded if S3 profiling shows training runs impractical while analytic gradients are out of scope | Peter, after S3 profiling |
+| 19 | Baseline run 11 (`--model-joint NONREV` under `-p` at `-T 4`) does not reproduce: five repeats of the unmodified binary ended at log-likelihoods from -4975.0215 to -4974.5963, none equal to the `-T 1` run's -4974.5432, with the same topology and 442 of the model section's 447 numbers varying (largest spread 0.046). Its tree drawing varies too, so the spread rule of `CODE_PLAN.md` section 3.4 cannot judge it, and S3's `-T 1` against `-T 4` test meets the same behaviour in legacy code | Peter: a comparison rule for run 11 before S2, and the S3 thread test's definition before S3 |
 
 ## Current state
 
@@ -316,15 +317,17 @@ that BFGS needs a continuous objective (reported by Peter, 2026-10-01; the mappi
 to the code is in `CHANGELOG.md`). The unmodified branch builds in WSL2 and passes the smoke tests recorded in
 `CHANGELOG.md`. No source code has changed. The conda environment `iqtree3-fixedeq` exists in WSL,
 built from `test_scripts/fixedeq/environment.yml` with its lock in `environment.lock.txt`. The
-oracle, regression baseline and fixtures do not exist yet.
+regression baseline is recorded (2026-10-03) from the frozen unmodified binary
+`~/iqtree3-baseline/iqtree3` by `test_scripts/fixedeq/regression/regress.py`, with its summary and
+provenance in `test_scripts/fixedeq/regression/baseline/`: runs 1 to 10 reproduce exactly between
+repeats, run 11 does not (risk 19). The oracle and fixtures do not exist yet.
 
 ## Next step
 
-Confirm that upstream `master` is still `63c330d9` (if it has moved, sync first by the procedure
-in `CLAUDE.md`), then write the regression driver in
-`test_scripts/fixedeq/regression/` and record the baseline from the unmodified binary: copy `~/iqtree3-build/iqtree3` to `~/iqtree3-baseline/` with its SHA-256,
-run the baseline list of `CODE_PLAN.md` section 3.4 twice under `~/iqtree3-runs/baseline/`,
-and write the summary with its provenance to the repository.
+Rerun the three supplied design scripts from copies outside the repository, in the
+`iqtree3-fixedeq` environment, and compare their outputs with the values the design documents
+report (risk 10); then write the oracle and its tests (`CODE_PLAN.md` section 3.1). Before S2,
+Peter sets the comparison rule for run 11 (risk 19).
 
 ## Checklists
 

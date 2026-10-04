@@ -18,15 +18,20 @@ without human verification against source.
 choices, recorded decisions 016 (root policy for S0 to S4) and 017 (the oracle's port of IQ-TREE's
 optimizer), added two S0 probes and four risks to the planning documents, and committed the
 documentation work of the three preceding sessions unchanged. Wrote the conda environment file
-for the oracle and created the environment in WSL, with its lock file.
+for the oracle and created the environment in WSL, with its lock file. Then, on a plan the
+operator approved, wrote the S0 regression driver and its tests, froze the unmodified IQ-TREE
+binary, ran the 11 baseline runs (twice, and run 11 five times) and wrote the baseline summary.
 
 **Verification.** Every source anchor cited in the new text was read in this session at HEAD
-`4c5f061f`. Before the environment was created, only read-only commands were run (git state,
-`git ls-remote`, conda and folder listings in WSL). The package versions reported were printed
-by the created environment. IQ-TREE was not built or run, and no numerical result was produced.
+`4c5f061f`. The package versions reported were printed by the created environment. Every
+log-likelihood and count reported was produced by the driver from IQ-TREE's output files; the
+driver's tests passed, and a dry run reproduced two values from the 2026-09-23 smoke tests. IQ-TREE
+was run only from the unmodified binary; no source code was changed.
 
 **Files created.** `test_scripts/fixedeq/environment.yml`, `test_scripts/fixedeq/environment.lock.txt`
-(written by conda), `test_scripts/fixedeq/.gitattributes`, `test_scripts/fixedeq/.gitignore`.
+(written by conda), `test_scripts/fixedeq/.gitattributes`, `test_scripts/fixedeq/.gitignore`,
+`test_scripts/fixedeq/regression/regress.py`, `test_scripts/fixedeq/tests/test_regress.py`,
+`test_scripts/fixedeq/regression/baseline/baseline.json` and `baseline.md` (written by the driver).
 
 **Files modified.** `docs/agent/DECISIONS.md`, `docs/agent/CODE_PLAN.md`, `docs/agent/PLAN.md`,
 `CHANGELOG.md`, `AI_DISCLOSURE.md`.

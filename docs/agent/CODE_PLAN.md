@@ -185,8 +185,9 @@ from the precision available, with a target of 1e-8 relative.
 ### 3.4 Layer 4: regression baseline
 
 The binary is `~/iqtree3-baseline/iqtree3`, copied from the unmodified build with its SHA-256
-recorded. Every run starts from `~/iqtree3-runs/baseline/`, uses `-seed 1` and `-T 1` except run
-11, and is repeated twice:
+recorded. Every run starts in its own new directory under `~/iqtree3-runs/baseline/`, uses
+`-seed 1` and `-T 1` except run 11, and is repeated twice; run 11 is repeated five times to
+measure its spread:
 
 1. `-s example/aa_example.phy -m LG+G4`
 2. `-s example/aa_example.phy -m NONREV`
@@ -199,14 +200,19 @@ recorded. Every run starts from `~/iqtree3-runs/baseline/`, uses `-seed 1` and `
 8. `-s test_scripts/test_data/turtle_aa.fasta -p test_scripts/test_data/turtle_aa.nex --model-joint NONREV`
 9. run 8 with `-S` in place of `-p` (`-S` takes a partition file, verified
    `utils/tools.cpp:2107-2116`)
-10. `-s test_scripts/test_data/turtle_aa.fasta -p test_scripts/test_data/turtle_aa.nex -m <Q file from run 8> -te <tree from run 8>`
+10. `-s test_scripts/test_data/turtle_aa.fasta -p test_scripts/test_data/turtle_aa.nex -m run08.Q.txt -te run08.treefile`,
+    with the same repeat's run 8 Q block and tree file copied under these relative names,
+    because the report prints the Q file's path
 11. run 8 with `-T 4`
 
-Recorded per run: log-likelihood, number of free parameters, tree length, SHA-256 of the tree
-file, the Q block, and wall time (informational). At `-T 1` the printed log-likelihood, tree file
-and Q block must equal the baseline exactly; for run 11, and for any run whose two baseline
-repeats differ, the tolerance is the observed spread, recorded with the baseline. The summary
-lives in `test_scripts/fixedeq/regression/` with its provenance.
+Compared per run: every section of the `.iqtree` report except the opening header, "ALISIM
+COMMAND" and "TIME STAMP", which hold paths, the build date and clock times; the tree file; and
+the exit code. These contain the log-likelihood, the number of free parameters, the tree length
+and the Q block. Wall time is recorded, not compared. An item identical in every baseline repeat
+must reproduce exactly; one whose repeats differ only in their numbers is held to the observed
+spread; one whose text differs otherwise cannot be compared, and run 11's rule is open (PLAN.md
+risk 19). The driver is `test_scripts/fixedeq/regression/regress.py`; the baseline and its
+provenance are in `test_scripts/fixedeq/regression/baseline/`.
 
 ### 3.5 Layer 5: invariants and nesting
 
