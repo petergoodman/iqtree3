@@ -1,7 +1,7 @@
 # Plan: π-constrained non-reversible amino-acid models
 
 > **Status, 2026-10-04: code plan approved by Peter on 2026-09-23 and amended by decisions 015 to
-> 018 on 2026-10-03; approach accepted by the IQ-TREE maintainers (reported by Peter, 2026-10-01); no
+> 018 on 2026-10-03 and 019 on 2026-10-04; approach accepted by the IQ-TREE maintainers (reported by Peter, 2026-10-01); no
 > source code changed yet.** Peter owns
 > this document. Its companion, `docs/agent/CODE_PLAN.md`, holds the file-level change map, the
 > NQC class specification and the test specification; it is subordinate to this document and is
@@ -243,8 +243,8 @@ input; 007 domain and step settings; 008 unsupported combinations; 009 surfacing
 searches; 010 export format; 011 reference destinations; 012 C++ test framework; 013 oracle
 location and environment; 014 line endings; 015 Q built in the class's decomposition, which
 calls the unchanged base (superseding 004); 016 root policy for S0 to S4; 017 the oracle's port
-of IQ-TREE's optimizer; 018 the regression rule for run 11 and the added run 12. Mathematical
-decisions: D01 to D10.
+of IQ-TREE's optimizer; 018 the regression rule for run 11 and the added run 12; 019 the
+design-script rerun and its matching rule. Mathematical decisions: D01 to D10.
 
 ### Test strategy
 
@@ -311,9 +311,9 @@ competing implementations, G5 native and outer workflow, G6 scientific validatio
 
 ## Current state
 
-The design is settled (D01 to D10) and programming decisions 001 to 018 are recorded, 015
-superseding 004; 016 sets the root policy for S0 to S4, 017 the oracle's optimizer port, and 018
-the regression rule for run 11 and the added run 12.
+The design is settled (D01 to D10) and programming decisions 001 to 019 are recorded, 015
+superseding 004; 016 sets the root policy for S0 to S4, 017 the oracle's optimizer port, 018 the
+regression rule for run 11 and the added run 12, and 019 the design-script rerun's matching rule.
 The planning documents are committed on the branch. The IQ-TREE maintainers accepted the log-ratio jump-chain approach and stressed
 that BFGS needs a continuous objective (reported by Peter, 2026-10-01; the mapping of their notes
 to the code is in `CHANGELOG.md`). The unmodified branch builds in WSL2 and passes the smoke tests recorded in

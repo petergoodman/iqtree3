@@ -1,8 +1,8 @@
 # Decisions
 
-> **Status, 2026-10-03.** Programming decisions 001 to 018 are recorded; 002 to 014 were
-> approved by Peter with the code plan on 2026-09-23, and 015 (which supersedes 004) to 018 on
-> 2026-10-03. Ten mathematical and methodological design
+> **Status, 2026-10-04.** Programming decisions 001 to 019 are recorded; 002 to 014 were
+> approved by Peter with the code plan on 2026-09-23, 015 (which supersedes 004) to 018 on
+> 2026-10-03, and 019 on 2026-10-04. Ten mathematical and methodological design
 > decisions, D01 to D10, are recorded from the design synthesis and are revisable (see that
 > section's preamble). The items under "Pending programming candidates" were discussed on
 > 2026-09-15; the first three are now resolved by the entries named in their notes. An agent must
@@ -484,6 +484,35 @@ Number programming entries sequentially from 001 and never reuse a number.
   repeat would often fail; dropping run 11, which would leave the threaded joint fit unchecked.
 - **Affects:** `test_scripts/fixedeq/regression/regress.py` and its tests; the baseline in
   `test_scripts/fixedeq/regression/baseline/`; `CODE_PLAN.md` section 3.4.
+
+## 019. Rerun the design scripts with a kept driver and match documented values in four classes
+
+- **Date:** 2026-10-04
+- **Status:** accepted
+- **Decision:** The three scripts in `docs/agent/design/scripts/` are rerun by the kept driver
+  `test_scripts/fixedeq/design_rerun.py`. It copies them into a new directory outside the
+  repository, checks each copy against the SHA-256 in the design `README.md`, runs them with the
+  arguments and environment the documents state, and compares their outputs with a table of the
+  values the documents print, each cited by document and line. Each documented value has one
+  class. **Exact** (counts, ranks, stop labels, exit status, failure lists): the rerun value must
+  be equal. **Digits** (any other number): the rerun value, rounded to the number of significant
+  digits printed, must equal the printed value. **Zero** (a quantity that is mathematically zero,
+  printed below 1e-12): reproduced when the rerun's magnitude is also below 1e-12, with both
+  values listed. **Bound** (a claim printed as an inequality): the rerun value must satisfy it.
+  An entry whose mapping from the document's prose to an output key needed a reading is marked
+  as interpreted. The classes and the 1e-12 cut were fixed before any script ran and are not
+  changed after seeing results.
+- **Why:** Peter's choice on 2026-10-04 (PLAN.md risk 10). Of the 133 documented values, 24 are
+  rounding noise around zero, whose digits depend on the processor and the linear-algebra
+  library, so requiring their printed digits would test the platform rather than the
+  mathematics; every other value is held to the precision the document printed. A driver under
+  version control makes the rerun reproducible, and the oracle's layer 1 test (`CODE_PLAN.md`
+  section 3.1) can reuse it.
+- **Alternatives rejected:** printed digits for every value, which would count platform noise as
+  a mismatch; one-off scripts kept beside the outputs outside the repository, which would leave
+  the procedure outside version control.
+- **Affects:** `test_scripts/fixedeq/design_rerun.py` and its tests; `CODE_PLAN.md` sections 1.1
+  and 3.1; PLAN.md risk 10; the G0 run manifest.
 
 ---
 

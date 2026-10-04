@@ -20,7 +20,7 @@ Labels are those of PLAN.md. Source anchors refer to `63c330d9` and were verifie
 | `model/fixedeqchart.{h,cpp}` | S1; T3 in S5 | Pure functions over Eigen types, with no IQ-TREE headers and no process exit (section 2.1) |
 | `model/modelnonrevfixedeq.{h,cpp}` | S2 to S4 | Class `ModelNonrevFixedEq : public ModelProtein`, public name "NQC" held in one constant (decision 002; section 2.2) |
 | `unittest/` | S1 | Standalone CMake project that compiles `model/fixedeqchart.cpp` directly and fetches googletest at cmaple's pinned commit (verified, `cmaple/CMakeLists.txt:281-293`; decision 012); `fixtures/` in plain text at 17 significant digits with a provenance header; its own `.gitattributes` (decision 014) |
-| `test_scripts/fixedeq/` | S0 onward | `environment.yml` and its exported lock (decision 013); the `oracle/` package; `tests/`; `regression/` and `differential/` drivers; `make_fixtures.py`; its own `.gitattributes`, and a `.gitignore` for Python caches |
+| `test_scripts/fixedeq/` | S0 onward | `environment.yml` and its exported lock (decision 013); the `oracle/` package; `tests/`; `regression/` and `differential/` drivers; `design_rerun.py`, which reruns the design scripts (decision 019); `make_fixtures.py`; its own `.gitattributes`, and a `.gitignore` for Python caches |
 | `.github/workflows/fixedeq.yaml` | S1 | Fork-only workflow that builds and runs the unit tests and the oracle's tests on Linux, and from S2 a short NQC run |
 
 Run outputs never go into the working copy; they go under `~/iqtree3-runs/` in WSL. Fixtures and
@@ -151,7 +151,7 @@ seed identity).
   reduction; the T3 triangle bound 20.72; the non-concavity curvature 0.01538 (P-log Appendix B;
   `verify_constrained_nq.py`).
 - The three design scripts rerun from copies outside the repository, with their outputs compared
-  against the values the design documents report.
+  against the values the design documents report, by `design_rerun.py` under decision 019.
 - Rooted likelihood: Newick, PHYLIP and FASTA readers; ambiguity as IQ-TREE treats it (B as N or
   D, Z as Q or E, J as I or L, verified `model/modelprotein.cpp:1350-1366`; other unknown
   characters as all states); discrete Gamma with IQ-TREE's mean categories (`gamma_median`
@@ -254,7 +254,7 @@ local.
 S0, with no IQ-TREE source:
 
 - Files: `test_scripts/fixedeq/` with `environment.yml`, `oracle/`, `tests/`, `regression/`,
-  `differential/` and `.gitattributes`.
+  `differential/`, `design_rerun.py` and `.gitattributes`.
 - Tests first: oracle tests that reproduce the documented numbers, and the regression driver.
 - Runtime checks: (a) whether `NONREV+F<name>` with an `--mdef` file defining
   `frequency <name> = ...;` (syntax verified, `model/modelmixture.cpp:724`) reaches the model
