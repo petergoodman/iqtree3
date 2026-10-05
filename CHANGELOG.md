@@ -7,6 +7,108 @@ from the top entry.
 This is a fork of `iqtree/iqtree3`. Entries here describe work on the fork, not upstream
 development.
 
+## 2026-10-05 (fourth session, continued): S0 probes recorded, sanitizer build and timing; stop point
+
+### Done
+
+**Probe driver.** Wrote `test_scripts/fixedeq/probes/probes.py`, with tests in `tests/test_probes.py`
+(commit `d54de36f`). Each probe's outcome, as predicted from the source, is written in the driver
+before it runs.
+
+**Recorded run.** Made from the clean tree at `fc3d3280` with the frozen binary (SHA-256
+`9a72950b…`, unchanged after the run). Outputs are in
+`~/iqtree3-runs/probes/record-20261005T174330Z/`: 41 IQ-TREE runs, 2724 s of compute. Probes (a)
+to (f) came out as predicted; (g) differs on one comparison.
+
+- **(a) Named target.** `+F<name>` from an `--mdef` file reaches the model exactly as `+F{...}`
+  does. a1 matches baseline run 3 in every compared item, the literal and named routes are
+  identical under `--model-joint` with `-p` and with `-S`, and every checkpoint `state_freq`
+  equals the vector.
+- **(b) `e+` inside `+F{...}`.** It exits with code 2 and "Close bracket not found in
+  +F{0.08e", under `-m` and under `--model-joint`. `8e-02`, and the `e+` vector given through
+  `--mdef`, both match run 3.
+- **(c) Level 1.** `-te -blfix` with braced rate parameters freezes every nuisance:
+  - for one alignment (`+I{0.2}+G4{0.5}`), under `-S`, and under `-q`;
+  - under `-q` with each partition's rate given as `{x}` in a charpartition (run 8's rates
+    0.5930, 1.5373, 0.8807, kept).
+
+  Under `-p` (c3), the partition rates were refitted (to 0.5330, 1.6143, 0.8643) and every branch
+  was multiplied by 1.148146. `-m LG+G4{0.5}` with `--model-joint` was accepted, so the
+  charpartition fallback was not needed.
+- **(f) Root.** The root never moved to another branch in 13 comparisons. Unrooted inputs were
+  rooted at the midpoint of the longest path, per partition under `-S` and on the shared tree
+  under `-p` and `-q`. Level 1 kept the root-adjacent lengths, except c3, where `-p` rescaled
+  them. In every Level 2 fit the root slid along its branch until one root-adjacent length was
+  about 2e-6, so the root sat at one end of its edge.
+- **(e) `-S` against `-p`.** All four checked differences were observed:
+  - partition rates only under `-p`;
+  - the `-p` and `-S` pooled vectors differ, by at most 1.3e-9;
+  - one rooted tree per partition under `-S`;
+  - free parameters: 379 + 30 edges + 3 under `-p`, and 379 + 86 edges under `-S`.
+
+  The +I+G restart, identical sequences and the "logl got worse" abort were not exercised.
+- **(g) Carrying a fitted `GTR20+F{π*}` on aa_example** (π* from decision 023):
+  - **Fixed-tree fit (g0).** IQ-TREE ran no final model optimization, and the checkpoint matches
+    the report: every rate within the block's rounding, gamma shape 0.8875725344 against
+    0.8876. Log-likelihoods relative to the checkpoint route gB (-7004.61047818093):
+    - GTR20{...} string: +2.4e-11;
+    - report block with exact π*: +1.1e-8;
+    - the same with the report's 4-decimal gamma shape: +1.7e-7;
+    - report block with its own 6-decimal frequency row: +2.0e-4.
+
+    Ten draws perturbing gB's rates within their 10th digit spread over 1.8e-8.
+  - **Search fit (gS).** The checkpoint is stale. It holds the model from before "Performs
+    final model parameters optimization" (98 of 190 rates differ from the report block). Its
+    model on the final tree gives -7004.0655, 0.0015 from that step's printed start of -7004.064
+    and 0.283 below the final -7003.7824. Source: the save after the final optimization
+    (`main/phyloanalysis.cpp:3895-3899`) writes the search state and tree but not the model
+    (`tree/iqtree.cpp:134-150`, `tree/phylotree.cpp:184-194`). The model is saved only after
+    the first fit and after re-fits during the search (`tree/iqtree.cpp:2388-2389, 3248-3253`).
+    A restart from such a checkpoint prints "Final model parameters restored"; a restart was not
+    tested.
+
+**Sanitizer build.** Built in `~/iqtree3-build-asan` with decision 022's first settings
+(`sanitize.py build`). Both steps exited 0, and no fallback was needed.
+
+**Sanitizer timing test.** Baseline runs 2 and 4 with that binary
+(`~/iqtree3-runs/sanitizer/timing-20261005T174330Z/`):
+- run 2: 1165 s against 58 s in Release;
+- run 4: 360 s against 17.5 s.
+
+That is about 20 times slower. Both reproduced the baseline log-likelihoods. One finding, in
+both runs: UndefinedBehaviorSanitizer, `model/modelmarkov.cpp:76`, "load of value 190, which is
+not a valid value for type 'bool'". `ModelMarkov`'s constructor calls `setReversible` (line 72),
+which reads `is_reversible` before it is set. No AddressSanitizer report. Recorded, not fixed.
+
+### Failed
+
+- **Unattended jobs stalled.** The first probe dry run and the sanitizer build were started
+  unattended on 2026-10-04 at 23:45. The laptop entered Modern Standby at 23:49 and resumed at
+  09:44, which paused WSL. The jobs computed for about 12 minutes over 10 hours. Diagnosed from
+  the Windows Kernel-Power log and from IQ-TREE's CPU time against wall time (run c1: 183 s of
+  CPU over 4 h 17 min).
+- **Dry-run bugs in probe (g).**
+  - Its perturbed rates were written as `np.float64(...)` text, which IQ-TREE rejects.
+  - Its 10-digit route used the search fit's stale checkpoint.
+
+  Probe (g) was revised in `fc3d3280` to fit on a fixed tree and to record the search fit as a
+  separate finding.
+- **One wrong prediction.** The revised (g) predicted that the report's 6-decimal block with
+  exact π* would differ from gB by more than the 10th-digit noise. It differs by 1.1e-8 against a
+  noise spread of 1.8e-8, so probe (g) reports "differs". The prediction was left as written.
+- **Sanitizer scope.** At about 20 times slower, the planned sanitizer scope (all 12 baseline
+  runs, the 16 differential cases and all probes) would take about 20 hours. Only the timing test
+  was run.
+
+### Next
+
+1. Peter's choices, with recommendations in the stop-point report:
+   - decision 024, Level 1 under `-p`;
+   - decision 025, the GTR20 incumbent route and the nesting tolerance;
+   - the sanitizer scope.
+2. Then the sanitizer run at the chosen scope, the G0 manifest, the document updates and the
+   push.
+
 ## 2026-10-04 (fourth session): plan for the rest of S0, decisions 022 and 023
 
 ### Done
