@@ -151,7 +151,8 @@ seed identity).
   reduction; the T3 triangle bound 20.72; the non-concavity curvature 0.01538 (P-log Appendix B;
   `verify_constrained_nq.py`).
 - The three design scripts rerun from copies outside the repository, with their outputs compared
-  against the values the design documents report, by `design_rerun.py` under decision 019.
+  against the values the design documents report, by `design_rerun.py` under decision 019. The
+  24 values the 2026-10-04 rerun did not reproduce are not test targets (decision 020).
 - Rooted likelihood: Newick, PHYLIP and FASTA readers; ambiguity as IQ-TREE treats it (B as N or
   D, Z as Q or E, J as I or L, verified `model/modelprotein.cpp:1350-1366`; other unknown
   characters as all states); discrete Gamma with IQ-TREE's mean categories (`gamma_median`

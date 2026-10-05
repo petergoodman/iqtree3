@@ -7,6 +7,25 @@ from the top entry.
 This is a fork of `iqtree/iqtree3`. Entries here describe work on the fork, not upstream
 development.
 
+## 2026-10-04 (third session, continued): rerun accepted as the reproduced record
+
+### Done
+
+Explained to Peter in chat what the design scripts are, where the 133 values come from, why they
+were rerun, and what the 24 misses are; his question showed the earlier report had assumed that
+background. Peter then accepted the rerun as the reproduced record, recorded as decision 020: the
+109 reproduced values count as verified on this platform, and the 24 misses stay "reported",
+platform-sensitive, and never pass/fail test targets. PLAN.md risk 10 is resolved, and
+`CODE_PLAN.md` section 3.1 cites decision 020.
+
+### Failed
+
+Nothing failed.
+
+### Next
+
+1. Plan the oracle (`CODE_PLAN.md` section 3.1) in plan mode for Peter's approval.
+
 ## 2026-10-04 (third session, continued): design scripts rerun, 24 of 133 values not reproduced
 
 ### Done

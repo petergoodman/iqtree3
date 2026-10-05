@@ -1,8 +1,8 @@
 # Decisions
 
-> **Status, 2026-10-04.** Programming decisions 001 to 019 are recorded; 002 to 014 were
+> **Status, 2026-10-04.** Programming decisions 001 to 020 are recorded; 002 to 014 were
 > approved by Peter with the code plan on 2026-09-23, 015 (which supersedes 004) to 018 on
-> 2026-10-03, and 019 on 2026-10-04. Ten mathematical and methodological design
+> 2026-10-03, and 019 and 020 on 2026-10-04. Ten mathematical and methodological design
 > decisions, D01 to D10, are recorded from the design synthesis and are revisable (see that
 > section's preamble). The items under "Pending programming candidates" were discussed on
 > 2026-09-15; the first three are now resolved by the entries named in their notes. An agent must
@@ -513,6 +513,31 @@ Number programming entries sequentially from 001 and never reuse a number.
   the procedure outside version control.
 - **Affects:** `test_scripts/fixedeq/design_rerun.py` and its tests; `CODE_PLAN.md` sections 1.1
   and 3.1; PLAN.md risk 10; the G0 run manifest.
+
+## 020. Accept the design-script rerun as the reproduced record and keep its 24 misses as reported
+
+- **Date:** 2026-10-04
+- **Status:** accepted
+- **Decision:** The rerun of 2026-10-04 (driver at `398449a6`, outputs in
+  `~/iqtree3-runs/design-rerun/20261004T233525Z/`) is the reproduced record of the three design
+  scripts. The 109 documented values it reproduced count as verified on this platform. The 24 it
+  did not reproduce are 14 finite-difference error measurements, 9 toy-optimizer end points or
+  path counts, and one bound missed in its twelfth significant digit; they are listed in
+  `CHANGELOG.md` (2026-10-04). They stay labelled "reported", are treated as platform-sensitive,
+  and none of them is a pass/fail target in any test. The oracle's tests check the properties that
+  reproduced and set their own thresholds.
+- **Why:** Peter's choice on 2026-10-04 (PLAN.md risk 10). Every dimension, rank, exactness
+  residual and numerically checked theorem reproduced. The growth of IQ-TREE's finite-difference
+  error toward a zero coordinate, on which D02 rests, reproduced in `verify_constrained_nq.py`
+  (6.48 against a printed 6.5 at h = 1e-8, and the script's own growth check passed), although
+  the separate sweep in synthesis section 10.2 differed in magnitude. In E2 every stop label
+  matched, and the same chart scored higher on each instance as synthesis section 10.3 reports.
+  Neither D01 nor D02 changes. The unreproduced quantities are differences of nearly equal numbers
+  or optimizer end points, which are sensitive to rounding; their causes were not investigated.
+- **Alternatives rejected:** investigating the causes, for example the linear-algebra library
+  behind NumPy, and rerunning on another machine; neither would change a decision.
+- **Affects:** PLAN.md risk 10; `CODE_PLAN.md` section 3.1; the oracle's tests; the G0 run
+  manifest.
 
 ---
 

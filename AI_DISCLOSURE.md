@@ -21,7 +21,8 @@ changing the existing baseline. Then, on the operator's choice, recorded decisio
 driver that reruns the three design scripts from fingerprint-checked copies outside the
 repository and compares 133 values transcribed from the design documents, with tests, and ran
 it. Twenty-four values were not reproduced, which were reported to the operator without
-investigation.
+investigation. On the operator's acceptance of the rerun as the reproduced record, recorded
+decision 020.
 
 **Verification.** The 42 tests in `test_scripts/fixedeq/tests/` passed in the project
 environment. The new regression rule was checked on the five recorded run 11 repeats (failing

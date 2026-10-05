@@ -1,7 +1,7 @@
 # Plan: π-constrained non-reversible amino-acid models
 
 > **Status, 2026-10-04: code plan approved by Peter on 2026-09-23 and amended by decisions 015 to
-> 018 on 2026-10-03 and 019 on 2026-10-04; approach accepted by the IQ-TREE maintainers (reported by Peter, 2026-10-01); no
+> 018 on 2026-10-03 and 019 and 020 on 2026-10-04; approach accepted by the IQ-TREE maintainers (reported by Peter, 2026-10-01); no
 > source code changed yet.** Peter owns
 > this document. Its companion, `docs/agent/CODE_PLAN.md`, holds the file-level change map, the
 > NQC class specification and the test specification; it is subordinate to this document and is
@@ -244,7 +244,8 @@ searches; 010 export format; 011 reference destinations; 012 C++ test framework;
 location and environment; 014 line endings; 015 Q built in the class's decomposition, which
 calls the unchanged base (superseding 004); 016 root policy for S0 to S4; 017 the oracle's port
 of IQ-TREE's optimizer; 018 the regression rule for run 11 and the added run 12; 019 the
-design-script rerun and its matching rule. Mathematical decisions: D01 to D10.
+design-script rerun and its matching rule; 020 the rerun accepted as the reproduced record.
+Mathematical decisions: D01 to D10.
 
 ### Test strategy
 
@@ -298,7 +299,7 @@ competing implementations, G5 native and outer workflow, G6 scientific validatio
 | 7 | Active `ASSERT`s abort a linked round that lowers the log-likelihood by more than 0.1 (verified, `model/partitionmodel.cpp:938`, `model/partitionmodelplen.cpp:135`) | incumbent protection and tests in S2 and S3 |
 | 8 | The default coordinate domain may not contain LG rebuilt at a skewed π* | construction check and the domain option (decision 007) |
 | 9 | Real training data: a small real set for S5, and the full set with a written confirmatory plan for S7 | Peter |
-| 10 | The design scripts were rerun on 2026-10-04 under decision 019: 109 of the 133 documented values reproduced and 24 did not (listed in `CHANGELOG.md`): 14 finite-difference errors, 9 optimizer end points or path counts, and 1 bound. `e6_n20_big.py` cannot run | Peter, before the oracle is planned |
+| 10 | The design scripts were rerun on 2026-10-04 under decision 019: 109 of the 133 documented values reproduced and 24 did not (listed in `CHANGELOG.md`): 14 finite-difference errors, 9 optimizer end points or path counts, and 1 bound. `e6_n20_big.py` cannot run | Resolved 2026-10-04: decision 020, the rerun is the reproduced record and the 24 stay reported, never test targets |
 | 11 | Scientific success criterion and manuscript details (placeholder above) | Peter |
 | 12 | A continuity source the chart does not remove: `computeTransMatrixNonrev` switches from the eigen path to scaling-and-squaring when P's row sums deviate by more than 1e-4 (verified, `model/modelmarkov.cpp:489-500`), and the decomposition sets `nondiagonalizable` on a singular eigenvector matrix (verified, `model/modelmarkov.cpp:1330-1336`); shared with `NONREV`, frequency unmeasured | count "INFO: Switch to scaling-squaring" lines (printed under `-v`) in S2 and S3 fits |
 | 13 | Resolved 2026-10-03: whether decision 004's `ModelMarkov` edit was still needed | decision 015, which supersedes 004; `ModelMarkov` is no longer edited |
@@ -311,9 +312,10 @@ competing implementations, G5 native and outer workflow, G6 scientific validatio
 
 ## Current state
 
-The design is settled (D01 to D10) and programming decisions 001 to 019 are recorded, 015
+The design is settled (D01 to D10) and programming decisions 001 to 020 are recorded, 015
 superseding 004; 016 sets the root policy for S0 to S4, 017 the oracle's optimizer port, 018 the
-regression rule for run 11 and the added run 12, and 019 the design-script rerun's matching rule.
+regression rule for run 11 and the added run 12, 019 the design-script rerun's matching rule, and
+020 the acceptance of that rerun.
 The planning documents are committed on the branch. The IQ-TREE maintainers accepted the log-ratio jump-chain approach and stressed
 that BFGS needs a continuous objective (reported by Peter, 2026-10-01; the mapping of their notes
 to the code is in `CHANGELOG.md`). The unmodified branch builds in WSL2 and passes the smoke tests recorded in
@@ -326,13 +328,13 @@ repeats, and run 11 does not and is judged by decision 018, which the driver imp
 (2026-10-04). Run 12 was recorded on 2026-10-04 from the same frozen binary into
 `baseline/run12/`: five identical repeats. The three design scripts were rerun on 2026-10-04 by
 `test_scripts/fixedeq/design_rerun.py` (decision 019): 109 of 133 documented values reproduced,
-and 24 did not (risk 10). The oracle and fixtures do not exist yet.
+and 24 did not. Peter accepted the rerun as the reproduced record (decision 020). The oracle and
+fixtures do not exist yet.
 
 ## Next step
 
-Peter decides how to treat the 24 design values the rerun did not reproduce (risk 10). Then the
-oracle plan (`CODE_PLAN.md` section 3.1) is proposed for his approval, and the oracle and its
-tests are written.
+Propose the oracle plan (`CODE_PLAN.md` section 3.1) for Peter's approval, then write the oracle
+and its tests.
 
 ## Checklists
 
