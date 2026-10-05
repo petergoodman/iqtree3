@@ -31,11 +31,16 @@ the oracle in pieces: piece A is the chart core (`test_scripts/fixedeq/oracle/ca
 IQ-TREE's conventions (`oracle/readers.py`, `gamma.py`, `likelihood.py`,
 `tests/test_oracle_likelihood.py`). Piece D is a driver that compares the oracle's log-likelihood
 with the unmodified IQ-TREE binary's in 16 cases (`test_scripts/fixedeq/differential/differential.py`);
-it ran the frozen binary, and every reported likelihood comes from that run's output.
+it ran the frozen binary, and every reported likelihood comes from that run's output. Piece E is
+the port of IQ-TREE's frequency estimator and the target parser (`oracle/target.py`,
+`tests/test_oracle_target.py`), checked against the frequencies the baseline runs printed.
 
-**Verification.** The 42 tests in `test_scripts/fixedeq/tests/` passed in the project
-environment. The new regression rule was checked on the five recorded run 11 repeats (failing
-before the change, passing after). Every log-likelihood and count reported was produced by the
+**Verification.** At the end of the session, the 147 tests in `test_scripts/fixedeq/tests/`
+passed in the project environment. The oracle's ports were written from IQ-TREE source read in
+this session. Its likelihood agreed with the unmodified binary to within rounding error in 16
+cases, and its estimator reproduced the printed frequencies. The tests' thresholds were fixed
+(decision 021) before the tests were written. The new regression rule was checked on the five
+recorded run 11 repeats (failing before the change, passing after). Every log-likelihood and count reported was produced by the
 regression driver from IQ-TREE's output files, and every rerun value by the design scripts
 themselves, compared by the rerun driver. The transcription of the 133 documented values was
 done by the tool and has not been checked by the operator. IQ-TREE was run only from the
@@ -43,7 +48,11 @@ unmodified binary; no source code was changed.
 
 **Files created.** `test_scripts/fixedeq/regression/baseline/run12/baseline.json` and
 `baseline.md` (written by the driver), `test_scripts/fixedeq/design_rerun.py`,
-`test_scripts/fixedeq/tests/test_design_rerun.py`.
+`test_scripts/fixedeq/tests/test_design_rerun.py`, `test_scripts/fixedeq/oracle/` (`__init__.py`,
+`cases.py`, `chart.py`, `t3.py`, `builtin.py`, `optimize.py`, `readers.py`, `gamma.py`,
+`likelihood.py`, `target.py`), `test_scripts/fixedeq/differential/differential.py`, and the tests
+`test_oracle_chart.py`, `test_oracle_t3.py`, `test_oracle_documented.py`,
+`test_oracle_optimize.py`, `test_oracle_likelihood.py`, `test_oracle_target.py`.
 
 **Files modified.** `test_scripts/fixedeq/regression/regress.py`,
 `test_scripts/fixedeq/tests/test_regress.py`, `docs/agent/DECISIONS.md`, `docs/agent/CODE_PLAN.md`,

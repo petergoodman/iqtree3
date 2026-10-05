@@ -7,6 +7,51 @@ from the top entry.
 This is a fork of `iqtree/iqtree3`. Entries here describe work on the fork, not upstream
 development.
 
+## 2026-10-04 (third session, closing): oracle piece E, the estimator port; the oracle is complete
+
+### Done
+
+`test_scripts/fixedeq/oracle/target.py`, written from `alignment/alignment.cpp`,
+`alignment/superalignment.cpp` and `model/partitionmodel.cpp`, read this session. It ports:
+
+- the state codes and appearance sets;
+- `removeGappySeq`, which keeps at least three sequences;
+- `countStates`;
+- `convertCountToFreq`, with its 8 fixed rounds;
+- `convfreq`, which applies only under `--inc-zero-freq`;
+- the linked pooling, which pads missing taxa as unknown cells except under `-S`.
+
+Also decision 006's target parser. There are 14 new tests in `test_oracle_target.py`; all 147
+fixedeq tests pass.
+
+The port reproduces, under both `-p` and `-S`, the "Mean state frequencies" vector that baseline
+runs 8 and 9 printed, for all 20 entries. This settles the question raised while planning. The
+code does pad missing taxa under `-p`: partitions 2 and 3 lose podarcis and alligator when they
+are built (`superalignment.cpp:495-499`), before pooling. Because the fixed point runs exactly 8
+rounds, unknown cells barely move the result, so for this data the padding changes nothing at the
+printed precision. PLAN.md's "Where π* comes from" now says so. It also gives the print precision
+correctly: IQ-TREE prints 8 decimal places, not 8 significant digits. Decision 021 words the
+estimator check as "equal at the 8 significant digits printed". The comparison applied decision
+019's digits rule to the printed strings, which is equality at the precision printed (8 decimal
+places).
+
+Also updated PLAN.md: risk 17 is partly resolved by decision 021, the current state records that
+the oracle is complete, and the next step is to plan S0's remaining items.
+
+### Failed
+
+One test failed on its first run because of an error in the test: its input frequency vector
+summed to about 0.989, not 1. IQ-TREE's `convfreq` adds 1 − sum to the largest entry, so that
+entry rose where the test expected it to fall. The input was corrected to a normalized vector
+with one zero entry. The assertion and the code were not changed. Nothing else failed in
+pieces A to E.
+
+### Next
+
+1. Plan, for Peter's approval, S0's remaining items: probes (a) to (c) and (e) to (g), the
+   sanitizer build of the unmodified code, and the G0 run manifest.
+2. Peter, before S1: the compiled code's thresholds (PLAN.md risk 17).
+
 ## 2026-10-04 (third session, continued): oracle piece D, the oracle matches the unmodified binary
 
 ### Done

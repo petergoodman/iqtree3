@@ -200,12 +200,15 @@ does it raise every entry below `min_state_freq` to that value and take the defi
 largest entry. Missing sequences count as unknown states under `-p` but
 not under `-S` (verified, `model/partitionmodel.cpp:132-133`), so the partition type is part of
 the record, together with the gap and ambiguity treatment, any smoothing, and the vector at 17
-significant digits. The real π* is computed only after the confirmatory plan is in the
-repository, because computing it reads the training data; S0 to S4 use test targets.
+significant digits. Because the fixed point runs exactly 8 rounds, unknown cells shift the
+result only slightly: for the turtle test data the padding changes the pooled vector by less than
+the 8 decimals IQ-TREE prints, so baseline runs 8 (`-p`) and 9 (`-S`) printed the same vector. The
+real π* is computed only after the confirmatory plan is in the repository, because computing it
+reads the training data; S0 to S4 use test targets.
 
-A kept script in the oracle reproduces the estimator. It is cross-checked against IQ-TREE's own
-"Mean state frequencies" line for a linked `+FO` run under the same partition type, which
-IQ-TREE prints at 8 significant digits (verified, `model/partitionmodel.cpp:155-160`).
+The oracle's port of the estimator, `test_scripts/fixedeq/oracle/target.py`, reproduces IQ-TREE's
+"Mean state frequencies" line for the turtle data under both `-p` and `-S` (verified 2026-10-05).
+IQ-TREE prints that line with 8 decimal places (verified, `model/partitionmodel.cpp:155-160`).
 
 The model receives the target as `NQC+F{p1,...,p20}` in `-m` or `--model-joint`, or as
 `NQC+F<NAME>` with the vector defined in an `--mdef` file (decision 006). It parses and validates
@@ -308,7 +311,7 @@ competing implementations, G5 native and outer workflow, G6 scientific validatio
 | 14 | S5's recording-only edit to `dfpmin` and `lnsrch` (decision 009) touches the optimizer the maintainers advised leaving unchanged, and cannot be made by override (private, non-virtual, verified `utils/optimization.h:229-232`) | Peter, with the maintainers, before S5 |
 | 15 | Resolved 2026-10-03 for S0 to S4: the root policy, on which a non-reversible likelihood depends | decision 016; the policy for scientific runs at G5 |
 | 16 | How precisely a fitted `GTR20+F{π*}` incumbent reaches an NQC run: the report prints Q at 6 digits, decision 010 exports only NQC, and checkpoints hold 10 digits | S0 probe (g), then a decision entry before S3 |
-| 17 | Thresholds marked provisional (1e-10 residuals, 1e-12 relative Q entries, the 1e-6 target sum) must be final, or declared reported rather than asserted, before their tests are written, because a threshold is not relaxed after a failure | Peter, before S1 |
+| 17 | Thresholds marked provisional (1e-10 residuals, 1e-12 relative Q entries, the 1e-6 target sum) must be final, or declared reported rather than asserted, before their tests are written, because a threshold is not relaxed after a failure | Partly resolved 2026-10-04: decision 021 sets the oracle's pass lines; the compiled code's remain for Peter, before S1 |
 | 18 | No fallback is recorded if S3 profiling shows training runs impractical while analytic gradients are out of scope | Peter, after S3 profiling |
 | 19 | Baseline run 11 (`--model-joint NONREV` under `-p` at `-T 4`) does not reproduce: five repeats of the unmodified binary ended at log-likelihoods from -4975.0215 to -4974.5963, none equal to the `-T 1` run's -4974.5432, with the same topology and 442 of the model section's 447 numbers varying (largest spread 0.046). Its tree drawing varies too, so the spread rule of `CODE_PLAN.md` section 3.4 cannot judge it, and S3's `-T 1` against `-T 4` test meets the same behaviour in legacy code | Partly resolved 2026-10-03: run 11's rule and the added run 12 are decision 018, implemented in the driver on 2026-10-04. Run 12 (run 10 at `-T 4`) gave identical reports in five repeats, identical to run 10's at `-T 1` in every compared item, so at the report's printed precision the variation arises in the joint fit, not in a fixed evaluation. The S3 thread test's definition: Peter, before S3 |
 
@@ -332,17 +335,20 @@ repeats, and run 11 does not and is judged by decision 018, which the driver imp
 `test_scripts/fixedeq/design_rerun.py` (decision 019): 109 of 133 documented values reproduced,
 and 24 did not. Peter accepted the rerun as the reproduced record (decision 020). Peter approved
 the oracle plan on 2026-10-04, in five pieces (listed in `CHANGELOG.md`), with its test pass lines
-recorded as decision 021. Pieces A (the chart core), B (the optimizer port) and C (the rooted
-likelihood) are in `test_scripts/fixedeq/oracle/`. Piece D met S0's "oracle likelihood matches the
-unmodified binary": in 16 fixed-parameter cases (NQ.pfam and a random non-reversible Q; with
-and without +G4 and +I; `aa_example.phy` and turtle partition 1), IQ-TREE's and the oracle's
-log-likelihoods agreed within 9.8e-16 relative (run of 2026-10-05, `CHANGELOG.md`). Fixtures do
-not exist yet.
+recorded as decision 021. The oracle is complete in `test_scripts/fixedeq/oracle/`: the chart
+core, the optimizer port, the rooted likelihood and the frequency estimator port, with 147
+passing tests. It met S0's "oracle likelihood matches the unmodified binary": in 16
+fixed-parameter cases (NQ.pfam and a random non-reversible Q; with and without +G4 and +I;
+`aa_example.phy` and turtle partition 1), IQ-TREE's and the oracle's log-likelihoods agreed within
+9.8e-16 relative (run of 2026-10-05, `CHANGELOG.md`). Fixtures do not exist yet.
+
+S0's remaining items: runtime probes (a) to (c) and (e) to (g) (probe (d) is answered), the
+sanitizer build of the unmodified code, and the G0 run manifest.
 
 ## Next step
 
-Finish the oracle: piece E of the approved plan, the frequency estimator port (`CHANGELOG.md`,
-2026-10-04).
+Plan the remaining S0 items for Peter's approval: probes (a) to (c) and (e) to (g), the
+unmodified sanitizer build, and the G0 run manifest (`CODE_PLAN.md` section 4).
 
 ## Checklists
 
