@@ -29,7 +29,9 @@ the oracle in pieces: piece A is the chart core (`test_scripts/fixedeq/oracle/ca
 `test_oracle_documented.py`). Piece B is the port of IQ-TREE's optimizer and the derivative rules
 (`oracle/optimize.py`, `tests/test_oracle_optimize.py`). Piece C is the rooted likelihood with
 IQ-TREE's conventions (`oracle/readers.py`, `gamma.py`, `likelihood.py`,
-`tests/test_oracle_likelihood.py`).
+`tests/test_oracle_likelihood.py`). Piece D is a driver that compares the oracle's log-likelihood
+with the unmodified IQ-TREE binary's in 16 cases (`test_scripts/fixedeq/differential/differential.py`);
+it ran the frozen binary, and every reported likelihood comes from that run's output.
 
 **Verification.** The 42 tests in `test_scripts/fixedeq/tests/` passed in the project
 environment. The new regression rule was checked on the five recorded run 11 repeats (failing

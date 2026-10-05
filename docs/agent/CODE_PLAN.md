@@ -182,8 +182,10 @@ Against the unmodified binary first: `-m <Q file> -te <rooted tree> --show-lh`, 
 written at 17 digits; with and without a fixed +G4 and +I; on `example/aa_example.phy` and on
 one partition of `turtle_aa`. `-blfix` also switches off the +I+G restart path (verified,
 `utils/tools.cpp:3389-3395`). From S2: the Q the class builds at its seed equals the oracle's,
-and IQ-TREE's first log-likelihood at the seed equals the oracle's. The tolerance is fixed in S0
-from the precision available, with a target of 1e-8 relative.
+and IQ-TREE's first log-likelihood at the seed equals the oracle's. The output compared is the
+initial log-likelihood that `--show-lh` prints at precision 17 (S0 probe (d)), and the tolerance
+is 1e-8 relative (decision 021). The comparison against the unmodified binary is
+`test_scripts/fixedeq/differential/differential.py`.
 
 ### 3.4 Layer 4: regression baseline
 

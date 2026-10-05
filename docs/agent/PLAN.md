@@ -295,7 +295,7 @@ competing implementations, G5 native and outer workflow, G6 scientific validatio
 | 1 | Final public model and option names | Peter, with the maintainers |
 | 2 | A `+` or `*` inside a number, for example `1e+00`, splits a `+F{...}` model string (verified by reading, `model/modelfactory.cpp:259, 296`) | S0 run; documented; `+F<name>` avoids it |
 | 3 | Whether existing flags give a fully fixed-nuisance Level 1 fit | S0 run |
-| 4 | An output carrying 10 or more significant digits of the log-likelihood for the differential test; first candidate `--show-lh` (verified, `utils/tools.cpp:3428-3437`), then `-wsl`, then a debug print from the class | S0 |
+| 4 | An output carrying 10 or more significant digits of the log-likelihood for the differential test; first candidate `--show-lh` (verified, `utils/tools.cpp:3428-3437`), then `-wsl`, then a debug print from the class | Resolved 2026-10-05 by S0 probe (d): `--show-lh` prints the initial log-likelihood with 17 decimals (`model/modelfactory.cpp:1592-1596`) |
 | 5 | Cost: 361 likelihood evaluations per one-sided gradient; realistic training runs may take hours | S3 profiling; analytic gradients stay deferred |
 | 6 | AddressSanitizer with link-time optimization and libomp inside the 6 GB WSL VM | S0 attempt; UndefinedBehaviorSanitizer-only fallback |
 | 7 | Active `ASSERT`s abort a linked round that lowers the log-likelihood by more than 0.1 (verified, `model/partitionmodel.cpp:938`, `model/partitionmodelplen.cpp:135`) | incumbent protection and tests in S2 and S3 |
@@ -333,11 +333,16 @@ repeats, and run 11 does not and is judged by decision 018, which the driver imp
 and 24 did not. Peter accepted the rerun as the reproduced record (decision 020). Peter approved
 the oracle plan on 2026-10-04, in five pieces (listed in `CHANGELOG.md`), with its test pass lines
 recorded as decision 021. Pieces A (the chart core), B (the optimizer port) and C (the rooted
-likelihood) are in `test_scripts/fixedeq/oracle/`. Fixtures do not exist yet.
+likelihood) are in `test_scripts/fixedeq/oracle/`. Piece D met S0's "oracle likelihood matches the
+unmodified binary": in 16 fixed-parameter cases (NQ.pfam and a random non-reversible Q; with
+and without +G4 and +I; `aa_example.phy` and turtle partition 1), IQ-TREE's and the oracle's
+log-likelihoods agreed within 9.8e-16 relative (run of 2026-10-05, `CHANGELOG.md`). Fixtures do
+not exist yet.
 
 ## Next step
 
-Finish the oracle: pieces D and E of the approved plan (`CHANGELOG.md`, 2026-10-04).
+Finish the oracle: piece E of the approved plan, the frequency estimator port (`CHANGELOG.md`,
+2026-10-04).
 
 ## Checklists
 

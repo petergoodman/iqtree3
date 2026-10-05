@@ -7,6 +7,45 @@ from the top entry.
 This is a fork of `iqtree/iqtree3`. Entries here describe work on the fork, not upstream
 development.
 
+## 2026-10-04 (third session, continued): oracle piece D, the oracle matches the unmodified binary
+
+### Done
+
+Wrote `test_scripts/fixedeq/differential/differential.py` (commit `6ce9adee`). It runs 16 cases:
+
+- matrices: NQ.pfam, and a random non-reversible Q (seed 20261004), each written at 17
+  significant digits;
+- rate models: none, `+G4{0.5}`, `+I{0.2}` and `+I{0.2}+G4{0.5}`;
+- data: `example/aa_example.phy` and partition 1 of `turtle_aa` (sites 1 to 172, all 16 taxa);
+- trees: the rooted tree files of baseline runs 4 and 8, taken from the committed
+  `baseline.json`.
+
+Each case runs `iqtree3 -s ALN -m QFILE[+...] -te TREE --show-lh -seed 1 -T 1` in its own
+directory. The driver compares the printed "Initial log-likelihood" with the oracle's under
+decision 021.
+
+A dry run with `--allow-dirty` (2026-10-05 00:41 UTC,
+`~/iqtree3-runs/differential/dryrun-20261005T004120Z/`) checked the driver before it was
+committed. The recorded run, from the clean tree at `6ce9adee`, is in
+`~/iqtree3-runs/differential/record-20261005T004141Z/`. Both used the frozen binary, and their
+results are identical.
+
+All 16 cases pass. Relative differences range from 0 to 9.8e-16, so the agreement is to rounding
+error. IQ-TREE printed 17 decimals in every case, which answers S0 probe (d) and resolves PLAN.md
+risk 4. The NQ.pfam case without rate variation on `aa_example` gives -7577.8547, the value
+baseline run 4 reported. NQ.pfam's shipped frequencies differ from its solved stationary
+distribution by 6.9e-7, and the oracle roots at the solved one, so the match is consistent with
+the reading that `-m FILE` discards the file's frequency row. `CODE_PLAN.md` section 3.3 now
+names the output, the tolerance and the driver.
+
+### Failed
+
+Nothing failed.
+
+### Next
+
+1. Piece E: the estimator port.
+
 ## 2026-10-04 (third session, continued): oracle piece C, the rooted likelihood
 
 ### Done
