@@ -7,6 +7,46 @@ from the top entry.
 This is a fork of `iqtree/iqtree3`. Entries here describe work on the fork, not upstream
 development.
 
+## 2026-10-04 (third session, continued): oracle plan approved, piece A (chart core) written
+
+### Done
+
+Peter approved the oracle plan, in five pieces, each committed separately:
+
+- A, the chart core: the log-ratio and positive-ratio jump charts, references, seeds,
+  diagnostics, T3 in the D04 gauge with star-gauge conversion, and the built-in matrices;
+- B, the derivative rules and the port of IQ-TREE's optimizer (decision 017);
+- C, the rooted likelihood, with IQ-TREE's character, gamma and +I conventions;
+- D, the oracle against the unmodified binary through `--show-lh` (S0 probe (d));
+- E, the frequency estimator port, checked against the "Mean state frequencies" that baseline
+  runs 8 and 9 printed.
+
+The plan's test pass lines are decision 021, recorded before any test was written. Also approved
+was a correction to PLAN.md's "Where π* comes from": `convfreq` floors frequencies only under
+`--inc-zero-freq`, because `keep_zero_freq` defaults to true (verified,
+`alignment/alignment.cpp:5884-5886`, `utils/tools.cpp:7262`). While planning, two facts came up
+for pieces C to E. With `-m FILE`, IQ-TREE discards the file's frequency row and solves π from Q;
+this was read by a search agent and is to be confirmed by piece D. Baseline runs 8 (`-p`) and 9
+(`-S`) printed identical pooled frequencies, although `model/partitionmodel.cpp:132-133` pads
+missing taxa as unknown under `-p` only; piece E settles this.
+
+Piece A: `test_scripts/fixedeq/oracle/` with `cases.py` (balanced fluxes from directed cycles),
+`chart.py`, `t3.py` and `builtin.py`, and the tests `test_oracle_chart.py`, `test_oracle_t3.py`
+and `test_oracle_documented.py`. The jump chart is written from P-log section 3 and synthesis
+section 3, and T3 from P-log section 4 and its Appendix B code. ν is solved by column-pivoted QR.
+All 106 fixedeq tests pass in `iqtree3-fixedeq`, 64 of them new. Under decision 021, the three
+hard cases are printed rather than asserted. A skewed target with minimum 1e-4, two state blocks
+joined by logits of -11.5, and coordinates spread over [-11.5, 2.3] all gave residuals between
+6.6e-17 and 6.2e-16.
+
+### Failed
+
+Nothing failed.
+
+### Next
+
+1. Pieces B to E.
+
 ## 2026-10-04 (third session, continued): rerun accepted as the reproduced record
 
 ### Done

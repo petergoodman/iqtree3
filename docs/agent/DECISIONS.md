@@ -1,8 +1,8 @@
 # Decisions
 
-> **Status, 2026-10-04.** Programming decisions 001 to 020 are recorded; 002 to 014 were
+> **Status, 2026-10-04.** Programming decisions 001 to 021 are recorded; 002 to 014 were
 > approved by Peter with the code plan on 2026-09-23, 015 (which supersedes 004) to 018 on
-> 2026-10-03, and 019 and 020 on 2026-10-04. Ten mathematical and methodological design
+> 2026-10-03, and 019 to 021 on 2026-10-04. Ten mathematical and methodological design
 > decisions, D01 to D10, are recorded from the design synthesis and are revisable (see that
 > section's preamble). The items under "Pending programming candidates" were discussed on
 > 2026-09-15; the first three are now resolved by the entries named in their notes. An agent must
@@ -538,6 +538,39 @@ Number programming entries sequentially from 001 and never reuse a number.
   behind NumPy, and rerunning on another machine; neither would change a decision.
 - **Affects:** PLAN.md risk 10; `CODE_PLAN.md` section 3.1; the oracle's tests; the G0 run
   manifest.
+
+## 021. Fix the oracle's test thresholds before its tests are written
+
+- **Date:** 2026-10-04
+- **Status:** accepted
+- **Decision:** The Python oracle's tests use these pass lines. Built Q on ordinary cases (random
+  fluxes from directed cycles, and reversible matrices, at 3, 4 and 20 states): ‖π*Q‖∞,
+  |mean rate − 1| and scaled row sums at most 1e-10. Round trips Q → coordinates → Q, and the log
+  chart against T3 on the same Q: at most 1e-10 relative per entry. Builder derivative against a
+  central difference: at most 1e-7 relative to max(1, max|dQ|). Hard cases (near-reducible
+  chains, skewed π* with entries near 1e-4, wide rate ranges): recorded and printed, not
+  asserted. Documented numbers: 360, 189 and 171 exactly; the triangle bound 20.72 and the
+  curvature 0.015378 by decision 019's digits rule. Likelihood by pruning against brute-force
+  enumeration on tiny trees, and the sum over all site patterns against 1: at most 1e-12
+  relative. A reversible Q's likelihood under a moved root: at most 1e-10 relative. Gamma
+  category rates from the ported IQ-TREE routine against SciPy: at most 1e-5 relative. The oracle
+  against the unmodified IQ-TREE binary: |ΔlnL| at most 1e-8 × |lnL|, using the initial
+  log-likelihood that `--show-lh` prints at precision 17. The estimator port against IQ-TREE's
+  printed "Mean state frequencies": equal at the 8 significant digits printed. A threshold is not
+  loosened after a failure.
+- **Why:** Peter's approval of the oracle plan on 2026-10-04, which settles PLAN.md risk 17 for
+  the oracle's own tests; the compiled code's thresholds stay open for S1. 1e-10 is the
+  synthesis's provisional feasibility goal (section 4.3); double precision reaches about 1e-15 on
+  ordinary cases, and P-log Appendix A reports round trips near 1e-13. The derivative bound is the
+  one P-log Appendix B asserts, limited by the difference step. Pruning and enumeration compute
+  the same number exactly. IQ-TREE's chi-square quantile stops at a stated accuracy of 0.5e-6
+  (`model/rategamma.cpp:428-431`), so SciPy serves only as a sanity check of the port. The 1e-8
+  target is `CODE_PLAN.md` section 3.3's, and `--show-lh` prints the initial log-likelihood at
+  precision 17 (verified, `model/modelfactory.cpp:1592-1596`, `utils/tools.cpp:3428-3437`).
+- **Alternatives rejected:** declaring every threshold reported rather than asserted, which leaves
+  the oracle untested; tighter bounds on hard cases before S1 has studied their conditioning.
+- **Affects:** `test_scripts/fixedeq/oracle/` and its tests; `test_scripts/fixedeq/differential/`;
+  `CODE_PLAN.md` sections 3.1 and 3.3; PLAN.md risk 17.
 
 ---
 

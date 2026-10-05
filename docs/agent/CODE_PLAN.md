@@ -145,6 +145,8 @@ seed identity).
 
 ### 3.1 Layer 1: Python oracle
 
+The package is `test_scripts/fixedeq/oracle/`, and its tests use the pass lines of decision 021.
+
 - Charts (log-ratio, positive-ratio, T3 in the D04 gauge, and conversion from P-positive's star
   gauge), seeds and residuals.
 - Reproductions of the documented numbers: dimensions 360, 189 and 171; round trips; reversible

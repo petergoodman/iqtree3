@@ -193,9 +193,11 @@ profile mixtures with distinct equilibria, and analytic likelihood gradients.
 The target is the pooled composition of the original training data, computed once through
 IQ-TREE's estimator and held fixed across cleaning treatments (D07). The estimator (verified)
 counts states, runs an 8-round fixed point that distributes ambiguity codes
-(`convertCountToFreq`, `alignment/alignment.cpp:4886-4933`), then raises every entry below
-`min_state_freq` to that value and takes the deficit from the largest entry (`convfreq`,
-`alignment/alignment.cpp:5882-5909`). Missing sequences count as unknown states under `-p` but
+(`convertCountToFreq`, `alignment/alignment.cpp:4886-4933`), then calls `convfreq`
+(`alignment/alignment.cpp:5882-5909`). By default `convfreq` returns at once, because
+`keep_zero_freq` defaults to true (verified, `utils/tools.cpp:7262`); only under `--inc-zero-freq`
+does it raise every entry below `min_state_freq` to that value and take the deficit from the
+largest entry. Missing sequences count as unknown states under `-p` but
 not under `-S` (verified, `model/partitionmodel.cpp:132-133`), so the partition type is part of
 the record, together with the gap and ambiguity treatment, any smoothing, and the vector at 17
 significant digits. The real π* is computed only after the confirmatory plan is in the
@@ -328,13 +330,14 @@ repeats, and run 11 does not and is judged by decision 018, which the driver imp
 (2026-10-04). Run 12 was recorded on 2026-10-04 from the same frozen binary into
 `baseline/run12/`: five identical repeats. The three design scripts were rerun on 2026-10-04 by
 `test_scripts/fixedeq/design_rerun.py` (decision 019): 109 of 133 documented values reproduced,
-and 24 did not. Peter accepted the rerun as the reproduced record (decision 020). The oracle and
-fixtures do not exist yet.
+and 24 did not. Peter accepted the rerun as the reproduced record (decision 020). Peter approved
+the oracle plan on 2026-10-04, in five pieces (listed in `CHANGELOG.md`), with its test pass lines
+recorded as decision 021. Piece A, the chart core, is in `test_scripts/fixedeq/oracle/`. Fixtures
+do not exist yet.
 
 ## Next step
 
-Propose the oracle plan (`CODE_PLAN.md` section 3.1) for Peter's approval, then write the oracle
-and its tests.
+Finish the oracle: pieces B to E of the approved plan (`CHANGELOG.md`, 2026-10-04).
 
 ## Checklists
 
