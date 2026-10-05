@@ -35,7 +35,7 @@ headers, each produced by a kept script, and are never regenerated to make a tes
 | `model/modelmixture.cpp`, `createModel`, 3247-3257 | S2 | in the protein branch, dispatch the NQC name to `new ModelNonrevFixedEq(..., models_block)` before `new ModelProtein` (decision 002) | the dispatcher that holds a `ModelsBlock` | reached only by the NQC name |
 | `utils/tools.{h,cpp}`, `parseArg` and `usage_iqtree` | S2 (domain), S2 or S3 (step) | two parse-only options, read at the point of use through `Params` (decision 007) | domain expansion and step studies need run-time settings | unused unless NQC is used |
 | `model/partitionmodel.{h,cpp}`, `optimizeLinkedModel`, 753-840 | S3 | a `derivativeFunk` override that delegates to the linked model's hook interface when present and otherwise calls `Optimization::derivativeFunk`; a compatibility check before optimizing; a post-fit hook with incumbent protection after (decisions 005, 009) | linked optimization runs `minimizeMultiDimen` on the `PartitionModel` object (786), which no model override reaches | legacy models call the unchanged base routine; `partitionmodel.h:160-165` already carries an orphan comment for such an override |
-| `main/phyloanalysis.cpp`, after final optimization near 3903-3907; citation block 164-179 | S4 | write the export files when an NQC model exists (decision 010); print the nQMaker citation for NQC | the report block prints 6 significant digits (633); the citation test matches only the substring "NONREV" | guarded by model type and name |
+| `main/phyloanalysis.cpp`, after final optimization near 3903-3907; citation block 164-179 | S4 | write the export files when an NQC model exists (decision 010); print the nQMaker citation for NQC | the report block prints 6 decimal places (633, in the fixed mode set at 1528-1529); the citation test matches only the substring "NONREV" | guarded by model type and name |
 | `utils/optimization.{h,cpp}`, `lnsrch` 645-718, `dfpmin` 793-900 | S5 | record line-search failures and the stop reason without changing any trajectory (decision 009) | exact stop classification for the G4 comparison | recording only |
 | `main/phylotesting.cpp`, `mixRevNonrev` 448-489 | S6 | mixed-family guard and fixed learned candidates | Level 3 | deferred |
 
@@ -242,10 +242,10 @@ later from the same frozen binary with run 8 rerun in each repeat to supply its 
 
 ### 3.6 Layer 6: sanitizers
 
-Build in `~/iqtree3-build-asan`: Debug, `-DCMAKE_CXX_FLAGS="-fsanitize=address,undefined
--fno-omit-frame-pointer"` with matching linker flags, `-j 2`, and `ASAN_OPTIONS=detect_leaks=0`
-at first. Run it on the unmodified tree in S0 to record existing findings, then on the unit
-tests and short NQC runs at `-T 1` at the end of S1 to S4. The fallback is
+Build in `~/iqtree3-build-asan` with the `Mem` build type and the C, C++ and linker flags of
+decision 022, `-j 2`, and run with that decision's `ASAN_OPTIONS` and `UBSAN_OPTIONS`. Run it on
+the unmodified tree in S0 to record existing findings, then on the unit tests and short NQC runs
+at `-T 1` at the end of S1 to S4. The fallbacks are those of decision 022: without cmaple, then
 UndefinedBehaviorSanitizer alone.
 
 ### 3.7 Continuous integration
@@ -271,7 +271,7 @@ S0, with no IQ-TREE source:
   tree and once from a rooted one, comparing the root edge and the two branch lengths beside the
   root in the input and output trees (decision 016); (g) how precisely a fitted `GTR20+F{π*}`
   matrix on `example/aa_example.phy` carries into a new run through each route that needs no
-  source change (the 6-digit `.iqtree` block, and the 10-digit checkpoint values written as a
+  source change (the `.iqtree` block at 6 decimal places, and the 10-digit checkpoint values written as a
   `-m FILE`), with the tree and rate parameters fixed, recording the log-likelihood difference.
 - Also: the unmodified sanitizer build, and the G0 run manifest (state order, reference rule,
   chart, target provenance, domain, derivative policy, root policy (decision 016), tree and rate

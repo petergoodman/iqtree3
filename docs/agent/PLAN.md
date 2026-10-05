@@ -1,7 +1,7 @@
 # Plan: π-constrained non-reversible amino-acid models
 
 > **Status, 2026-10-04: code plan approved by Peter on 2026-09-23 and amended by decisions 015 to
-> 018 on 2026-10-03 and 019 and 020 on 2026-10-04; approach accepted by the IQ-TREE maintainers (reported by Peter, 2026-10-01); no
+> 018 on 2026-10-03 and 019 to 023 on 2026-10-04; approach accepted by the IQ-TREE maintainers (reported by Peter, 2026-10-01); no
 > source code changed yet.** Peter owns
 > this document. Its companion, `docs/agent/CODE_PLAN.md`, holds the file-level change map, the
 > NQC class specification and the test specification; it is subordinate to this document and is
@@ -249,7 +249,8 @@ searches; 010 export format; 011 reference destinations; 012 C++ test framework;
 location and environment; 014 line endings; 015 Q built in the class's decomposition, which
 calls the unchanged base (superseding 004); 016 root policy for S0 to S4; 017 the oracle's port
 of IQ-TREE's optimizer; 018 the regression rule for run 11 and the added run 12; 019 the
-design-script rerun and its matching rule; 020 the rerun accepted as the reproduced record.
+design-script rerun and its matching rule; 020 the rerun accepted as the reproduced record; 021
+the oracle's test thresholds; 022 the sanitizer build type; 023 the S1 to S4 test target.
 Mathematical decisions: D01 to D10.
 
 ### Test strategy
@@ -310,17 +311,18 @@ competing implementations, G5 native and outer workflow, G6 scientific validatio
 | 13 | Resolved 2026-10-03: whether decision 004's `ModelMarkov` edit was still needed | decision 015, which supersedes 004; `ModelMarkov` is no longer edited |
 | 14 | S5's recording-only edit to `dfpmin` and `lnsrch` (decision 009) touches the optimizer the maintainers advised leaving unchanged, and cannot be made by override (private, non-virtual, verified `utils/optimization.h:229-232`) | Peter, with the maintainers, before S5 |
 | 15 | Resolved 2026-10-03 for S0 to S4: the root policy, on which a non-reversible likelihood depends | decision 016; the policy for scientific runs at G5 |
-| 16 | How precisely a fitted `GTR20+F{π*}` incumbent reaches an NQC run: the report prints Q at 6 digits, decision 010 exports only NQC, and checkpoints hold 10 digits | S0 probe (g), then a decision entry before S3 |
+| 16 | How precisely a fitted `GTR20+F{π*}` incumbent reaches an NQC run: the report prints the matrix at 6 decimal places (`main/phyloanalysis.cpp:633`, in the fixed mode set at 1528-1529), decision 010 exports only NQC, and checkpoints hold 10 significant digits | S0 probe (g), then a decision entry before S3 |
 | 17 | Thresholds marked provisional (1e-10 residuals, 1e-12 relative Q entries, the 1e-6 target sum) must be final, or declared reported rather than asserted, before their tests are written, because a threshold is not relaxed after a failure | Partly resolved 2026-10-04: decision 021 sets the oracle's pass lines; the compiled code's remain for Peter, before S1 |
 | 18 | No fallback is recorded if S3 profiling shows training runs impractical while analytic gradients are out of scope | Peter, after S3 profiling |
 | 19 | Baseline run 11 (`--model-joint NONREV` under `-p` at `-T 4`) does not reproduce: five repeats of the unmodified binary ended at log-likelihoods from -4975.0215 to -4974.5963, none equal to the `-T 1` run's -4974.5432, with the same topology and 442 of the model section's 447 numbers varying (largest spread 0.046). Its tree drawing varies too, so the spread rule of `CODE_PLAN.md` section 3.4 cannot judge it, and S3's `-T 1` against `-T 4` test meets the same behaviour in legacy code | Partly resolved 2026-10-03: run 11's rule and the added run 12 are decision 018, implemented in the driver on 2026-10-04. Run 12 (run 10 at `-T 4`) gave identical reports in five repeats, identical to run 10's at `-T 1` in every compared item, so at the report's printed precision the variation arises in the joint fit, not in a fixed evaluation. The S3 thread test's definition: Peter, before S3 |
 
 ## Current state
 
-The design is settled (D01 to D10) and programming decisions 001 to 020 are recorded, 015
+The design is settled (D01 to D10) and programming decisions 001 to 023 are recorded, 015
 superseding 004; 016 sets the root policy for S0 to S4, 017 the oracle's optimizer port, 018 the
-regression rule for run 11 and the added run 12, 019 the design-script rerun's matching rule, and
-020 the acceptance of that rerun.
+regression rule for run 11 and the added run 12, 019 the design-script rerun's matching rule, 020
+the acceptance of that rerun, 021 the oracle's test thresholds, 022 the sanitizer build type, and
+023 the S1 to S4 test target.
 The planning documents are committed on the branch. The IQ-TREE maintainers accepted the log-ratio jump-chain approach and stressed
 that BFGS needs a continuous objective (reported by Peter, 2026-10-01; the mapping of their notes
 to the code is in `CHANGELOG.md`). The unmodified branch builds in WSL2 and passes the smoke tests recorded in

@@ -1,8 +1,8 @@
 # Decisions
 
-> **Status, 2026-10-04.** Programming decisions 001 to 021 are recorded; 002 to 014 were
+> **Status, 2026-10-04.** Programming decisions 001 to 023 are recorded; 002 to 014 were
 > approved by Peter with the code plan on 2026-09-23, 015 (which supersedes 004) to 018 on
-> 2026-10-03, and 019 to 021 on 2026-10-04. Ten mathematical and methodological design
+> 2026-10-03, and 019 to 023 on 2026-10-04. Ten mathematical and methodological design
 > decisions, D01 to D10, are recorded from the design synthesis and are revisable (see that
 > section's preamble). The items under "Pending programming candidates" were discussed on
 > 2026-09-15; the first three are now resolved by the entries named in their notes. An agent must
@@ -571,6 +571,52 @@ Number programming entries sequentially from 001 and never reuse a number.
   the oracle untested; tighter bounds on hard cases before S1 has studied their conditioning.
 - **Affects:** `test_scripts/fixedeq/oracle/` and its tests; `test_scripts/fixedeq/differential/`;
   `CODE_PLAN.md` sections 3.1 and 3.3; PLAN.md risk 17.
+
+## 022. Build the sanitizer binary with IQ-TREE's `Mem` build type
+
+- **Date:** 2026-10-04
+- **Status:** accepted
+- **Decision:** Every sanitizer build in S0 to S4 uses `-DCMAKE_BUILD_TYPE=Mem` (`-g -O1`) with
+  clang 14, `-fsanitize=address,undefined -fno-omit-frame-pointer` in both `CMAKE_C_FLAGS` and
+  `CMAKE_CXX_FLAGS`, and `-fsanitize=address,undefined` in `CMAKE_EXE_LINKER_FLAGS`, in
+  `~/iqtree3-build-asan`, built with `-j 2`. The fallbacks, in this order, are the same build with
+  `-DUSE_CMAPLE=OFF` if the build or link runs out of memory, then UndefinedBehaviorSanitizer
+  alone. Runs set `ASAN_OPTIONS=detect_leaks=0:allow_user_segv_handler=0` and
+  `UBSAN_OPTIONS=print_stacktrace=1`. Findings in upstream code are recorded, not fixed.
+- **Why:** Peter's choice on 2026-10-04, replacing the Debug build named in `CODE_PLAN.md`
+  section 3.6. For clang, Debug is `-O0 -g -fno-inline-functions -fno-inline` and `Mem` is
+  `-g -O1` (verified, `CMakeLists.txt:833-837`), the level AddressSanitizer's documentation
+  recommends for usable speed (recalled, not checked this session). At `-O0` the joint NONREV
+  runs, 1 to 2.5 minutes in Release, were expected to take hours. No build type defines
+  `NDEBUG`, so `ASSERT` stays active in both (verified, `utils/tools.h:60-68`). The C sources of
+  `pll/` and `booster/` read only `CMAKE_C_FLAGS`, and `CMakeLists.txt` appends to the plain flag
+  variables rather than replacing them (verified, for example lines 363, 393 and 455). cmaple is
+  the only component built with link-time optimization (verified,
+  `cmaple/CMakeLists.txt:84-89`), the memory risk of PLAN.md risk 6, and IQ-TREE's ML path does
+  not use it. IQ-TREE installs its own SIGSEGV handler (verified, `main/main.cpp:2312-2317`).
+- **Alternatives rejected:** Debug at `-O0`, for run time; sanitizer flags in the per-type
+  variables, which `CMakeLists.txt` overwrites.
+- **Affects:** `test_scripts/fixedeq/sanitizer/`; `CODE_PLAN.md` section 3.6; the sanitizer runs
+  at the end of S1 to S4; PLAN.md risk 6.
+
+## 023. Use the turtle pooled composition as the S1 to S4 test target
+
+- **Date:** 2026-10-04
+- **Status:** accepted
+- **Decision:** The named test target of S1 to S4 is the pooled composition of
+  `test_scripts/test_data/turtle_aa.fasta` over the charsets of `turtle_aa.nex`, computed by
+  `test_scripts/fixedeq/oracle/target.py` under `-p` conventions (missing taxa padded as unknown
+  cells), and written at 17 significant digits. It is used for the aa_example tests and the turtle
+  tests. The G0 manifest records the vector and its provenance. Random targets in the oracle's
+  tests and the S1 fixtures are separate, recorded by seed.
+- **Why:** Peter's choice on 2026-10-04. The port reproduces IQ-TREE's printed pooled vector for
+  this data under `-p` and `-S` (2026-10-05, `CHANGELOG.md`), and a pooled composition applied to
+  every alignment is the kind of target the intended study uses (D07).
+- **Alternatives rejected:** adding aa_example's own composition, which needs a further
+  cross-check of the port on a single alignment; adding a skewed target now, left to the domain
+  checks of S2 (PLAN.md risk 8).
+- **Affects:** the G0 manifest; the probes; the S2 to S4 tests; the S1 fixtures that use a named
+  target.
 
 ---
 

@@ -7,6 +7,38 @@ from the top entry.
 This is a fork of `iqtree/iqtree3`. Entries here describe work on the fork, not upstream
 development.
 
+## 2026-10-04 (fourth session): plan for the rest of S0, decisions 022 and 023
+
+### Done
+
+Peter approved a plan for S0's remaining items: probes (a) to (c) and (e) to (g), the sanitizer
+run of the unmodified code, and the G0 manifest. The plan has a stop point after the probes and
+the sanitizer run, for two decisions the probes feed: Level 1 under `-p`, and the transfer of a
+fitted `GTR20+F{π*}`. Peter made two choices, recorded as decisions:
+
+- 022: the sanitizer build uses the `Mem` build type (`-g -O1`), not Debug (`-O0`), with the
+  flags and fallbacks the entry states.
+- 023: the S1 to S4 test target is the turtle pooled composition under `-p`.
+
+`CODE_PLAN.md` section 3.6 now cites decision 022.
+
+Corrected a precision statement. The `.iqtree` matrix block prints 6 decimal places, not 6
+significant digits, because `precision(6)` at `main/phyloanalysis.cpp:633` acts on a stream left
+in fixed mode at 1528-1529. Corrected in `CODE_PLAN.md` (section 1.2 and the probe (g) text),
+PLAN.md risk 16 and `AA_MODEL_INFERENCE.md` section 14. Decision 010's "Why" says "6 significant
+digits"; because entries are never edited, the correction is recorded here. Its conclusion
+stands: a 6-decimal block loses even more precision than its "Why" assumed. The `.GTRPMIX.nex`
+writer's "6 significant digits" in `ARCHITECTURE.md` and `FILE_INDEX.md` is correct, because it
+writes to a fresh stream.
+
+### Failed
+
+Nothing failed.
+
+### Next
+
+1. The probe driver, its tests, and the recorded probe run.
+
 ## 2026-10-04 (third session, closing): oracle piece E, the estimator port; the oracle is complete
 
 ### Done

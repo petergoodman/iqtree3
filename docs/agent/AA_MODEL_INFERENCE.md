@@ -1574,7 +1574,8 @@ empirical frequency vector **once** across mixture classes rather than once per 
 **The `.iqtree` report.** `reportModel` (`main/phyloanalysis.cpp:581-660`) prints, for a protein
 model with more than 20 free dimensions, a warning about overfitting and then the matrix itself:
 reversible models as a **lower-triangular list in PAML format**, non-reversible models as the
-**full 20x20 Q including the diagonal**, both followed by the 20 state frequencies. For a
+**full 20x20 Q including the diagonal**, both followed by the 20 state frequencies, all at 6
+decimal places (`precision(6)` at 633 on a stream left in fixed mode at 1528-1529). For a
 non-reversible model the printed frequencies are the solved stationary vector, so the block is
 self-consistent and can be fed back with `-m <file>`.
 
