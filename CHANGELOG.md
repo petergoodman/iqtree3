@@ -7,6 +7,61 @@ from the top entry.
 This is a fork of `iqtree/iqtree3`. Entries here describe work on the fork, not upstream
 development.
 
+## 2026-10-05 (fourth session, closing): decisions 024 and 025, sanitizer run, G0 manifest; S0 complete
+
+### Done
+
+Peter accepted the three recommendations of the stop-point report.
+
+- **Decision 024.** Level 1 for the edge-proportional arrangement runs under `-q`, with the
+  partition rates fixed in the partition file.
+- **Decision 025.** The GTR20 incumbent is fitted on fixed trees and carried from its checkpoint.
+  The nesting test compares with a `--show-lh` re-evaluation, within 1e-8 × |lnL|.
+- **Curated sanitizer scope.** Recorded in `CODE_PLAN.md` section 3.6.
+
+`sanitize.py run` gained `--regression-runs`, `--probes` and `--no-differential` (commit
+`582df210`), and the curated sanitizer run followed
+(`~/iqtree3-runs/sanitizer/s0-20261005T183815Z/`, from the clean tree at `582df210`). It ran the
+16 differential cases (7 s) and probe (a)'s five runs (3383 s); baseline runs 2 and 4 had run in
+the timing test. Results:
+- All 16 differential cases pass on the sanitizer build, between 0 and 1e-15 relative.
+- Probe (a) came out as predicted.
+- The only sanitizer report is the known one at `model/modelmarkov.cpp:76`, once in each of the
+  21 runs. There was no AddressSanitizer report.
+
+Added `test_scripts/fixedeq/manifest/manifest.py`, with tests in `tests/test_manifest.py`
+(commit `e379d2ea`), and generated `manifest/g0_manifest.json` and `g0_manifest.md` from the clean
+tree at `e379d2ea`. A second generation gave identical content; only the timestamp and the
+clean-tree flag differed. Highlights:
+- references `SKDEAEDAYVIRLYATSFFI`;
+- the LG seed at the turtle target lies inside the D03 domain, 3.51 above the lower bound and
+  2.32 below the upper;
+- the seed's stationarity residual is 2.1e-17;
+- the target's smallest entry is W at 0.00876.
+
+All 165 fixedeq tests pass.
+
+Updated the documents:
+- **PLAN.md:** S0 complete; refinement 3 cites decision 024; risks 2, 3, 6 and 16 resolved; risk
+  8 annotated; risks 20 (the `is_reversible` read) and 21 (the stale checkpoint) added as
+  upstream items for Peter to relay if he wishes; next step.
+- **CODE_PLAN.md:** sections 1.1, 3.5, 3.6 and 4.
+- **ARCHITECTURE.md:** facts on the `+F` split and the `--mdef` route (section 6), on when the
+  model reaches the checkpoint (section 11), and on the three partition arrangements
+  (section 12).
+- **AA_MODEL_INFERENCE.md:** the root under `-te` (section 2.3).
+- **CLAUDE.md:** the sanitizer and probe commands, and the note that Modern Standby pauses WSL.
+
+### Failed
+
+Probe runs a2 and a3 took longer under the sanitizer build than the 11-minute estimate, so the
+progress watcher expired once without news; the run itself was unaffected. Nothing else failed.
+
+### Next
+
+1. Peter: the compiled code's pass lines (PLAN.md risk 17), with a recommendation from the agent.
+2. Then plan S1 for Peter's approval.
+
 ## 2026-10-05 (fourth session, continued): S0 probes recorded, sanitizer build and timing; stop point
 
 ### Done

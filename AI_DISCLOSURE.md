@@ -8,6 +8,34 @@ Entries record the tool and model version, what it did, and which files or secti
 No AI-generated scientific claim, numerical result, or citation in this project has been accepted
 without human verification against source.
 
+## 2026-10-04 to 2026-10-05 (fourth session)
+
+**Tool:** Claude Code (VS Code extension).
+**Model:** Claude Opus 5.5, 1M context, model id `claude-opus-5-5[1m]`.
+**Operator:** Peter Goodman.
+
+**What it did.** On a plan the operator approved, the agent finished slice S0.
+- **Decisions.** It recorded the operator's choices as decisions 022 to 025: the sanitizer build
+  type, the test target, the Level 1 flags, and the GTR20 incumbent route.
+- **Correction.** It corrected a precision statement in the planning and reference documents.
+- **Probe driver.** It wrote a driver for the S0 runtime probes (`test_scripts/fixedeq/probes/`),
+  with source-predicted outcomes and tests. It ran the driver on the frozen unmodified binary,
+  revised probe (g) after its dry run found a bug and a stale model checkpoint, and recorded the
+  run from a clean tree. One prediction did not hold and was reported as written.
+- **Sanitizer driver.** It wrote a sanitizer build and run driver (`test_scripts/fixedeq/sanitizer/`)
+  with tests. It built the unmodified code with AddressSanitizer and UndefinedBehaviorSanitizer,
+  measured a slowdown of about 20 times, and ran the set the operator chose. The one upstream
+  finding was recorded and not fixed.
+- **Manifest.** It wrote the G0 manifest generator (`test_scripts/fixedeq/manifest/`) with tests,
+  and generated the manifest.
+- **Diagnosis.** It diagnosed an apparent 10-hour stall as Windows Modern Standby pausing WSL.
+
+**Files touched.** `docs/agent/DECISIONS.md`, `docs/agent/PLAN.md`, `docs/agent/CODE_PLAN.md`,
+`docs/agent/ARCHITECTURE.md` (sections 6, 11 and 12), `docs/agent/AA_MODEL_INFERENCE.md` (sections
+2.3 and 14), `CLAUDE.md` (Commands), `CHANGELOG.md`, and new files under
+`test_scripts/fixedeq/probes/`, `sanitizer/`, `manifest/` and `tests/`. No IQ-TREE source file was
+changed.
+
 ## 2026-10-04 (third session)
 
 **Tool:** Claude Code (VS Code extension).

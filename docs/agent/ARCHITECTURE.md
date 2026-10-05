@@ -357,6 +357,16 @@ it uses the base `getVariables`, so its override runs only at construction.
 From then on, `computeTransMatrix(t, P)` exponentiates via the cached eigensystem, and the
 likelihood kernel consumes `P` plus `state_freq` at the root.
 
+**How the string is split.** `ModelFactory` keeps the substitution name and its `{...}` whole: the
+split is brace-aware (`modelfactory.cpp:241-254`). Each `+F...` piece is cut at the next `+` or
+`*` without regard to braces (258-267, and 295-303 for `--model-joint`). So a `+` inside a
+`+F{...}` number, as in `0.08e+00`, cuts the vector, and the run stops with exit code 2 and
+"Close bracket not found in +F{0.08e" (run, S0 probe (b), 2026-10-05). A `+F<NAME>` is looked up
+in the models block (599-604), which holds the built-in definitions and any `--mdef` NEXUS file's
+`frequency NAME = ...;` entries. The stored text, a `+` included, becomes the frequency
+parameters. Under `-m` and under `--model-joint` with `-p` or `-S`, the named and the literal
+routes gave identical results (S0 probe (a)).
+
 ---
 
 ## 7. Data layouts — get these exactly right
@@ -604,6 +614,20 @@ void MyModel::restoreCheckpoint() {
 `utils/checkpoint.h:25–40`. **Note the ordering asymmetry — base-class call last on save, first
 on restore — and the mandatory `decomposeRateMatrix()` + `clearAllPartialLH()` after restore.**
 
+**When the model reaches the checkpoint.** `IQTree::saveCheckpoint` (`tree/iqtree.cpp:134-150`)
+saves the search state and the tree (`tree/phylotree.cpp:184-194`), not the model. The model
+factory's state is saved at two points:
+- after the initial model fit (`tree/iqtree.cpp:2388-2389`);
+- after each model re-fit during the tree search (3248-3253).
+
+It is not saved after the final model optimization that follows a tree search
+(`main/phyloanalysis.cpp:3895-3899`). A finished run with a tree search therefore leaves the
+pre-final model in its checkpoint. In S0 probe (g) (2026-10-05), 98 of a GTR20 fit's 190 rates
+differed from the report, and the checkpoint's model scored 0.283 below the fit. Under `-te` no
+final model optimization runs (`main/phyloanalysis.cpp:3880`), and the checkpoint matched the
+report. Checkpoint doubles are written at 10 significant digits (`utils/checkpoint.h:22`); the
+`.iqtree` matrix block prints 6 decimal places.
+
 ---
 
 ## 12. The partition / linked-model layer (QMaker and nQMaker)
@@ -640,6 +664,24 @@ evaluating `PartitionModel::targetFunk`, the summed objective. A `derivativeFunk
 model class is therefore reached by single-model optimization (`ModelMarkov::optimizeParameters`)
 but not by linked optimization. The only override of `derivativeFunk` outside `Optimization` in
 the inspected code is `PhyloTreeMixlen` (`tree/phylotreemixlen.h:165`).
+
+**The three partition arrangements.**
+- **`-p`, edge-proportional.** `PhyloSuperTreePlen` with `PartitionModelPlen` refits the
+  partition rates every round unless `fixed_rates` is set (`partitionmodelplen.cpp:150-157`), and
+  rescales the shared tree (248-267). `-blfix` does not stop this. In S0 probe (c) (2026-10-05),
+  a joint fit with `-te -blfix` and a fixed `+G4` moved the rates from 1 to 0.5330, 1.6143 and
+  0.8643, and multiplied every branch by 1.148146.
+- **`-q`, edge-equal.** Builds the same tree class with `fixed_rates` set
+  (`tree/phylosupertreeplen.cpp:44-77`). Rates given as `{x}` after the charset names of a
+  charpartition are normalized to a site-weighted mean of 1 and then held.
+- **`-S`, separate trees.** `PartitionModel` with `PhyloSuperTreeUnlinked`. There are no
+  partition rates, and `-te` reads one tree per partition. Each partition tree is rooted
+  separately, and missing taxa are not padded when frequencies are pooled
+  (`partitionmodel.cpp:132-133`).
+
+With `-te -blfix` and braced rate parameters, a joint fit under `-S` or `-q` changed only the
+shared matrix (probe (c)). Rate models for `--model-joint` come from each partition's model
+string, from `-m` when the partition file gives none (`partitionmodel.cpp:67-69`).
 
 **Frequencies before the first linked update.** The `PartitionModel` constructor pools state
 counts over the partitions of each linked model with `FREQ_ESTIMATE` or `FREQ_EMPIRICAL`, prints

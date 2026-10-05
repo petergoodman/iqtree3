@@ -1,0 +1,170 @@
+{
+ "provenance": {
+  "script": "test_scripts/fixedeq/manifest/manifest.py",
+  "git_commit": "e379d2ea3f66df5096bb8be5b55c5951e20fc8d8",
+  "git_clean": true,
+  "generated_utc": "2026-10-05T19:49:27+00:00",
+  "python": "3.12.14",
+  "platform": "Linux-5.15.146.1-microsoft-standard-WSL2-x86_64-with-glibc2.36"
+ },
+ "manifest": {
+  "state_order": {
+   "value": "ARNDCQEGHILKMFPSTWYV",
+   "source": "alignment/alignment.cpp:34 (symbols_protein, X excluded)",
+   "matches_oracle": true
+  },
+  "chart": {
+   "value": "jump-chain log-ratio coordinates",
+   "set_by": "D01",
+   "coordinates": 360,
+   "order": "row-major over rows i; within row i, destinations j other than i and its reference r(i), increasing (test_scripts/fixedeq/oracle/chart.py)",
+   "definition": "z_ij = log(K_ij / K_i,r(i)); K the jump matrix, nu its stationary distribution, q_ij = nu_i K_ij / pi*_i",
+   "later_slices": "positive-ratio chart with pinned weight c = 10 (D01) and T3 in the D04 gauge, both S5"
+  },
+  "references": {
+   "rule": "row maxima of the off-diagonal rates of LG rebuilt at the target, ties to the lower index",
+   "set_by": "D01, decision 011",
+   "indices": [
+    15,
+    11,
+    3,
+    6,
+    0,
+    6,
+    3,
+    0,
+    18,
+    19,
+    9,
+    1,
+    10,
+    18,
+    0,
+    16,
+    15,
+    13,
+    13,
+    9
+   ],
+   "destinations": "SKDEAEDAYVIRLYATSFFI"
+  },
+  "target": {
+   "set_by": "decision 023 (provenance policy D07)",
+   "values_17_digits": [
+    "0.059527069906252131",
+    "0.042088925660021606",
+    "0.038254359909541603",
+    "0.057883684584617831",
+    "0.029033142271482529",
+    "0.040536839522922558",
+    "0.086551628528682673",
+    "0.059253172352646419",
+    "0.026659363473566327",
+    "0.061353053596956884",
+    "0.085547337498795062",
+    "0.073404545955608358",
+    "0.027937552057059663",
+    "0.055875102524842589",
+    "0.042088925660021606",
+    "0.044462704457937804",
+    "0.044554003642473049",
+    "0.0087647233046596208",
+    "0.042819319136303512",
+    "0.073404545955608358"
+   ],
+   "sum_minus_1": 2.220446049250313e-16,
+   "minimum": 0.00876472330465962,
+   "minimum_state": "W",
+   "at_least_min_state_freq_1e-4": true,
+   "above_zero_freq_1e-10": true,
+   "estimator": "test_scripts/fixedeq/oracle/target.py, a port of IQ-TREE's estimator: per partition, all-unknown sequences removed (at least three kept); states counted with missing taxa padded as unknown cells (-p conventions); ambiguity codes B, Z, J and unknown characters distributed by the 8-round fixed point of convertCountToFreq; no floor (keep_zero_freq default); no smoothing",
+   "cross_check": "reproduces IQ-TREE's printed 'Mean state frequencies' for this data under -p and -S at the 8 decimals printed (2026-10-05, CHANGELOG.md)",
+   "inputs": {
+    "test_scripts/test_data/turtle_aa.fasta": "b67253c4ea71dc55b18f61f5e8501ffc046e391f92a2c0e523dd27feaa0ff28d",
+    "test_scripts/test_data/turtle_aa.nex": "a43605ee6ddad6bd4a94a07fc9c09ab2c66bc34a6082151a73ac4bdd1b1e0743"
+   }
+  },
+  "domain": {
+   "value": [
+    -11.512925464970229,
+    2.302585092994046
+   ],
+   "meaning": "z in [log 1e-5, log 10], the historical benchmark domain",
+   "set_by": "D03, decision 007",
+   "lg_seed_min_coordinate": -8.002335385327642,
+   "lg_seed_max_coordinate": -0.01714136738950145,
+   "lg_seed_distance_to_lower": 3.5105900796425864,
+   "lg_seed_distance_to_upper": 2.3197264603835475,
+   "lg_seed_inside": true,
+   "note": "no margin is judged; decision 007 requires one but does not set it"
+  },
+  "lg_seed_residuals": {
+   "stationarity": 2.0816681711721685e-17,
+   "row_sums": 3.370823241736847e-16,
+   "mean_rate_error": 2.220446049250313e-16,
+   "min_rate": 0.00010394874379372986,
+   "min_flux": 8.996933058858114e-06
+  },
+  "derivative_policy": {
+   "value": "forward difference with signed step h = eta * max(s, |x|), eta = 1e-4, s = 1, exactly representable, backward when the forward probe would leave the domain; legacy step for every other model",
+   "set_by": "D02, decision 005"
+  },
+  "root_policy": {
+   "set_by": "decision 016",
+   "root_frequencies": "pi*",
+   "input_rooting": "an unrooted input tree is rooted by IQ-TREE's conversion at the midpoint of the longest path (per partition under -S, on the shared tree under -p and -q); a rooted input keeps its root",
+   "root_edge_search": "none: fixed topology under -te, without --root-find",
+   "root_split": "fixed at Level 1 (-blfix); IQ-TREE's branch-length optimization at Level 2",
+   "observed": "S0 probe (f), 2026-10-05: the root never changed branch in 13 comparisons; unrooted inputs were rooted at the midpoint; in every Level 2 fit the root slid along its edge until one root-adjacent length was about 2e-6"
+  },
+  "tree_and_rate_policy": {
+   "set_by": "decisions 016 and 024",
+   "level_1": {
+    "one alignment": "-te TREE -blfix, rate parameters in braces",
+    "-S (separate trees)": "-S PARTFILE -te TREES -blfix --model-joint, rate parameters in braces",
+    "edge-proportional": "-q PARTFILE -te TREE -blfix --model-joint, with a charpartition giving each partition its braced rate model and its rate as {x}, taken from the preceding -p fit's checkpoint"
+   },
+   "level_2": "-p or -S with -te, as nQMaker uses them; rate parameters and branch lengths optimized",
+   "fixed_rate_values_in_s0_tests": "+G4{0.5}, +I{0.2}",
+   "input_trees": {
+    "baseline run02 tree file": "ae707d3d2c2b9052e430e7043c53a3895d4279a42137f1333c23db9ee7ba4fbe",
+    "baseline run05 tree file": "b8f2f2a99d37c92d14b0386c240e874d864bbe6e5dc9d75d9876be663d2f9c28",
+    "baseline run08 tree file": "06670ff7547d9b97e8c0e190839c2fe328e1b0d1cc816e9379892bad5c2a5a31",
+    "baseline run09 tree file": "bd5a852e9b20dcb6ccc29edd30d18aa39ae94c6ce8d12d83264e4203fec422db"
+   }
+  },
+  "starts": {
+   "default": "LG rebuilt at pi* (D05); its residuals are lg_seed_residuals",
+   "incumbent": "GTR20+F{pi*} fitted on fixed trees and carried from its checkpoint (D05, decision 025)",
+   "iqtree_seed": "-seed 1 and -T 1 in every S0 run, except the thread-count runs 11 and 12",
+   "oracle_seeds": "20261004 in test_scripts/fixedeq/differential/differential.py and probes/probes.py",
+   "s1_fixture_seeds": "recorded in each fixture's provenance header (S1)"
+  },
+  "source": {
+   "upstream_baseline": "63c330d9 (upstream tag v3.1.4)",
+   "manifest_commit": "e379d2ea3f66df5096bb8be5b55c5951e20fc8d8",
+   "frozen_binary": {
+    "path": "/home/petergoodman/iqtree3-baseline/iqtree3",
+    "sha256": "9a72950bf61187f9923372f49badde3aa527864f57de795c5ad751d7c04fb501"
+   },
+   "sanitizer_build": {
+    "record": "/home/petergoodman/iqtree3-build-asan/sanitizer-build.json",
+    "variant": "asan-ubsan",
+    "binary_sha256": "323dce82d25e0ed586eed86bdcb930237904e69fa2138b848ba7ab0ed4b78d4a",
+    "built_from_commit": "d54de36f6bfa2f81d57cedada75d6dfb352b7a82"
+   }
+  },
+  "thresholds": {
+   "oracle": "decision 021",
+   "compiled_code": "pending (PLAN.md risk 17)",
+   "nesting_test": "decision 025: 1e-8 x |lnL| against the re-evaluated incumbent"
+  },
+  "environment": {
+   "lock_file": {
+    "test_scripts/fixedeq/environment.lock.txt": "2d945cb2fc854a438e6d056a255b668fb5c1aea9235c1e6b8ba08ff772312e41"
+   },
+   "numpy": "2.3.5",
+   "scipy": "1.17.0"
+  }
+ }
+}

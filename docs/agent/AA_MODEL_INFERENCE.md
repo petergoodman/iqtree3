@@ -422,7 +422,11 @@ midpoint of the candidate branch, re-optimises all branch lengths for each candi
 (`model/modelfactory.cpp:1733-1734`). Separately, `--root-test` scans **every** branch and writes
 a ranked list for the standard topology tests (`tree/phylotree.cpp:3130-3215`, driven from
 `main/phyloanalysis.cpp:3957-3961`), and `--rootstrap` counts how often each branch is the root
-across bootstrap replicates. Rooting by a non-reversible model is a first-class feature, not a
+across bootstrap replicates. Under `-te` no tree search runs, so only `--root-find` can move the
+root. In S0 probe (f) (2026-10-05) the root never changed branch in 13 comparisons, and an unrooted
+input was rooted at the midpoint of the longest path. Under `-S` this happened per partition tree,
+and under `-p` and `-q` on the shared tree. In every fit that optimized branch lengths, the root
+slid along its edge until one root-adjacent length was about 2e-6. Rooting by a non-reversible model is a first-class feature, not a
 side effect.
 
 **The unrooted non-reversible path.** If a non-reversible model is run on an unrooted tree

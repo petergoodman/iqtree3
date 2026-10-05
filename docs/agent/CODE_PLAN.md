@@ -20,7 +20,7 @@ Labels are those of PLAN.md. Source anchors refer to `63c330d9` and were verifie
 | `model/fixedeqchart.{h,cpp}` | S1; T3 in S5 | Pure functions over Eigen types, with no IQ-TREE headers and no process exit (section 2.1) |
 | `model/modelnonrevfixedeq.{h,cpp}` | S2 to S4 | Class `ModelNonrevFixedEq : public ModelProtein`, public name "NQC" held in one constant (decision 002; section 2.2) |
 | `unittest/` | S1 | Standalone CMake project that compiles `model/fixedeqchart.cpp` directly and fetches googletest at cmaple's pinned commit (verified, `cmaple/CMakeLists.txt:281-293`; decision 012); `fixtures/` in plain text at 17 significant digits with a provenance header; its own `.gitattributes` (decision 014) |
-| `test_scripts/fixedeq/` | S0 onward | `environment.yml` and its exported lock (decision 013); the `oracle/` package; `tests/`; `regression/` and `differential/` drivers; `design_rerun.py`, which reruns the design scripts (decision 019); `make_fixtures.py`; its own `.gitattributes`, and a `.gitignore` for Python caches |
+| `test_scripts/fixedeq/` | S0 onward | `environment.yml` and its exported lock (decision 013); the `oracle/` package; `tests/`; `regression/` and `differential/` drivers; `design_rerun.py`, which reruns the design scripts (decision 019); `probes/`, the S0 runtime probes; `sanitizer/`, the decision 022 build and run driver; `manifest/`, the G0 manifest generator and its output; `make_fixtures.py`; its own `.gitattributes`, and a `.gitignore` for Python caches |
 | `.github/workflows/fixedeq.yaml` | S1 | Fork-only workflow that builds and runs the unit tests and the oracle's tests on Linux, and from S2 a short NQC run |
 
 Run outputs never go into the working copy; they go under `~/iqtree3-runs/` in WSL. Fixtures and
@@ -228,8 +228,9 @@ later from the same frozen binary with run 8 rerun in each repeat to supply its 
 - Nesting: fit `GTR20+F{π*}`, then seed NQC at that fit with its trees and rate parameters.
   IQ-TREE roots the GTR20 tree through its own conversion, and the reversible likelihood does not
   depend on the root, so NQC's first log-likelihood must equal the GTR20 fit's and its final one
-  must not be lower. How the GTR20 fit is carried into the NQC run, and the tolerance on
-  "equal", are set after S0 probe (g).
+  must not be lower. The fit, its transfer into the NQC run, the reference log-likelihood and
+  the tolerance are those of decision 025: a fixed-tree fit carried from its checkpoint, compared
+  with a `--show-lh` evaluation of the carried values within 1e-8 × |lnL|.
 - Target immutability: π* compared bitwise after construction, linking, each linked update,
   checkpoint, restart and export.
 - Counting: 360 plus rate and branch parameters, with the matrix counted once for linked
@@ -243,10 +244,19 @@ later from the same frozen binary with run 8 rerun in each repeat to supply its 
 ### 3.6 Layer 6: sanitizers
 
 Build in `~/iqtree3-build-asan` with the `Mem` build type and the C, C++ and linker flags of
-decision 022, `-j 2`, and run with that decision's `ASAN_OPTIONS` and `UBSAN_OPTIONS`. Run it on
-the unmodified tree in S0 to record existing findings, then on the unit tests and short NQC runs
-at `-T 1` at the end of S1 to S4. The fallbacks are those of decision 022: without cmaple, then
-UndefinedBehaviorSanitizer alone.
+decision 022, `-j 2`, and run with that decision's `ASAN_OPTIONS` and `UBSAN_OPTIONS`, through
+`test_scripts/fixedeq/sanitizer/sanitize.py`. The fallbacks are those of decision 022: without
+cmaple, then UndefinedBehaviorSanitizer alone.
+
+The build runs about 20 times slower than Release (measured 2026-10-05). In S0 it ran on the
+unmodified tree over:
+- baseline runs 2 and 4;
+- the 16 differential cases;
+- probe (a)'s five runs.
+
+That covers a single NONREV fit, fixed-matrix evaluation with +G and +I on fixed trees, linked
+fits under `-p` and `-S` on fixed trees, and the `--mdef` target route. At the end of S1 to S4 it
+runs the unit tests and short NQC runs at `-T 1`.
 
 ### 3.7 Continuous integration
 
@@ -259,7 +269,7 @@ local.
 S0, with no IQ-TREE source:
 
 - Files: `test_scripts/fixedeq/` with `environment.yml`, `oracle/`, `tests/`, `regression/`,
-  `differential/`, `design_rerun.py` and `.gitattributes`.
+  `differential/`, `probes/`, `sanitizer/`, `manifest/`, `design_rerun.py` and `.gitattributes`.
 - Tests first: oracle tests that reproduce the documented numbers, and the regression driver.
 - Runtime checks: (a) whether `NONREV+F<name>` with an `--mdef` file defining
   `frequency <name> = ...;` (syntax verified, `model/modelmixture.cpp:724`) reaches the model

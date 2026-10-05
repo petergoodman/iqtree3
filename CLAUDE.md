@@ -98,6 +98,22 @@ cmake --build ~/iqtree3-build -j 4
   sees hundreds of false changes in this Windows working copy (line endings), while Windows
   `git.exe` reports the true state. `run` refuses an unclean working tree, untracked files
   included, so do not create or edit repository files while it runs.
+- **Sanitizer build** (decision 022):
+  - `test_scripts/fixedeq/sanitizer/sanitize.py build --build-dir ~/iqtree3-build-asan --git
+    git.exe` builds it, in about 30 minutes of compute.
+  - `sanitize.py run --binary ~/iqtree3-build-asan/iqtree3 --build-dir ~/iqtree3-build-asan
+    --out DIR --git git.exe` runs it. `--regression-runs`, `--probes` and `--no-differential`
+    choose what runs, and `sanitize.py scan DIR` groups the reports.
+  - The build runs about 20 times slower than Release. Every run so far shows one known upstream
+    finding at `model/modelmarkov.cpp:76` (PLAN.md risk 20).
+- **Probe driver**: `test_scripts/fixedeq/probes/probes.py --binary BIN --out DIR --git git.exe
+  [--only a,b,...]` reruns the S0 runtime probes, in about 45 minutes of compute.
+  `test_scripts/fixedeq/manifest/manifest.py --out test_scripts/fixedeq/manifest --git git.exe`
+  regenerates the G0 manifest.
+- **Long jobs need the laptop awake.** Windows Modern Standby pauses the WSL VM and every job in
+  it; idle sleep is set to 3 minutes on battery and 15 minutes plugged in. A job that looks hung
+  is usually paused. Compare IQ-TREE's CPU time with its wall-clock time, the VM's `uptime`, and
+  Windows Kernel-Power events 506 and 507 before assuming a fault.
 
 ## Layout
 
