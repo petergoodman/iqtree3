@@ -26,7 +26,8 @@ decision 020. Then, on an oracle plan the operator approved, recorded decision 0
 test thresholds) and corrected PLAN.md's description of IQ-TREE's frequency floor. It then wrote
 the oracle in pieces: piece A is the chart core (`test_scripts/fixedeq/oracle/cases.py`,
 `chart.py`, `t3.py`, `builtin.py`, with tests `test_oracle_chart.py`, `test_oracle_t3.py` and
-`test_oracle_documented.py`).
+`test_oracle_documented.py`). Piece B is the port of IQ-TREE's optimizer and the derivative rules
+(`oracle/optimize.py`, `tests/test_oracle_optimize.py`).
 
 **Verification.** The 42 tests in `test_scripts/fixedeq/tests/` passed in the project
 environment. The new regression rule was checked on the five recorded run 11 repeats (failing

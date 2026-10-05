@@ -332,12 +332,12 @@ repeats, and run 11 does not and is judged by decision 018, which the driver imp
 `test_scripts/fixedeq/design_rerun.py` (decision 019): 109 of 133 documented values reproduced,
 and 24 did not. Peter accepted the rerun as the reproduced record (decision 020). Peter approved
 the oracle plan on 2026-10-04, in five pieces (listed in `CHANGELOG.md`), with its test pass lines
-recorded as decision 021. Piece A, the chart core, is in `test_scripts/fixedeq/oracle/`. Fixtures
-do not exist yet.
+recorded as decision 021. Pieces A (the chart core) and B (the optimizer port) are in
+`test_scripts/fixedeq/oracle/`. Fixtures do not exist yet.
 
 ## Next step
 
-Finish the oracle: pieces B to E of the approved plan (`CHANGELOG.md`, 2026-10-04).
+Finish the oracle: pieces C to E of the approved plan (`CHANGELOG.md`, 2026-10-04).
 
 ## Checklists
 

@@ -7,6 +7,40 @@ from the top entry.
 This is a fork of `iqtree/iqtree3`. Entries here describe work on the fork, not upstream
 development.
 
+## 2026-10-04 (third session, continued): oracle piece B, the optimizer port
+
+### Done
+
+`test_scripts/fixedeq/oracle/optimize.py`, written from `utils/optimization.cpp` lines 23 and
+145-939 at `63c330d9` (decision 017), read in full this session. It ports `fixBound`, `lnsrch`,
+`dfpmin`, `restartParameters`, `minimizeMultiDimen` and the legacy forward-difference
+`derivativeFunk`, with IQ-TREE's constants. It also ports the call
+`ModelMarkov::optimizeParameters` makes: gtol = max(ε, 1e-4), no bound checks, and the score
+recomputed when the returned point differs from the last evaluated one. The port keeps the C++
+quirks:
+
+- a failed line search restores x but returns f from the rejected trial, so the zero
+  displacement then meets the TOLX stop;
+- the inverse-Hessian update runs whenever fac² > EPS·sumdg·sumxi, so also on negative
+  curvature;
+- `dfpmin` stops silently after 200 iterations;
+- restarts redraw every coordinate, and since IQ-TREE draws with `rand()`, the caller must
+  supply the draws.
+
+The port also records a stop reason and a failed-search count, which do not change the path.
+Decision 005's scaled step is a separate function: h = 1e-4·max(1, |x|), exactly representable,
+and backward at the upper bound. A central-difference reference is included for validation.
+There are 13 new tests in `test_oracle_optimize.py`, one or more per branch; all 119 fixedeq
+tests pass.
+
+### Failed
+
+Nothing failed.
+
+### Next
+
+1. Pieces C to E.
+
 ## 2026-10-04 (third session, continued): oracle plan approved, piece A (chart core) written
 
 ### Done
