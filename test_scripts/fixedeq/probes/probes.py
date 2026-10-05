@@ -63,9 +63,16 @@ PREDICTIONS = {
          "(phylotree.cpp:5906-5960), per partition under -S and on the shared tree under -p and -q. At Level 1 "
          "the root-adjacent lengths are unchanged (or the midpoint split); at Level 2 the root may slide along "
          "its own branch (phylotree.cpp:2639-2640).",
-    "g": "gB (checkpoint rates, 10 digits, -m FILE) and gC (GTR20{...}) agree within 1e-9 in lnL; gA and gA2 "
-         "(the report's PAML block, 6 decimal places) differ from gB by more than the spread of gD (gB with "
-         "rates perturbed within their 10th digit); |gB - g0's printed lnL| <= 1e-4.",
+    "g": "g0, fitted on a fixed tree (-te), has no final model optimization (phyloanalysis.cpp:3880), so its "
+         "checkpoint holds the final model: every checkpoint rate equals the report's PAML block within the "
+         "block's rounding (5e-7) and the checkpoint gamma shape equals the report's within 5e-5. On g0: gB "
+         "(checkpoint rates, 10 digits, -m FILE) and gC (GTR20{...}) agree within 1e-9 in lnL; gA, gA2 and gA3 "
+         "(the report's block, 6 decimal places) differ from gB by more than the spread of gD (gB with rates "
+         "perturbed within their 10th digit); |gB - g0's printed lnL| <= 1e-4. gS, fitted with a tree search, "
+         "runs the final model optimization, which no model checkpoint save follows (phyloanalysis.cpp:3895-3899; "
+         "iqtree.cpp:134-150): its checkpoint rates differ from its report block, and gS_B, its checkpoint model "
+         "on its final tree, lies within 0.01 of the final step's printed initial lnL and at least 0.1 below its "
+         "printed final lnL. (The gS prediction was written after the 2026-10-05 dry run observed this.)",
 }
 
 
@@ -568,63 +575,95 @@ def probe_e(r, ctx):
     return obs, all(items.values())
 
 
+FINAL_OPT = "Performs final model parameters optimization"
+
+
+def fitted_gtr20(run):
+    """A GTR20+G4 fit's model as the checkpoint and the report hold it, and the log-likelihoods it printed."""
+    ck, report, out = run.checkpoint(), run.report(), run.stdout()
+    rates = ck.get("ModelProtein!rates", "").split(", ")
+    alpha = next((v for k, v in ck.items() if k.endswith("gamma_shape")), None)
+    lines = split_sections(report).get("SUBSTITUTION PROCESS", "").splitlines()
+    at = next((i for i, l in enumerate(lines) if l.startswith("Substitution parameters (lower-diagonal)")), None)
+    block = [l for l in lines[at + 1:] if l.strip()][:20] if at is not None else []
+    if run.code != 0 or len(rates) != 190 or alpha is None or len(block) != 20:
+        return None
+    printed = [float(t) for row in block[:19] for t in row.split()]
+    from_ckp = [float(v) for row in paml_rows(rates) for v in row]
+    report_alpha = re.search(r"^Gamma shape alpha: (\S+)", report, re.M).group(1)
+    final_opt = out.find(FINAL_OPT)
+    initial = re.search(r"^1\. Initial log-likelihood: (\S+)", out[final_opt:], re.M) if final_opt >= 0 else None
+    return {"rates": rates, "alpha": alpha, "block": block, "report_alpha": report_alpha,
+            "final_printed": re.search(r"^Log-likelihood of the tree: (\S+)", report, re.M).group(1),
+            "final_opt_ran": final_opt >= 0, "final_opt_initial": initial.group(1) if initial else None,
+            "candidate_00": ck.get("CandidateSet!00", "").split(" ")[0] or None,
+            "rates_off_block": sum(abs(a - b) > 5e-7 + 1e-12 for a, b in zip(from_ckp, printed)),
+            "alpha_off_report": abs(float(alpha) - float(report_alpha)) > 5e-5 + 1e-12}
+
+
 def probe_g(r, ctx):
     pi = turtle_target()
-    g0 = r.run("g0", ["-s", AA, "-m", "GTR20+F{" + pi + "}+G4"])
-    ck = g0.checkpoint()
-    obs = {"target": pi, "g0_exit": g0.code}
-    if g0.code != 0 or "ModelProtein!rates" not in ck:
-        obs["error"] = f"g0 gave no checkpoint rates (keys: {sorted(ck)[:40]})"
+    model = "GTR20+F{" + pi + "}+G4"
+    g0 = r.run("g0", ["-s", AA, "-m", model, "-te", "input.tree"], {"input.tree": tree_text(ctx["base"], "run05")})
+    gs = r.run("gS", ["-s", AA, "-m", model])
+    fits = {"g0": fitted_gtr20(g0), "gS": fitted_gtr20(gs)}
+    obs = {"target": pi, "fit_exit_codes": {"g0": g0.code, "gS": gs.code},
+           "fits": {k: (None if f is None else {x: f[x] for x in f if x not in ("rates", "block")})
+                    for k, f in fits.items()}}
+    if None in fits.values():
+        obs["error"] = "a fit gave no checkpoint rates, gamma shape or report block"
         return obs, False
-    alpha = next(v for k, v in ck.items() if k.endswith("gamma_shape"))
-    rates10 = ck["ModelProtein!rates"].split(", ")
-    if len(rates10) != 190:
-        obs["error"] = f"{len(rates10)} checkpoint rates; expected 190"
-        return obs, False
-    lines = split_sections(g0.report())["SUBSTITUTION PROCESS"].splitlines()
-    at = next(i for i, l in enumerate(lines) if l.startswith("Substitution parameters (lower-diagonal)"))
-    block = [l for l in lines[at + 1:] if l.strip()][:20]
-    tree = {"input.tree": "\n".join(g0.trees()) + "\n"}
     pif = "+F{" + pi + "}"
-    g4 = "+G4{" + alpha + "}"
+    pi_list = pi.split(",")
 
-    def paml(values, freqs):
-        return "\n".join(" ".join(row) for row in paml_rows(values)) + "\n" + " ".join(freqs) + "\n"
+    def paml(values):
+        return "\n".join(" ".join(row) for row in paml_rows(values)) + "\n" + " ".join(pi_list) + "\n"
 
-    def show(name, model, files):
-        run = r.run(name, ["-s", AA, "-m", model, "-te", "input.tree", "--show-lh"], {**tree, **files})
+    def show(name, fit_run, model_text, files):
+        tree = {"input.tree": "\n".join(fit_run.trees()) + "\n"}
+        run = r.run(name, ["-s", AA, "-m", model_text, "-te", "input.tree", "--show-lh"], {**tree, **files})
         m = re.search(r"^1\. Initial log-likelihood: (\S+)", run.stdout(), re.M)
         return run, (m.group(1) if m else None)
 
-    pi_list = pi.split(",")
-    results = {}
-    results["gA"] = show("gA", "r6.paml" + g4, {"r6.paml": "\n".join(block) + "\n"})
-    results["gA2"] = show("gA2", "r6.paml" + pif + g4, {"r6.paml": "\n".join(block) + "\n"})
-    results["gB"] = show("gB", "r10.paml" + pif + g4, {"r10.paml": paml(rates10, pi_list)})
-    flat = [float(v) for row in paml_rows(rates10) for v in row]
+    f0 = fits["g0"]
+    g4, g4_report = "+G4{" + f0["alpha"] + "}", "+G4{" + f0["report_alpha"] + "}"
+    r6 = {"r6.paml": "\n".join(f0["block"]) + "\n"}
+    flat = [float(v) for row in paml_rows(f0["rates"]) for v in row]
     scaled = ",".join(repr(v / flat[-1]) for v in flat[:-1])
-    results["gC"] = show("gC", "GTR20{" + scaled + "}" + pif + g4, {})
+    results = {
+        "gA": show("gA", g0, "r6.paml" + g4, r6),
+        "gA2": show("gA2", g0, "r6.paml" + pif + g4, r6),
+        "gA3": show("gA3", g0, "r6.paml" + pif + g4_report, r6),
+        "gB": show("gB", g0, "r10.paml" + pif + g4, {"r10.paml": paml(f0["rates"])}),
+        "gC": show("gC", g0, "GTR20{" + scaled + "}" + pif + g4, {}),
+    }
     rng = np.random.default_rng(SEED)
     draws = []
     for k in range(10):
-        u = rng.uniform(-5e-10, 5e-10, len(rates10))
-        values = [repr(float(v) * (1 + e)) for v, e in zip(rates10, u)]
-        draws.append(show(f"gD{k}", "r10.paml" + pif + g4, {"r10.paml": paml(values, pi_list)})[1])
-    final = re.search(r"^Log-likelihood of the tree: (\S+)", g0.report(), re.M).group(1)
+        u = rng.uniform(-5e-10, 5e-10, len(f0["rates"]))
+        values = [repr(float(v) * (1.0 + float(e))) for v, e in zip(f0["rates"], u)]
+        draws.append(show(f"gD{k}", g0, "r10.paml" + pif + g4, {"r10.paml": paml(values)})[1])
+    fs = fits["gS"]
+    stale = show("gS_B", gs, "r10.paml" + pif + "+G4{" + fs["alpha"] + "}", {"r10.paml": paml(fs["rates"])})
     lnl = {k: v[1] for k, v in results.items()}
-    obs.update(alpha=alpha, g0_final_printed=final, lnl=lnl, gD=draws, exit_codes={k: v[0].code for k, v in results.items()},
+    obs.update(lnl=lnl, gD=draws, gS_B=stale[1], exit_codes={k: v[0].code for k, v in [*results.items(), ("gS_B", stale)]},
                state_freq_problems={k: freq_problems(v[0], pi) for k, v in results.items() if k != "gA"})
-    if None in lnl.values() or None in draws:
+    if None in lnl.values() or None in draws or stale[1] is None or fs["final_opt_initial"] is None:
         return obs, False
     gb = float(lnl["gB"])
-    spread = max(float(x) for x in draws + [lnl["gB"]]) - min(float(x) for x in draws + [lnl["gB"]])
-    obs["diff_from_gB"] = {k: float(v) - gb for k, v in lnl.items()}
-    obs["gD_spread"] = spread
-    obs["gB_minus_g0_printed"] = gb - float(final)
-    ok = (abs(float(lnl["gC"]) - gb) <= 1e-9 and abs(float(lnl["gA"]) - gb) > spread
-          and abs(float(lnl["gA2"]) - gb) > spread and abs(gb - float(final)) <= 1e-4
-          and not any(obs["state_freq_problems"].values()))
-    return obs, ok
+    spread = max(map(float, draws + [lnl["gB"]])) - min(map(float, draws + [lnl["gB"]]))
+    obs.update(diff_from_gB={k: float(v) - gb for k, v in lnl.items()}, gD_spread=spread,
+               gB_minus_g0_printed=gb - float(f0["final_printed"]),
+               gS_B_minus_final_opt_initial=float(stale[1]) - float(fs["final_opt_initial"]),
+               gS_final_printed_minus_gS_B=float(fs["final_printed"]) - float(stale[1]))
+    g0_ok = (not f0["final_opt_ran"] and f0["rates_off_block"] == 0 and not f0["alpha_off_report"]
+             and abs(float(lnl["gC"]) - gb) <= 1e-9 and abs(gb - float(f0["final_printed"])) <= 1e-4
+             and all(abs(float(lnl[k]) - gb) > spread for k in ("gA", "gA2", "gA3"))
+             and not any(obs["state_freq_problems"].values()))
+    gs_ok = (fs["final_opt_ran"] and fs["rates_off_block"] > 0
+             and abs(obs["gS_B_minus_final_opt_initial"]) <= 0.01 and obs["gS_final_printed_minus_gS_B"] >= 0.1)
+    obs["verdict_parts"] = {"g0 (fixed tree)": g0_ok, "gS (tree search)": gs_ok}
+    return obs, g0_ok and gs_ok
 
 
 PROBES = {"a": ("Does a target vector named in an --mdef file reach the model as the literal +F{...} does?", probe_a),
