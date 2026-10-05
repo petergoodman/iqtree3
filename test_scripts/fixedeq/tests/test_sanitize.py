@@ -1,3 +1,4 @@
+import argparse
 import sys
 from pathlib import Path
 
@@ -29,6 +30,18 @@ def test_iqtree_crash_message_and_clean_output():
     assert sanitize.scan_text("*** IQ-TREE CRASHES WITH SIGNAL SEGMENTATION FAULT") == [
         ("IQ-TREE crash", None, "signal SEGMENTATION")]
     assert sanitize.scan_text("Total wall-clock time used: 1.2 seconds\n") == []
+
+
+def test_run_selection_skips_and_narrows_drivers(tmp_path):
+    a = argparse.Namespace(git="git", timeout=60.0, allow_dirty=False, build_dir="b",
+                           regression_runs="none", no_differential=False, probes="a")
+    steps = sanitize.plan_steps(a, Path("/bin/x"), tmp_path, "py")
+    assert [name for name, _ in steps] == ["differential", "probes"]
+    assert steps[1][1][-2:] == ["--only", "a"]
+    a.regression_runs, a.probes, a.no_differential = None, None, True
+    steps = sanitize.plan_steps(a, Path("/bin/x"), tmp_path, "py")
+    assert [name for name, _ in steps] == ["regression", "probes"]
+    assert "--runs" not in steps[0][1] and "--only" not in steps[1][1]
 
 
 def test_build_environment_drops_conda(monkeypatch):

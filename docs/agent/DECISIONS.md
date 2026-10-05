@@ -1,8 +1,8 @@
 # Decisions
 
-> **Status, 2026-10-04.** Programming decisions 001 to 023 are recorded; 002 to 014 were
+> **Status, 2026-10-05.** Programming decisions 001 to 025 are recorded; 002 to 014 were
 > approved by Peter with the code plan on 2026-09-23, 015 (which supersedes 004) to 018 on
-> 2026-10-03, and 019 to 023 on 2026-10-04. Ten mathematical and methodological design
+> 2026-10-03, 019 to 023 on 2026-10-04, and 024 and 025 on 2026-10-05. Ten mathematical and methodological design
 > decisions, D01 to D10, are recorded from the design synthesis and are revisable (see that
 > section's preamble). The items under "Pending programming candidates" were discussed on
 > 2026-09-15; the first three are now resolved by the entries named in their notes. An agent must
@@ -617,6 +617,74 @@ Number programming entries sequentially from 001 and never reuse a number.
   checks of S2 (PLAN.md risk 8).
 - **Affects:** the G0 manifest; the probes; the S2 to S4 tests; the S1 fixtures that use a named
   target.
+
+## 024. Run Level 1 for the edge-proportional arrangement under `-q` with the partition rates fixed
+
+- **Date:** 2026-10-05
+- **Status:** accepted
+- **Decision:** A Level 1 fit, in which only the shared matrix is fitted, uses existing options
+  and no source change:
+  - **One alignment, and `-S`:** `-te` with the input trees, `-blfix`, and rate parameters
+    written in braces.
+  - **Edge-proportional arrangement:** `-q` in place of `-p`, with `-te`, `-blfix`, and a
+    partition file whose charpartition gives each partition its rate model with braced values,
+    and its rate as `{x}` after the charset name. The rates are taken from the preceding `-p` fit's
+    checkpoint (`PartitionModelPlen!part_rates`, 10 significant digits).
+
+  Level 2 fits keep `-p` and `-S` as nQMaker uses them.
+- **Why:** Peter's choice on 2026-10-05 (PLAN.md refinement 3 and risk 3). Probe (c), recorded on
+  2026-10-05 (`CHANGELOG.md`):
+  - Under `-p` with `-te`, `-blfix` and a fixed `+G4`, the partition rates were refitted (from 1
+    to 0.5330, 1.6143, 0.8643), and every branch length was multiplied by 1.148146 (verified
+    source, `model/partitionmodelplen.cpp:150-157, 248-267`).
+  - Under `-q`, with run 8's rates as `{x}`, the topology, branch lengths, gamma shape and
+    partition rates were unchanged. The reported rates equalled the input at 4 decimals.
+  - Under `-S`, and for one alignment, every nuisance was unchanged.
+
+  `-q` builds the same `PhyloSuperTreePlen` with `fixed_rates` set (verified,
+  `tree/phylosupertreeplen.cpp:44-77`), so the likelihood is the edge-proportional one with the
+  rates held.
+- **Alternatives rejected:** an opt-in option that freezes partition rates under `-p`. It would
+  edit shared files (`utils/tools.{h,cpp}`, `model/partitionmodelplen.cpp`) and compute nothing
+  the `-q` route does not.
+- **Affects:** the Level 1 fits of S2 and S3; the G0 manifest; PLAN.md refinement 3 and risk 3.
+
+## 025. Carry the GTR20 incumbent from a fixed-tree fit's checkpoint, and test nesting against its re-evaluation
+
+- **Date:** 2026-10-05
+- **Status:** accepted
+- **Decision:**
+  - **Fitting.** The `GTR20+F{π*}` incumbent of the nesting test, which is also D05's additional
+    start, is fitted on fixed trees (`-te`), as nQMaker's step 3 is.
+  - **Carrying.** It reaches the NQC run through that fit's checkpoint: the 190 rates
+    (`ModelProtein!rates`) and the gamma shape, at 10 significant digits, written as a
+    PAML-format `-m` file together with `+F{π*}` given exactly. The report's frequency row is
+    never used, and a fit that ran a tree search is never carried through its checkpoint.
+  - **Testing.** The nesting test evaluates the carried GTR20 with `--show-lh`, on the same trees
+    and rate parameters. NQC's first log-likelihood must equal that evaluation within
+    1e-8 × |lnL|, the line decision 021 set for IQ-TREE against the oracle. NQC's final
+    log-likelihood must not fall below it by more than the same amount.
+- **Why:** Peter's choice on 2026-10-05 (PLAN.md risk 16).
+  - **Stale checkpoint after a tree search.** Probe (g), recorded on 2026-10-05
+    (`CHANGELOG.md`), showed that a fit with a tree search leaves a checkpoint holding the model
+    from before IQ-TREE's final model optimization. Its model scored 0.283 below the fit. Source:
+    the save after that step writes the search state and the tree but not the model (verified,
+    `main/phyloanalysis.cpp:3895-3899`, `tree/iqtree.cpp:134-150`, `tree/phylotree.cpp:184-194`).
+  - **Current checkpoint on a fixed tree.** On a fixed tree no final optimization runs (verified,
+    `main/phyloanalysis.cpp:3880`), and the checkpoint matched the report.
+  - **Size of the carrying error.** Two parsing routes of the checkpoint's values agreed within
+    2.4e-11. Perturbing every rate within its 10th digit moved the log-likelihood by 1.8e-8 at
+    most, about 3e-12 relative, far inside the tolerance.
+  - **Why compare with a re-evaluation.** Comparing with an evaluation of the carried values,
+    rather than with the fit's printed log-likelihood (4 decimals), keeps transfer error out of
+    the equality.
+- **Alternatives rejected:**
+  - Carrying from the report (6-decimal rates, 4-decimal gamma shape): measured within 1.7e-7 of
+    the checkpoint route, and usable when no checkpoint exists, for example for a published fit.
+  - Carrying from a search fit's checkpoint, which is stale.
+  - Comparing with the fit's printed log-likelihood.
+- **Affects:** `CODE_PLAN.md` section 3.5 (nesting); the S3 nesting test; the G0 manifest; PLAN.md
+  risk 16.
 
 ---
 

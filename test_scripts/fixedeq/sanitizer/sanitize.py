@@ -145,6 +145,24 @@ def cmd_scan(a):
     print(f"{len(groups)} distinct findings in {scanned} files; wrote {root / 'findings.md'}")
 
 
+def plan_steps(a, binary, out, py):
+    """The driver commands of a run: all of each driver by default; `none` skips a driver, and a comma
+    list selects regression runs or probes."""
+    common = ["--git", a.git, "--timeout", str(a.timeout)] + (["--allow-dirty"] if a.allow_dirty else [])
+    steps = []
+    if a.regression_runs != "none":
+        steps.append(("regression", [py, str(DRIVERS / "regression" / "regress.py"), "run", "--binary", str(binary),
+                                     "--out", str(out / "regression"), "--build-dir", a.build_dir, *common,
+                                     *(["--runs", a.regression_runs] if a.regression_runs else [])]))
+    if not a.no_differential:
+        steps.append(("differential", [py, str(DRIVERS / "differential" / "differential.py"), "--binary", str(binary),
+                                       "--out", str(out / "differential"), *common]))
+    if a.probes != "none":
+        steps.append(("probes", [py, str(DRIVERS / "probes" / "probes.py"), "--binary", str(binary),
+                                 "--out", str(out / "probes"), *common, *(["--only", a.probes] if a.probes else [])]))
+    return steps
+
+
 def cmd_run(a):
     out = Path(a.out).expanduser()
     if out.exists():
@@ -152,16 +170,7 @@ def cmd_run(a):
     binary = Path(a.binary).expanduser().resolve()
     out.mkdir(parents=True)
     env = {**os.environ, **RUN_ENV}
-    common = ["--git", a.git, "--timeout", str(a.timeout)] + (["--allow-dirty"] if a.allow_dirty else [])
-    py = sys.executable
-    steps = [
-        ("regression", [py, str(DRIVERS / "regression" / "regress.py"), "run", "--binary", str(binary),
-                        "--out", str(out / "regression"), "--build-dir", a.build_dir, *common]),
-        ("differential", [py, str(DRIVERS / "differential" / "differential.py"), "--binary", str(binary),
-                          "--out", str(out / "differential"), *common]),
-        ("probes", [py, str(DRIVERS / "probes" / "probes.py"), "--binary", str(binary),
-                    "--out", str(out / "probes"), *common]),
-    ]
+    steps = plan_steps(a, binary, out, sys.executable)
     meta = {"script": SCRIPT, "command": sys.argv, "started_utc": now(),
             "git_commit": capture(a.git, "rev-parse", "HEAD", cwd=REPO),
             "git_clean": capture(a.git, "status", "--porcelain", cwd=REPO) == "",
@@ -194,6 +203,9 @@ def main():
     r.add_argument("--timeout", type=float, default=10800, help="seconds per IQ-TREE run")
     r.add_argument("--git", default="git")
     r.add_argument("--allow-dirty", action="store_true")
+    r.add_argument("--regression-runs", help="comma-separated baseline runs, or 'none' (default: all)")
+    r.add_argument("--probes", help="comma-separated probes, or 'none' (default: all)")
+    r.add_argument("--no-differential", action="store_true")
     s = sub.add_parser("scan")
     s.add_argument("dir")
     a = parser.parse_args()
