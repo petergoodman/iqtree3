@@ -27,7 +27,9 @@ test thresholds) and corrected PLAN.md's description of IQ-TREE's frequency floo
 the oracle in pieces: piece A is the chart core (`test_scripts/fixedeq/oracle/cases.py`,
 `chart.py`, `t3.py`, `builtin.py`, with tests `test_oracle_chart.py`, `test_oracle_t3.py` and
 `test_oracle_documented.py`). Piece B is the port of IQ-TREE's optimizer and the derivative rules
-(`oracle/optimize.py`, `tests/test_oracle_optimize.py`).
+(`oracle/optimize.py`, `tests/test_oracle_optimize.py`). Piece C is the rooted likelihood with
+IQ-TREE's conventions (`oracle/readers.py`, `gamma.py`, `likelihood.py`,
+`tests/test_oracle_likelihood.py`).
 
 **Verification.** The 42 tests in `test_scripts/fixedeq/tests/` passed in the project
 environment. The new regression rule was checked on the five recorded run 11 repeats (failing

@@ -7,6 +7,51 @@ from the top entry.
 This is a fork of `iqtree/iqtree3`. Entries here describe work on the fork, not upstream
 development.
 
+## 2026-10-04 (third session, continued): oracle piece C, the rooted likelihood
+
+### Done
+
+Three new modules in `test_scripts/fixedeq/oracle/`:
+
+- `readers.py`: PHYLIP, FASTA, Newick and NEXUS charset readers.
+- `gamma.py`: ports of PAML's `cmpLnGamma`, `cmpIncompleteGamma`, `cmpPointNormal` and
+  `cmpPointChi2`, and of IQ-TREE's `computeRatesMean` and `computeRates`, from
+  `model/rategamma.cpp` and `model/rategammainvar.cpp`, read this session. This includes how the
+  constructors set the rates to 1, or to 1/(1−p) under +I+G, before the rescaling that keeps
+  that sum.
+- `likelihood.py`, with these conventions copied from IQ-TREE (read this session):
+  - B = {N,D}, Z = {Q,E}, J = {I,L}, and `X ? - . ~ ! * U O` unknown;
+  - the `-m FILE` convention: π solved from Q by column-pivoted QR, and Q scaled to mean rate 1;
+  - the +I term: p times the frequency of the states every character in a column allows, p for
+    an all-unknown column, and the constant-state rule of `alignment/alignment.cpp:1306-1338`;
+  - category weights 1/K, (1−p)/K and 1−p;
+  - branch lengths of 0 or less raised to 1e-6.
+
+  Computed independently: transition matrices by SciPy's `expm`, and pruning with per-node
+  scaling in log space.
+
+There are 14 new tests in `test_oracle_likelihood.py`:
+
+- pruning against brute-force enumeration;
+- the probabilities of all 27 three-state patterns, with +I+G4, sum to 1;
+- a reversible Q's likelihood is unchanged when the root moves;
+- an ambiguous B site equals the N site plus the D site;
+- the constant-state rule;
+- the readers on the three test files;
+- the gamma port against SciPy at shapes 0.05 to 20, with and without +I, within decision 021's
+  1e-5.
+
+All 133 fixedeq tests pass.
+
+### Failed
+
+Nothing failed.
+
+### Next
+
+1. Piece D: the oracle against the unmodified binary.
+2. Piece E: the estimator port.
+
 ## 2026-10-04 (third session, continued): oracle piece B, the optimizer port
 
 ### Done
