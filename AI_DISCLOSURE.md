@@ -8,6 +8,29 @@ Entries record the tool and model version, what it did, and which files or secti
 No AI-generated scientific claim, numerical result, or citation in this project has been accepted
 without human verification against source.
 
+## 2026-10-07 (sixth session)
+
+**Tool:** Claude Code (VS Code extension).
+**Model:** Claude Opus 5.5, 1M context, model id `claude-opus-5-5[1m]`.
+**Operator:** Peter Goodman.
+
+**What it did.**
+- **Review.** At the operator's request it reviewed whether slice S0 was complete, and listed the
+  gaps in its records.
+- **Commits.** With the operator's approval it committed the fifth session's work and registered
+  the operator's slide decks.
+- **Kept evidence.** It reran the exploratory measurement behind decisions 026 and 027 from a clean
+  tree and kept the output; every recorded number reproduced.
+- **Manifest.** It extended the G0 manifest generator to record decisions 026 and 027, the
+  incumbent's placement and the frozen sanitizer binary, added one test, and regenerated the
+  manifest.
+
+**Files touched.** `docs/agent/design/README.md` (slide-deck section, a note on one citation),
+`docs/agent/CODE_PLAN.md` (one table row), `docs/agent/PLAN.md` (labels line, status, current
+state), `test_scripts/fixedeq/manifest/manifest.py`, `test_scripts/fixedeq/tests/test_manifest.py`,
+`test_scripts/fixedeq/manifest/g0_manifest.{json,md}` (regenerated), `CHANGELOG.md`, and this file.
+No IQ-TREE source file was changed.
+
 ## 2026-10-05 (fifth session)
 
 **Tool:** Claude Code (VS Code extension).

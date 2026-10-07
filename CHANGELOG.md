@@ -7,6 +7,58 @@ from the top entry.
 This is a fork of `iqtree/iqtree3`. Entries here describe work on the fork, not upstream
 development.
 
+## 2026-10-07 (sixth session): S0 records closed out
+
+### Done
+
+**Review of S0's completion.** At Peter's request, a check of whether S0 was complete before S1.
+Every "done when" item had evidence, and nothing S1 needs was missing. The gaps were in the
+records:
+- the fifth session was uncommitted;
+- the measurement behind decisions 026 and 027 had not been kept;
+- the G0 manifest predated both decisions;
+- the slide decks were untracked;
+- there were two document defects.
+
+The tests and regression runs were not rerun for the review; their status rests on the fifth
+session's audit.
+
+**Commits** (not pushed, at Peter's choice):
+- `d75987f0`: the fifth session's documents, `explore/thresholds.py`, and Peter's two Beamer decks
+  in `docs/agent/design/presentation/`. The decks are registered in `docs/agent/design/README.md`
+  with their SHA-256. The README notes that its "Part 2 Backup B" citation belongs to an earlier
+  draft: this Part 2 has only Backup A, whose presenter note carries the toy comparison. The commit
+  also fixes a split row in the `CODE_PLAN.md` section 1.1 table, and PLAN.md's labels line, which
+  named the old HEAD `4c5f061f`. `git diff 63c330d9 HEAD` showed no IQ-TREE source file changed.
+- `83539476`: `manifest.py` now records decision 026's pass lines and decision 027's start policy.
+  It computes where decision 025's incumbent lies in the domain from probe (g)'s checkpoint, and
+  points to the frozen sanitizer binary in `~/iqtree3-baseline-asan/`. A new test in
+  `tests/test_manifest.py` checks the checkpoint's rate layout against probe (g)'s report.
+- `93db60f3`: the manifest regenerated from the clean tree at `83539476`. Only the intended fields
+  and the provenance changed.
+
+**Evidence for decisions 026 and 027 kept.** `thresholds.py` was rerun from the clean tree at
+`d75987f0` (header `clean True`), with output kept in
+`~/iqtree3-runs/explore/20261007T221213Z/thresholds.txt`. Every number recorded in decisions 026
+and 027 and in risk 22 reproduced, including:
+- Q differences of 7.8e-15 (ordinary) and 3.8e-11 (near-reducible, κ = 2.0e5);
+- a worst residual of 4.0e-16;
+- LG at 3.51 and 2.32 from the box edges;
+- the incumbent with 146 of 360 coordinates outside the box, from -15.94 to 11.65.
+
+**Tests.** 166 fixedeq tests pass: the audit's 165 and the new manifest test.
+
+### Failed
+
+Nothing failed. Not checked: upstream CI on the fork, because `gh` is not installed.
+
+### Next
+
+1. Peter: push `nq-constrained-pi` when he chooses, then check the fork's Actions page.
+2. Plan S1 (the pure module, its fixtures with κ in each header, the oracle's κ function, and the
+   fork workflow) for Peter's approval.
+3. Before S3, Peter: risk 22.
+
 ## 2026-10-05 (fifth session): S0 audit, decisions 026 and 027
 
 ### Done

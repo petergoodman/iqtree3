@@ -1,6 +1,6 @@
 # Plan: π-constrained non-reversible amino-acid models
 
-> **Status, 2026-10-05: S0 complete; code plan approved by Peter on 2026-09-23 and amended by
+> **Status, 2026-10-07: S0 complete and its records closed out; code plan approved by Peter on 2026-09-23 and amended by
 > decisions 015 to 018 on 2026-10-03, 019 to 023 on 2026-10-04, and 024 to 027 on 2026-10-05;
 > approach accepted by the IQ-TREE maintainers (reported by Peter, 2026-10-01); no source code
 > changed yet.** Peter owns
@@ -382,6 +382,16 @@ first, `model/modelmarkov.cpp:47, 112`) and added risk 22. The unmodified saniti
 frozen at `~/iqtree3-baseline-asan/` with its build record. Peter then set the compiled code's
 pass lines (decision 026) and the default domain and start policy (decision 027), from the
 measurements of `test_scripts/fixedeq/explore/thresholds.py`.
+
+On 2026-10-07 that script was rerun from the clean tree at `d75987f0`, and every number in
+decisions 026 and 027 and risk 22 reproduced. The output is kept in
+`~/iqtree3-runs/explore/20261007T221213Z/thresholds.txt`. The G0 manifest was regenerated at
+`83539476` to record:
+- decisions 026 and 027;
+- the incumbent's placement in the domain;
+- the frozen sanitizer binary.
+
+Peter's two slide decks are registered in `docs/agent/design/README.md`.
 
 ## Next step
 
