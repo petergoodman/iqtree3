@@ -1,9 +1,9 @@
 {
  "provenance": {
   "script": "test_scripts/fixedeq/manifest/manifest.py",
-  "git_commit": "e379d2ea3f66df5096bb8be5b55c5951e20fc8d8",
+  "git_commit": "835394764f83c27ddd8687d47752ddf6f2b6ed2c",
   "git_clean": true,
-  "generated_utc": "2026-10-05T19:49:27+00:00",
+  "generated_utc": "2026-10-07T22:14:55+00:00",
   "python": "3.12.14",
   "platform": "Linux-5.15.146.1-microsoft-standard-WSL2-x86_64-with-glibc2.36"
  },
@@ -90,13 +90,13 @@
     2.302585092994046
    ],
    "meaning": "z in [log 1e-5, log 10], the historical benchmark domain",
-   "set_by": "D03, decision 007",
+   "set_by": "D03, decisions 007 and 027",
    "lg_seed_min_coordinate": -8.002335385327642,
    "lg_seed_max_coordinate": -0.01714136738950145,
    "lg_seed_distance_to_lower": 3.5105900796425864,
    "lg_seed_distance_to_upper": 2.3197264603835475,
    "lg_seed_inside": true,
-   "note": "no margin is judged; decision 007 requires one but does not set it"
+   "note": "no start is checked against the domain and no margin is set (decision 027)"
   },
   "lg_seed_residuals": {
    "stationarity": 2.0816681711721685e-17,
@@ -136,27 +136,40 @@
   "starts": {
    "default": "LG rebuilt at pi* (D05); its residuals are lg_seed_residuals",
    "incumbent": "GTR20+F{pi*} fitted on fixed trees and carried from its checkpoint (D05, decision 025)",
+   "policy": "a start is evaluated as given and never checked against the domain; the line search clamps each later trial point into it (decision 027)",
+   "incumbent_placement": {
+    "checkpoint": "/home/petergoodman/iqtree3-runs/probes/record-20261005T174330Z/g0/probe.ckp.gz",
+    "sha256": "24802e42762a44686656404ec1a631f0f4cfeac96d47d2c6d234e55012d6794c",
+    "min_coordinate": -15.940761475999803,
+    "max_coordinate": 11.651202532300562,
+    "outside_domain": 146,
+    "see": "PLAN.md risk 22"
+   },
    "iqtree_seed": "-seed 1 and -T 1 in every S0 run, except the thread-count runs 11 and 12",
    "oracle_seeds": "20261004 in test_scripts/fixedeq/differential/differential.py and probes/probes.py",
    "s1_fixture_seeds": "recorded in each fixture's provenance header (S1)"
   },
   "source": {
    "upstream_baseline": "63c330d9 (upstream tag v3.1.4)",
-   "manifest_commit": "e379d2ea3f66df5096bb8be5b55c5951e20fc8d8",
+   "manifest_commit": "835394764f83c27ddd8687d47752ddf6f2b6ed2c",
    "frozen_binary": {
     "path": "/home/petergoodman/iqtree3-baseline/iqtree3",
     "sha256": "9a72950bf61187f9923372f49badde3aa527864f57de795c5ad751d7c04fb501"
    },
    "sanitizer_build": {
-    "record": "/home/petergoodman/iqtree3-build-asan/sanitizer-build.json",
+    "record": "/home/petergoodman/iqtree3-baseline-asan/sanitizer-build.json",
     "variant": "asan-ubsan",
     "binary_sha256": "323dce82d25e0ed586eed86bdcb930237904e69fa2138b848ba7ab0ed4b78d4a",
-    "built_from_commit": "d54de36f6bfa2f81d57cedada75d6dfb352b7a82"
+    "built_from_commit": "d54de36f6bfa2f81d57cedada75d6dfb352b7a82",
+    "frozen_binary": {
+     "path": "/home/petergoodman/iqtree3-baseline-asan/iqtree3",
+     "sha256": "323dce82d25e0ed586eed86bdcb930237904e69fa2138b848ba7ab0ed4b78d4a"
+    }
    }
   },
   "thresholds": {
    "oracle": "decision 021",
-   "compiled_code": "pending (PLAN.md risk 17)",
+   "compiled_code": "decision 026: residuals at most 1e-10 in tests, reported and never used to reject; Q entries, round trips and the log-ratio against the positive-ratio chart within a relative max(1e-12, 1e-14 kappa), kappa in each fixture's header; a target sum within 1e-6 of 1",
    "nesting_test": "decision 025: 1e-8 x |lnL| against the re-evaluated incumbent"
   },
   "environment": {
