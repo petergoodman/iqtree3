@@ -118,7 +118,7 @@ def build(git):
                      "increasing (test_scripts/fixedeq/oracle/chart.py)",
             "definition": "z_ij = log(K_ij / K_i,r(i)); K the jump matrix, nu its stationary distribution, "
                           "q_ij = nu_i K_ij / pi*_i",
-            "later_slices": "positive-ratio chart with pinned weight c = 10 (D01) and T3 in the D04 gauge, both S5",
+            "later_slices": "none: no positive-ratio or T3 chart is compiled (decision 028)",
         },
         "references": {
             "rule": "row maxima of the off-diagonal rates of LG rebuilt at the target, ties to the lower index",
@@ -211,10 +211,9 @@ def build(git):
         },
         "thresholds": {
             "oracle": "decision 021",
-            "compiled_code": "decision 026: residuals at most 1e-10 in tests, reported and never used to reject; "
-                             "Q entries, round trips and the log-ratio against the positive-ratio chart within a "
-                             "relative max(1e-12, 1e-14 kappa), kappa in each fixture's header; a target sum "
-                             "within 1e-6 of 1",
+            "compiled_code": "decisions 026 and 028: residuals at most 1e-10 in tests, reported and never used "
+                             "to reject; Q entries and round trips within a relative max(1e-12, 1e-14 kappa), "
+                             "kappa in each fixture's header; a target sum within 1e-6 of 1",
             "nesting_test": "decision 025: 1e-8 x |lnL| against the re-evaluated incumbent",
         },
         "environment": {

@@ -1,9 +1,10 @@
 # Decisions
 
-> **Status, 2026-10-05.** Programming decisions 001 to 027 are recorded; 002 to 014 were
+> **Status, 2026-10-07.** Programming decisions 001 to 029 are recorded; 002 to 014 were
 > approved by Peter with the code plan on 2026-09-23, 015 (which supersedes 004) to 018 on
-> 2026-10-03, 019 to 023 on 2026-10-04, and 024 to 027 (027 superseding one sentence of 007) on
-> 2026-10-05. Ten mathematical and methodological design
+> 2026-10-03, 019 to 023 on 2026-10-04, 024 to 027 (027 superseding one sentence of 007) on
+> 2026-10-05, and 028 and 029 (029 superseding two parts of 009) on 2026-10-07. Ten mathematical
+> and methodological design
 > decisions, D01 to D10, are recorded from the design synthesis and are revisable (see that
 > section's preamble). The items under "Pending programming candidates" were discussed on
 > 2026-09-15; the first three are now resolved by the entries named in their notes. An agent must
@@ -238,7 +239,7 @@ Number programming entries sequentially from 001 and never reuse a number.
 ## 009. Surface failed line searches by post-fit checks first, and record status later
 
 - **Date:** 2026-09-23
-- **Status:** accepted
+- **Status:** accepted; its restore step and its S5 recording superseded by 029
 - **Decision:** From S2, the NQC paths re-evaluate the returned point after each fit, check the
   invariants, record bound activity and restore the incumbent if the score fell, and at export
   compute a central-difference first-order diagnostic in log-ratio coordinates; the stop is
@@ -789,6 +790,65 @@ Number programming entries sequentially from 001 and never reuse a number.
 - **Affects:** `CODE_PLAN.md` section 2.2 (construction step 6); PLAN.md constraint 8, risk 8 and
   risk 22 (decision 025's nesting test, whose GTR20 start on `aa_example` lies mostly outside the
   box); the S2 construction and the S3 nesting test.
+
+## 028. Build only the log-ratio chart, with no compiled positive-ratio or T3 alternative
+
+- **Date:** 2026-10-07
+- **Status:** accepted
+- **Decision:** NQC has one chart, D01's jump-chain log-ratios. No slice compiles a positive-ratio
+  build, inverse or benchmark, a T3 backend, or a chart selector into IQ-TREE. The oracle's
+  positive-ratio and T3 code (`build_positive` in `test_scripts/fixedeq/oracle/chart.py`, and
+  `oracle/t3.py`) stays as a Python test reference. Decision 026's pass line for the log-ratio
+  chart against the positive-ratio chart no longer applies to any compiled code.
+- **Change control (synthesis section 13):** affected IDs D01 (its retained alternative, the
+  positive weights as a maintained benchmark) and D04. Reason: explicit direction from Peter.
+  Evidence: the goal as Peter stated it on 2026-10-07, and the two slide decks the maintainers
+  accepted (`docs/agent/design/presentation/`). The decks present the log-ratio chart, name
+  positive ratios only as "a valid comparison option", and do not mention T3. Effect:
+  implementation only; every chart parameterizes the same family (synthesis section 3.1), so the
+  estimand is unchanged. Regression: none, since no code exists. No finished comparison exists to
+  rerun. D08 is not changed: its transport arms move a fixed matrix to π* without refitting and
+  are evaluated as frozen matrices, so they need no compiled T3.
+- **Why:** Peter's choice on 2026-10-07. The goal is nQMaker's inference with one substantive
+  change, the optimizer's variables. A second compiled chart would add a backend and a chart
+  selector to the pull request that the maintainers have not reviewed.
+- **Alternatives rejected:** both compiled charts as planned (D04, PLAN.md refinements 1 and 2);
+  the compiled positive-ratio benchmark alone, which is cheap and uses the same jump chain.
+- **Affects:** PLAN.md scope (refinements 1 and 2, the deferred list, the S5 row);
+  `CODE_PLAN.md` sections 1.1, 2.1, 3.1 and 3.2; the S1 module and its unit tests; the G0
+  manifest's chart entry.
+
+## 029. Report a fall below the start and restore nothing
+
+- **Date:** 2026-10-07
+- **Status:** accepted
+- **Decision:** When a fit returns a lower log-likelihood than its start, NQC keeps the point
+  IQ-TREE's optimizer returned, as every model does today, and reports the fall with its other
+  post-fit diagnostics. Neither the class nor a `PartitionModel` hook restores the start. No slice
+  edits `dfpmin` or `lnsrch`, so `utils/optimization.{h,cpp}` is not touched. The rest of decision
+  009 stands, as reporting in new code: the returned point is re-evaluated, the invariants are
+  checked, bound activity is recorded, and the export's first-order diagnostic labels the stop
+  "unclassified" unless it passes. This supersedes 009's restore step and its S5 recording
+  fields.
+- **Why:** Peter's choice on 2026-10-07, under the rule of decision 027 that IQ-TREE's behaviour
+  changes only where the constraint requires it. `ModelMarkov::optimizeParameters` takes the
+  optimizer's point and recomputes its likelihood without comparing it with the start (verified,
+  `model/modelmarkov.cpp:1199-1235`). The slide decks' "Final fit" row states that the returned
+  likelihood "should be at least as high", a check rather than a restore. The S5 edit went against
+  the maintainers' advice to leave the optimizer unchanged (PLAN.md risk 14). Consequences:
+  - Decision 025's nesting test checks that NQC's final log-likelihood is not below the GTR20 start;
+    nothing enforces it. A failure is a finding, and the test is not relaxed.
+  - A linked round that lowers the log-likelihood by more than 0.1 stops the run at IQ-TREE's
+    existing `ASSERT`, as it would for NONREV (verified, `model/partitionmodel.cpp:938`,
+    `model/partitionmodelplen.cpp:135`; PLAN.md risk 7).
+  - PLAN.md risk 22 is more pressing: nothing keeps a fit seeded outside the box from ending below
+    its start.
+  - S3's `PartitionModel` post-fit hook now only reports. Whether it is still needed, or the class
+    reports at its own report and export, is settled when S3 is planned.
+- **Alternatives rejected:** restoring the start as 009 planned, which no existing model does;
+  the S5 recording fields in the shared optimizer.
+- **Affects:** `CODE_PLAN.md` sections 1.2 and 2.2; PLAN.md risks 7, 14 and 22 and the change map;
+  `model/modelnonrevfixedeq.cpp` (S2); the S3 post-fit hook and nesting test.
 
 ---
 

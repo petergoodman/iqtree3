@@ -17,7 +17,7 @@ Labels are those of PLAN.md. Source anchors refer to `63c330d9` and were verifie
 
 | File | Slice | Content |
 |---|---|---|
-| `model/fixedeqchart.{h,cpp}` | S1; T3 in S5 | Pure functions over Eigen types, with no IQ-TREE headers and no process exit (section 2.1) |
+| `model/fixedeqchart.{h,cpp}` | S1 | Pure functions over Eigen types, with no IQ-TREE headers and no process exit (section 2.1) |
 | `model/modelnonrevfixedeq.{h,cpp}` | S2 to S4 | Class `ModelNonrevFixedEq : public ModelProtein`, public name "NQC" held in one constant (decision 002; section 2.2) |
 | `unittest/` | S1 | Standalone CMake project that compiles `model/fixedeqchart.cpp` directly and fetches googletest at cmaple's pinned commit (verified, `cmaple/CMakeLists.txt:281-293`; decision 012); `fixtures/` in plain text at 17 significant digits with a provenance header; its own `.gitattributes` (decision 014) |
 | `test_scripts/fixedeq/` | S0 onward | `environment.yml` and its exported lock (decision 013); the `oracle/` package; `tests/`; `regression/` and `differential/` drivers; `design_rerun.py`, which reruns the design scripts (decision 019); `probes/`, the S0 runtime probes; `sanitizer/`, the decision 022 build and run driver; `manifest/`, the G0 manifest generator and its output; `explore/`, the exploratory measurements cited by decisions 026 and 027; `make_fixtures.py`; its own `.gitattributes`, and a `.gitignore` for Python caches |
@@ -34,13 +34,12 @@ headers, each produced by a kept script, and are never regenerated to make a tes
 | `model/CMakeLists.txt` | S2 | add `modelnonrevfixedeq` and `fixedeqchart` | the source list is explicit, with no glob | additive |
 | `model/modelmixture.cpp`, `createModel`, 3247-3257 | S2 | in the protein branch, dispatch the NQC name to `new ModelNonrevFixedEq(..., models_block)` before `new ModelProtein` (decision 002) | the dispatcher that holds a `ModelsBlock` | reached only by the NQC name |
 | `utils/tools.{h,cpp}`, `parseArg` and `usage_iqtree` | S2 (domain), S2 or S3 (step) | two parse-only options, read at the point of use through `Params` (decision 007) | domain expansion and step studies need run-time settings | unused unless NQC is used |
-| `model/partitionmodel.{h,cpp}`, `optimizeLinkedModel`, 753-840 | S3 | a `derivativeFunk` override that delegates to the linked model's hook interface when present and otherwise calls `Optimization::derivativeFunk`; a compatibility check before optimizing; a post-fit hook with incumbent protection after (decisions 005, 009) | linked optimization runs `minimizeMultiDimen` on the `PartitionModel` object (786), which no model override reaches | legacy models call the unchanged base routine; `partitionmodel.h:160-165` already carries an orphan comment for such an override |
+| `model/partitionmodel.{h,cpp}`, `optimizeLinkedModel`, 753-840 | S3 | a `derivativeFunk` override that delegates to the linked model's hook interface when present and otherwise calls `Optimization::derivativeFunk`; a compatibility check before optimizing; a post-fit hook that reports after (decisions 005, 009, 029) | linked optimization runs `minimizeMultiDimen` on the `PartitionModel` object (786), which no model override reaches | legacy models call the unchanged base routine; `partitionmodel.h:160-165` already carries an orphan comment for such an override |
 | `main/phyloanalysis.cpp`, after final optimization near 3903-3907; citation block 164-179 | S4 | write the export files when an NQC model exists (decision 010); print the nQMaker citation for NQC | the report block prints 6 decimal places (633, in the fixed mode set at 1528-1529); the citation test matches only the substring "NONREV" | guarded by model type and name |
-| `utils/optimization.{h,cpp}`, `lnsrch` 645-718, `dfpmin` 793-900 | S5 | record line-search failures and the stop reason without changing any trajectory (decision 009) | exact stop classification for the G4 comparison | recording only |
 | `main/phylotesting.cpp`, `mixRevNonrev` 448-489 | S6 | mixed-family guard and fixed learned candidates | Level 3 | deferred |
 
-Not touched in any slice: `model/modelmarkov.{h,cpp}` (decision 015), the arithmetic of
-`utils/optimization.cpp`, `ModelProtein::init`, the likelihood kernels, the `PartitionModel`
+Not touched in any slice: `model/modelmarkov.{h,cpp}` (decision 015),
+`utils/optimization.{h,cpp}` (decision 029), `ModelProtein::init`, the likelihood kernels, the `PartitionModel`
 constructor's frequency-pooling block (NQC's
 `FREQ_USER_DEFINED` already skips it, verified `model/partitionmodel.cpp:118-119`), and every
 vendored directory.
@@ -64,7 +63,6 @@ mutable state.
   `model/modelmarkov.cpp:2119-2131`); q_ij = ν_i K_ij / π*_i; the diagonal completed from the
   off-diagonal row sums and compared with −ν_i / π*_i.
 - Inverse: K_ij = q_ij / (−q_ii) and z_ij = log(K_ij / K_{i,r(i)}).
-- Positive-ratio variants: w = c e^z with c = 10, the benchmark D01 retains.
 - References: row maxima of a seed matrix, ties to the lower amino-acid index (D01, decision
   011).
 - Seeds: a reversible seed becomes q_ij = R_ij π*_j normalized to unit mean rate; a
@@ -74,7 +72,7 @@ mutable state.
   residual of the ν solve. They are reported and never used to reject a proposal (decision 026).
 - Finite-difference step: signed h = η max(s, |x|), exactly representable, negative when x + h
   would leave the upper bound (decision 005).
-- S5 adds the T3 build, inverse and balancing in the D04 gauge (a_{19,20} = 0, h_{i,20} = 0).
+- No other chart: no positive-ratio or T3 build is compiled (decision 028).
 
 ### 2.2 NQC model class
 
@@ -117,7 +115,8 @@ hook interface; a central stencil exists only for validation.
 
 Post-fit checks (decision 009): after each fit, in an `optimizeParameters` override and in the
 linked post-fit hook, re-evaluate the returned point, check the invariants, record bound
-activity, and restore the incumbent if the score fell. At export, compute a central-difference
+activity, and report whether the score fell below the start, restoring nothing (decision 029).
+At export, compute a central-difference
 first-order diagnostic in log-ratio coordinates; the stop is labelled "unclassified" unless that
 diagnostic passes.
 
@@ -150,7 +149,8 @@ seed identity).
 The package is `test_scripts/fixedeq/oracle/`, and its tests use the pass lines of decision 021.
 
 - Charts (log-ratio, positive-ratio, T3 in the D04 gauge, and conversion from P-positive's star
-  gauge), seeds and residuals.
+  gauge), seeds and residuals. The positive-ratio and T3 charts are test references only
+  (decision 028).
 - Reproductions of the documented numbers: dimensions 360, 189 and 171; round trips; reversible
   reduction; the T3 triangle bound 20.72; the non-concavity curvature 0.01538 (P-log Appendix B;
   `verify_constrained_nq.py`).
@@ -173,8 +173,8 @@ The package is `test_scripts/fixedeq/oracle/`, and its tests use the pass lines 
 Fixtures at n = 3, 4 and 20: random balanced fluxes built from directed cycles rather than
 through the chart under test, reversible matrices, skewed and near-reducible jump chains, and
 adversarial conditioning. Each fixture's provenance header records the condition number κ of its
-augmented ν system, computed by the oracle. Checks, with decision 026's pass lines: Q entries,
-round trips and positive-ratio equivalence within a relative max(1e-12, 1e-14 κ) per entry;
+augmented ν system, computed by the oracle. Checks, with decision 026's pass lines: Q entries
+and round trips within a relative max(1e-12, 1e-14 κ) per entry;
 residuals at or below 1e-10; reference ties; target validation (zero, NaN, wrong count, below the
 minimum, a sum more than 1e-6 from 1); and the step function at bounds.
 
