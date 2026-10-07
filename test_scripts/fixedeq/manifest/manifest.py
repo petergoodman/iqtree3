@@ -20,7 +20,9 @@ import numpy as np
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parent))
+sys.path.insert(0, str(HERE.parent / "probes"))
 from oracle import builtin, chart, readers, target  # noqa: E402
+from probes import ckp_values, read_checkpoint  # noqa: E402
 
 REPO = HERE.parents[2]
 SCRIPT = Path(__file__).resolve().relative_to(REPO).as_posix()
@@ -32,6 +34,9 @@ BASELINE = REPO / "test_scripts" / "fixedeq" / "regression" / "baseline" / "base
 LOCK = REPO / "test_scripts" / "fixedeq" / "environment.lock.txt"
 DOMAIN = (float(np.log(1e-5)), float(np.log(10.0)))   # D03, decision 007
 UPSTREAM = "63c330d9 (upstream tag v3.1.4)"
+FROZEN_ASAN = Path.home() / "iqtree3-baseline-asan"
+# decision 025's incumbent: S0 probe (g)'s GTR20+F{pi*} fit on aa_example
+INCUMBENT_CKP = Path.home() / "iqtree3-runs" / "probes" / "record-20261005T174330Z" / "g0" / "probe.ckp.gz"
 
 
 def sha256_bytes(data):
@@ -59,6 +64,24 @@ def lg_seed(pi):
     return chart.reversible_seed(R, pi)
 
 
+def incumbent_exchangeabilities():
+    """The incumbent's R from its checkpoint; reversible rates[] is the upper triangle, row-major
+    (model/modelmarkov.cpp:114-118)."""
+    R = np.zeros((20, 20))
+    R[np.triu_indices(20, 1)] = ckp_values(read_checkpoint(INCUMBENT_CKP)["ModelProtein!rates"])
+    return R + R.T
+
+
+def incumbent_placement(pi, ref):
+    """Where the incumbent rebuilt at the target lies in the domain (PLAN.md risk 22)."""
+    if not INCUMBENT_CKP.exists():
+        return None
+    z = chart.inverse(chart.reversible_seed(incumbent_exchangeabilities(), pi), ref)
+    return {"checkpoint": str(INCUMBENT_CKP), "sha256": sha256(INCUMBENT_CKP),
+            "min_coordinate": float(z.min()), "max_coordinate": float(z.max()),
+            "outside_domain": int(np.sum((z < DOMAIN[0]) | (z > DOMAIN[1]))), "see": "PLAN.md risk 22"}
+
+
 def capture(*argv, cwd=None):
     import subprocess
     try:
@@ -77,8 +100,9 @@ def build(git):
     base = json.loads(BASELINE.read_text(encoding="utf-8"))
     frozen = base["provenance"]["extracts"][0]["binary"]
     trees = {run: base["runs"][run]["items"]["(treefile)"]["text"] for run in ("run02", "run05", "run08", "run09")}
-    san = Path.home() / "iqtree3-build-asan" / "sanitizer-build.json"
+    san = FROZEN_ASAN / "sanitizer-build.json"
     san_rec = json.loads(san.read_text()) if san.exists() else None
+    san_sum = FROZEN_ASAN / "iqtree3.sha256"
     import scipy
     return {
         "state_order": {
@@ -122,13 +146,13 @@ def build(git):
         "domain": {
             "value": [DOMAIN[0], DOMAIN[1]],
             "meaning": "z in [log 1e-5, log 10], the historical benchmark domain",
-            "set_by": "D03, decision 007",
+            "set_by": "D03, decisions 007 and 027",
             "lg_seed_min_coordinate": float(z.min()),
             "lg_seed_max_coordinate": float(z.max()),
             "lg_seed_distance_to_lower": float(z.min() - DOMAIN[0]),
             "lg_seed_distance_to_upper": float(DOMAIN[1] - z.max()),
             "lg_seed_inside": bool(DOMAIN[0] < z.min() and z.max() < DOMAIN[1]),
-            "note": "no margin is judged; decision 007 requires one but does not set it",
+            "note": "no start is checked against the domain and no margin is set (decision 027)",
         },
         "lg_seed_residuals": seed,
         "derivative_policy": {
@@ -166,6 +190,9 @@ def build(git):
         "starts": {
             "default": "LG rebuilt at pi* (D05); its residuals are lg_seed_residuals",
             "incumbent": "GTR20+F{pi*} fitted on fixed trees and carried from its checkpoint (D05, decision 025)",
+            "policy": "a start is evaluated as given and never checked against the domain; the line search "
+                      "clamps each later trial point into it (decision 027)",
+            "incumbent_placement": incumbent_placement(pi, ref),
             "iqtree_seed": "-seed 1 and -T 1 in every S0 run, except the thread-count runs 11 and 12",
             "oracle_seeds": "20261004 in test_scripts/fixedeq/differential/differential.py and probes/probes.py",
             "s1_fixture_seeds": "recorded in each fixture's provenance header (S1)",
@@ -177,11 +204,17 @@ def build(git):
             "sanitizer_build": (None if san_rec is None else
                                 {"record": str(san), "variant": san_rec["variant"],
                                  "binary_sha256": (san_rec["binary"] or {}).get("sha256"),
-                                 "built_from_commit": san_rec["git_commit"]}),
+                                 "built_from_commit": san_rec["git_commit"],
+                                 "frozen_binary": {"path": str(FROZEN_ASAN / "iqtree3"),
+                                                   "sha256": san_sum.read_text().split()[0]
+                                                   if san_sum.exists() else None}}),
         },
         "thresholds": {
             "oracle": "decision 021",
-            "compiled_code": "pending (PLAN.md risk 17)",
+            "compiled_code": "decision 026: residuals at most 1e-10 in tests, reported and never used to reject; "
+                             "Q entries, round trips and the log-ratio against the positive-ratio chart within a "
+                             "relative max(1e-12, 1e-14 kappa), kappa in each fixture's header; a target sum "
+                             "within 1e-6 of 1",
             "nesting_test": "decision 025: 1e-8 x |lnL| against the re-evaluated incumbent",
         },
         "environment": {
@@ -194,6 +227,10 @@ def build(git):
 def markdown(m, prov):
     t = m["target"]
     d = m["domain"]
+    s = m["starts"]
+    place = s["incumbent_placement"]
+    outside = "" if place is None else (f"; the incumbent has {place['outside_domain']} of 360 coordinates "
+                                        f"outside the domain ({place['see']})")
     lines = [
         "# G0 run manifest", "",
         f"Generated by `{SCRIPT}` at commit `{prov['git_commit']}` (clean: {prov['git_clean']}) on "
@@ -210,7 +247,9 @@ def markdown(m, prov):
         f"{m['root_policy']['set_by']} |",
         f"| Level 1 (edge-proportional) | {m['tree_and_rate_policy']['level_1']['edge-proportional']} | "
         f"{m['tree_and_rate_policy']['set_by']} |",
-        f"| Starts | {m['starts']['default']}; {m['starts']['incumbent']} | D05, decision 025 |",
+        f"| Starts | {s['default']}; {s['incumbent']}; {s['policy']}{outside} | D05, decisions 025 and 027 |",
+        f"| Pass lines | oracle: {m['thresholds']['oracle']}; compiled code: {m['thresholds']['compiled_code']} | "
+        f"decisions 021 and 026 |",
         f"| Upstream baseline | {m['source']['upstream_baseline']}; frozen binary `{m['source']['frozen_binary']['sha256']}` | |",
         "", "Target π* at 17 significant digits, in state order:", "",
         "| State | π* |", "|---|---|",
