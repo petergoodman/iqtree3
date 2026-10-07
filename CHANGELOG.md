@@ -7,6 +7,61 @@ from the top entry.
 This is a fork of `iqtree/iqtree3`. Entries here describe work on the fork, not upstream
 development.
 
+## 2026-10-07 (sixth session, continued): goal alignment check, decisions 028 and 029
+
+### Done
+
+**Alignment check.** Peter asked whether the plan matches his statement of the goal. As he put
+it, the goal is nQMaker's inference reused almost entirely, with one substantive change (the
+optimizer proposes 360 log-ratios, which become the jump matrix K, then ν, then Q at π*) and a
+minor one (starts rebuilt at π*).
+
+The plan was compared with that statement and with his two slide decks, which the maintainers
+accepted.
+- **Aligned:**
+  - the reuse of the likelihood, optimizer and linked paths;
+  - the chart, with π* fixed and used as the root;
+  - LG at π* and the GTR20 incumbent as starts;
+  - the target's provenance.
+- **Required by the variable change but not named in the goal:**
+  - the scaled derivative step, since IQ-TREE's step is 1e-4·|x| (`utils/optimization.cpp:928`);
+  - coordinates as checkpointed state.
+- **Beyond the goal:**
+  - compiled positive-ratio and T3 charts (D01, D04);
+  - restoring the start after a fall, and an optimizer edit (decision 009).
+- **Deferred:** rebuilt WAG and JTT as ModelFinder candidates (S6).
+- **Not met:** the deck's condition that the domain contain the GTR20 start (risk 22).
+
+**Peter's choices.**
+- **Decision 028:** the log-ratio chart only. No compiled positive-ratio or T3 code; the Python
+  versions stay as test references.
+- **Decision 029:** a fit that ends below its start is reported, not restored, as IQ-TREE does
+  (`model/modelmarkov.cpp:1199-1235`), and `utils/optimization.{h,cpp}` is never edited.
+- **Guide candidates:** rebuilt WAG and JTT stay in S6.
+
+**Commits** (not pushed):
+- `8f46a516`: decisions 028 and 029, with PLAN.md and CODE_PLAN.md updated to match:
+  - PLAN.md: scope, deferred and out-of-scope lists, change map, S5 row, risks 7, 14 and 22,
+    current state.
+  - CODE_PLAN.md: sections 1.1, 1.2, 2.1, 2.2, 3.1 and 3.2.
+  - Two strings in `manifest.py`.
+- `1e45c775`: the manifest regenerated from the clean tree.
+
+All 166 fixedeq tests pass.
+
+### Failed
+
+Nothing.
+
+### Next
+
+1. Peter's second alignment question, before S1.
+2. Plan S1: the pure module with the log-ratio chart only, its fixtures with κ, the oracle's κ
+   function, and the fork workflow.
+3. Before S3, Peter: risk 22, now more pressing because nothing restores a start that the fit
+   falls below. Also settle whether S3's `PartitionModel` post-fit hook is still needed now that
+   it only reports.
+
 ## 2026-10-07 (sixth session): S0 records closed out
 
 ### Done
