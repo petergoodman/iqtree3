@@ -1,7 +1,7 @@
 # Plan: π-constrained non-reversible amino-acid models
 
 > **Status, 2026-10-05: S0 complete; code plan approved by Peter on 2026-09-23 and amended by
-> decisions 015 to 018 on 2026-10-03, 019 to 023 on 2026-10-04, and 024 and 025 on 2026-10-05;
+> decisions 015 to 018 on 2026-10-03, 019 to 023 on 2026-10-04, and 024 to 027 on 2026-10-05;
 > approach accepted by the IQ-TREE maintainers (reported by Peter, 2026-10-01); no source code
 > changed yet.** Peter owns
 > this document. Its companion, `docs/agent/CODE_PLAN.md`, holds the file-level change map, the
@@ -42,8 +42,8 @@ Neither planning document restates a decision's options or reasoning. `ARCHITECT
 `AA_MODEL_INFERENCE.md`, and `FILE_INDEX.md` describe IQ-TREE's code as it currently is and
 prescribe nothing.
 
-Labels: (verified) means read in source at `63c330d9`, which HEAD `4c5f061f` matches outside
-documentation, or run on 2026-09-23; (reported) means taken from a document; (proposed) means a
+Labels: (verified) means read in source at `63c330d9`, which the branch matches in every IQ-TREE
+source file (checked at `9783ac6a` on 2026-10-07), or run on 2026-09-23; (reported) means taken from a document; (proposed) means a
 plan choice not yet executed.
 
 ## Goal
@@ -177,8 +177,9 @@ profile mixtures with distinct equilibria, and analytic likelihood gradients.
 7. Work inside `PartitionModel::targetFunk`'s OpenMP loop (verified,
    `model/partitionmodel.cpp:310-333`) is thread-safe: per-object workspace, no static mutable
    state, no shared warm starts, and the existing fixed-order sum preserved.
-8. The coordinate domain is explicit and recorded, every start is representable with margin,
-   and an imported matrix is never clipped (D03).
+8. The coordinate domain is explicit and recorded, and an imported matrix is never clipped
+   (D03). A start is not checked against the domain: as for every IQ-TREE model, the line search
+   clamps trial points into it (decision 027).
 9. `-m NONREV+F{...}` keeps its current non-stationary-root meaning.
 10. Code is ready for an eventual upstream pull request (entry 001): small diffs to shared files
     in the local style, IQ-TREE's conventions (`outError`, 1-indexed optimizer vectors,
@@ -254,7 +255,8 @@ calls the unchanged base (superseding 004); 016 root policy for S0 to S4; 017 th
 of IQ-TREE's optimizer; 018 the regression rule for run 11 and the added run 12; 019 the
 design-script rerun and its matching rule; 020 the rerun accepted as the reproduced record; 021
 the oracle's test thresholds; 022 the sanitizer build type; 023 the S1 to S4 test target; 024
-the Level 1 flags; 025 the GTR20 incumbent and the nesting tolerance.
+the Level 1 flags; 025 the GTR20 incumbent and the nesting tolerance; 026 the compiled code's pass
+lines; 027 the default domain and the start policy.
 Mathematical decisions: D01 to D10.
 
 ### Test strategy
@@ -308,7 +310,7 @@ competing implementations, G5 native and outer workflow, G6 scientific validatio
 | 5 | Cost: 361 likelihood evaluations per one-sided gradient; realistic training runs may take hours | S3 profiling; analytic gradients stay deferred |
 | 6 | AddressSanitizer with link-time optimization and libomp inside the 6 GB WSL VM | Resolved 2026-10-05: decision 022's first settings built, with no fallback. The build runs about 20 times slower than Release (measured on baseline runs 2 and 4), so sanitizer runs use short, chosen sets |
 | 7 | Active `ASSERT`s abort a linked round that lowers the log-likelihood by more than 0.1 (verified, `model/partitionmodel.cpp:938`, `model/partitionmodelplen.cpp:135`) | incumbent protection and tests in S2 and S3 |
-| 8 | The default coordinate domain may not contain LG rebuilt at a skewed π* | construction check and the domain option (decision 007). At decision 023's target the LG seed lies inside, 3.51 above the lower bound and 2.32 below the upper (G0 manifest) |
+| 8 | The default coordinate domain may not contain LG rebuilt at a skewed π* | No construction check (decision 027): coordinates outside the domain are clamped at the first line search, as for every IQ-TREE model, and bound activity is reported after the fit (decision 009); the domain option (decision 007) widens the domain. At decision 023's target the LG seed lies inside, 3.51 above the lower bound and 2.32 below the upper (G0 manifest) |
 | 9 | Real training data: a small real set for S5, and the full set with a written confirmatory plan for S7 | Peter |
 | 10 | The design scripts were rerun on 2026-10-04 under decision 019: 109 of the 133 documented values reproduced and 24 did not (listed in `CHANGELOG.md`): 14 finite-difference errors, 9 optimizer end points or path counts, and 1 bound. `e6_n20_big.py` cannot run | Resolved 2026-10-04: decision 020, the rerun is the reproduced record and the 24 stay reported, never test targets |
 | 11 | Scientific success criterion and manuscript details (placeholder above) | Peter |
@@ -317,19 +319,22 @@ competing implementations, G5 native and outer workflow, G6 scientific validatio
 | 14 | S5's recording-only edit to `dfpmin` and `lnsrch` (decision 009) touches the optimizer the maintainers advised leaving unchanged, and cannot be made by override (private, non-virtual, verified `utils/optimization.h:229-232`) | Peter, with the maintainers, before S5 |
 | 15 | Resolved 2026-10-03 for S0 to S4: the root policy, on which a non-reversible likelihood depends | decision 016; the policy for scientific runs at G5 |
 | 16 | How precisely a fitted `GTR20+F{π*}` incumbent reaches an NQC run: the report prints the matrix at 6 decimal places (`main/phyloanalysis.cpp:633`, in the fixed mode set at 1528-1529), decision 010 exports only NQC, and checkpoints hold 10 significant digits | Resolved 2026-10-05: decision 025, from S0 probe (g) |
-| 17 | Thresholds marked provisional (1e-10 residuals, 1e-12 relative Q entries, the 1e-6 target sum) must be final, or declared reported rather than asserted, before their tests are written, because a threshold is not relaxed after a failure | Partly resolved 2026-10-04: decision 021 sets the oracle's pass lines; the compiled code's remain for Peter, before S1 |
+| 17 | Thresholds marked provisional (1e-10 residuals, 1e-12 relative Q entries, the 1e-6 target sum) must be final, or declared reported rather than asserted, before their tests are written, because a threshold is not relaxed after a failure | Resolved 2026-10-05: decision 021 sets the oracle's pass lines and decision 026 the compiled code's |
 | 18 | No fallback is recorded if S3 profiling shows training runs impractical while analytic gradients are out of scope | Peter, after S3 profiling |
 | 19 | Baseline run 11 (`--model-joint NONREV` under `-p` at `-T 4`) does not reproduce: five repeats of the unmodified binary ended at log-likelihoods from -4975.0215 to -4974.5963, none equal to the `-T 1` run's -4974.5432, with the same topology and 442 of the model section's 447 numbers varying (largest spread 0.046). Its tree drawing varies too, so the spread rule of `CODE_PLAN.md` section 3.4 cannot judge it, and S3's `-T 1` against `-T 4` test meets the same behaviour in legacy code | Partly resolved 2026-10-03: run 11's rule and the added run 12 are decision 018, implemented in the driver on 2026-10-04. Run 12 (run 10 at `-T 4`) gave identical reports in five repeats, identical to run 10's at `-T 1` in every compared item, so at the report's printed precision the variation arises in the joint fit, not in a fixed evaluation. The S3 thread test's definition: Peter, before S3 |
 | 20 | Upstream finding, sanitizer run of 2026-10-05: `ModelMarkov`'s constructor calls `setReversible` (`model/modelmarkov.cpp:72`), which reads `is_reversible` before anything sets it (line 76; UndefinedBehaviorSanitizer "load of value 190, which is not a valid value for type 'bool'"). It appears once in every run, so the sanitizer runs of S1 to S4 will show it too; its effect on results was not investigated | Known before any edit; a question for the maintainers if Peter wishes to relay it |
 | 21 | Upstream observation, S0 probe (g): after a tree search, the checkpoint keeps the model from before the final model optimization (`main/phyloanalysis.cpp:3895-3899` saves the search state, not the model), and a restart from it prints "Final model parameters restored". The restart itself was not tested. S2 to S4 fits run under `-te`, where no final optimization runs, and decision 025 carries the incumbent from a fixed-tree fit | Avoided by decision 025; a question for the maintainers if Peter wishes to relay it |
+| 22 | Decision 025's nesting start, the fitted `GTR20+F{π*}` of probe (g) on `aa_example`, has 146 of its 360 coordinates outside the default domain (-15.94 to 11.65; `test_scripts/fixedeq/explore/thresholds.py`, 2026-10-05), because 87 of its 190 exchangeabilities sit at GTR20's own floor. Under decision 027 the start is evaluated exactly, so NQC's first log-likelihood still equals GTR20's, but the first line search clamps those coordinates, the fit then searches inside the domain only, and only incumbent protection (decision 009) keeps the final score from falling below the start | Peter, before S3: the nesting test in the default domain, in a domain widened by the domain option, or on data large enough for GTR20 to be well determined |
 
 ## Current state
 
-The design is settled (D01 to D10) and programming decisions 001 to 025 are recorded, 015
+The design is settled (D01 to D10) and programming decisions 001 to 027 are recorded, 015
 superseding 004; 016 sets the root policy for S0 to S4, 017 the oracle's optimizer port, 018 the
 regression rule for run 11 and the added run 12, 019 the design-script rerun's matching rule, 020
 the acceptance of that rerun, 021 the oracle's test thresholds, 022 the sanitizer build type,
-023 the S1 to S4 test target, 024 the Level 1 flags, and 025 the GTR20 incumbent.
+023 the S1 to S4 test target, 024 the Level 1 flags, 025 the GTR20 incumbent, 026 the compiled
+code's pass lines, and 027 the default domain and the start policy (superseding one sentence of
+007 and revising D03's start clause).
 The planning documents are committed on the branch. The IQ-TREE maintainers accepted the log-ratio jump-chain approach and stressed
 that BFGS needs a continuous objective (reported by Peter, 2026-10-01; the mapping of their notes
 to the code is in `CHANGELOG.md`). The unmodified branch builds in WSL2 and passes the smoke tests recorded in
@@ -370,10 +375,17 @@ S0 was completed on 2026-10-05; details and numbers are in `CHANGELOG.md`.
 - **G0 run manifest.** Written by `test_scripts/fixedeq/manifest/manifest.py` into
   `test_scripts/fixedeq/manifest/`.
 
+An audit of S0 on 2026-10-05 reran the oracle's tests, the 16 differential cases and all 12
+regression runs from the clean tree, and all passed; it found risk 20 harmless to NQC by reading
+(the indeterminate value is used only when `rates` is non-null, and the constructor nulls it
+first, `model/modelmarkov.cpp:47, 112`) and added risk 22. The unmodified sanitizer binary is
+frozen at `~/iqtree3-baseline-asan/` with its build record. Peter then set the compiled code's
+pass lines (decision 026) and the default domain and start policy (decision 027), from the
+measurements of `test_scripts/fixedeq/explore/thresholds.py`.
+
 ## Next step
 
-Peter sets the compiled code's pass lines (risk 17), with a recommendation from the agent. Then
-the agent plans S1 (the pure module `fixedeqchart`, its fixtures and the fork workflow;
+The agent plans S1 (the pure module `fixedeqchart`, its fixtures and the fork workflow;
 `CODE_PLAN.md` section 4) for Peter's approval.
 
 ## Checklists

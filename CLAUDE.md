@@ -106,6 +106,9 @@ cmake --build ~/iqtree3-build -j 4
     choose what runs, and `sanitize.py scan DIR` groups the reports.
   - The build runs about 20 times slower than Release. Every run so far shows one known upstream
     finding at `model/modelmarkov.cpp:76` (PLAN.md risk 20).
+  - The unmodified sanitizer binary is frozen at `~/iqtree3-baseline-asan/iqtree3` (SHA-256 in
+    `iqtree3.sha256`, with its `sanitizer-build.json` and `CMakeCache.txt`), never rebuilt or
+    overwritten, so a later finding can be checked against unmodified code.
 - **Probe driver**: `test_scripts/fixedeq/probes/probes.py --binary BIN --out DIR --git git.exe
   [--only a,b,...]` reruns the S0 runtime probes, in about 45 minutes of compute.
   `test_scripts/fixedeq/manifest/manifest.py --out test_scripts/fixedeq/manifest --git git.exe`

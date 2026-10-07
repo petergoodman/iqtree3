@@ -7,6 +7,81 @@ from the top entry.
 This is a fork of `iqtree/iqtree3`. Entries here describe work on the fork, not upstream
 development.
 
+## 2026-10-05 (fifth session): S0 audit, decisions 026 and 027
+
+### Done
+
+**Audit of S0.** At Peter's request, an independent check that S0 is complete and S1 can start.
+Rerun from the clean tree at `9783ac6a` (outputs in WSL `/tmp/s0audit/`, temporary):
+- **Code and upstream:** no IQ-TREE source changed since `63c330d9`, and upstream `master` is
+  still `63c330d9`.
+- **Binaries:** the frozen binary's SHA-256 matches its record, and `~/iqtree3-build/iqtree3`
+  is identical to it.
+- **Environment and tests:** the environment matches `environment.lock.txt` (45 packages), and
+  all 165 fixedeq tests pass.
+- **Differential and regression:** the 16 differential cases agree within 9.8e-16 relative. A
+  fresh `regress.py run` of all 12 runs from the Release build passes `compare` against both
+  baseline files; run 11 gave -4974.8833, inside its known spread.
+- **Records:** the raw outputs cited in the record exist, the probe results file matches this
+  changelog, and the G0 manifest covers every item of gate G0.
+
+Risk 20 was found harmless to NQC by reading. The indeterminate `is_reversible` is used only in
+`rates && old_reversible` (`model/modelmarkov.cpp:112`), and the constructor sets `rates` to null
+first (line 47). `gh` is not installed, so upstream CI on the fork was not checked.
+
+**Sanitizer binary frozen.** `regress.py freeze` copied the unmodified sanitizer binary to
+`~/iqtree3-baseline-asan/` (SHA-256 `323dce82…`, equal to the G0 manifest's), with its
+`sanitizer-build.json` and `CMakeCache.txt`. The S2 sanitizer build would otherwise overwrite the
+only copy. `CLAUDE.md` notes it.
+
+**Pass lines, domain and start policy.** Explained to Peter in chat which settings ship and how
+IQ-TREE handles bounds and starts today. Wrote `test_scripts/fixedeq/explore/thresholds.py`
+(exploratory, read-only) and ran it in `iqtree3-fixedeq` (seed 20261005):
+- **Q differences:** two correct routes to the same Q differ by up to 7.8e-15 on ordinary cases
+  and 3.8e-11 on a near-reducible case (κ = 2.0e5).
+- **Residuals:** the worst was 4.0e-16 in every case.
+- **Target sums:** the turtle target at 8, 6 and 4 decimals sums to 1 − 1e-8, 1 + 1e-6 and
+  1 + 2e-4.
+- **Starts and fits in the box:** LG at the target lies inside (3.51 and 2.32 from the edges),
+  and so does NQ.pfam. Probe (g)'s fitted GTR20 on `aa_example` has 146 of 360 coordinates
+  outside, and 87 of its 190 exchangeabilities are at GTR20's floor.
+
+Peter's choices, recorded:
+- **Decision 026, the compiled pass lines.**
+  - Residuals at most 1e-10 in tests, reported and never used to reject.
+  - Q, round trips and the chart against the positive chart within max(1e-12, 1e-14 κ), with κ in
+    each fixture's header.
+  - Decision 006's 1e-6 target-sum line kept, parsed only in the new code, with an empty
+    frequency string passed to the `ModelProtein` base so the shared reader never sees the target.
+- **Decision 027, the domain and start policy.**
+  - The box stays [log 1e-5, log 10], IQ-TREE's own constants.
+  - No start check and no margin: the start is evaluated as given and the line search clamps
+    trial points, as for every model.
+  - This supersedes one sentence of 007 and revises D03's start clause under the synthesis's
+    change rule.
+
+PLAN.md: constraint 8, risks 8 and 17, new risk 22 (the nesting start lies mostly outside the
+box), the decision list, current state, and next step. `CODE_PLAN.md`: sections 1.1, 2.1, 2.2
+and 3.2.
+
+### Failed
+
+- **The audit's first verdict was incomplete.** It said S0 had no significant gaps. Working
+  through the margin then showed that decision 025's GTR20 start falls outside the default box,
+  now risk 22.
+- **Withdrawn recommendations.** The agent recommended a start margin of 1.0, and later a
+  symmetric box [log 1e-5, log 1e5]. Peter declined both under the principle that IQ-TREE's
+  behaviour changes only where the constraint requires it, and both are listed as rejected in
+  decision 027.
+- **Shell edit hung.** A shell edit of a scratch script hung on an empty Windows `python` call and
+  was stopped. No repository file was affected.
+
+### Next
+
+1. Plan S1 (the pure module, its fixtures with κ in each header, and the fork workflow) for
+   Peter's approval.
+2. Before S3, Peter: risk 22, how the nesting test treats a start outside the box.
+
 ## 2026-10-05 (fourth session, closing): decisions 024 and 025, sanitizer run, G0 manifest; S0 complete
 
 ### Done

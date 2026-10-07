@@ -20,7 +20,7 @@ Labels are those of PLAN.md. Source anchors refer to `63c330d9` and were verifie
 | `model/fixedeqchart.{h,cpp}` | S1; T3 in S5 | Pure functions over Eigen types, with no IQ-TREE headers and no process exit (section 2.1) |
 | `model/modelnonrevfixedeq.{h,cpp}` | S2 to S4 | Class `ModelNonrevFixedEq : public ModelProtein`, public name "NQC" held in one constant (decision 002; section 2.2) |
 | `unittest/` | S1 | Standalone CMake project that compiles `model/fixedeqchart.cpp` directly and fetches googletest at cmaple's pinned commit (verified, `cmaple/CMakeLists.txt:281-293`; decision 012); `fixtures/` in plain text at 17 significant digits with a provenance header; its own `.gitattributes` (decision 014) |
-| `test_scripts/fixedeq/` | S0 onward | `environment.yml` and its exported lock (decision 013); the `oracle/` package; `tests/`; `regression/` and `differential/` drivers; `design_rerun.py`, which reruns the design scripts (decision 019); `probes/`, the S0 runtime probes; `sanitizer/`, the decision 022 build and run driver; `manifest/`, the G0 manifest generator and its output; `make_fixtures.py`; its own `.gitattributes`, and a `.gitignore` for Python caches |
+| `test_scripts/fixedeq/` | S0 onward | `environment.yml` and its exported lock (decision 013); the `oracle/` package; `tests/`; `regression/` and `differential/` drivers; `design_rerun.py`, which reruns the design scripts (decision 019); `probes/`, the S0 runtime probes; `sanitizer/`, the decision 022 build and run driver; `manifest/`, the G0 manifest generator and its output; `explore/`, the exploratory measurements cited by decisions 026 and 027; `make_fixtures.py`; its own `.gitattributes`, and a `.gitignore` for Python caches |
 | `.github/workflows/fixedeq.yaml` | S1 | Fork-only workflow that builds and runs the unit tests and the oracle's tests on Linux, and from S2 a short NQC run |
 
 Run outputs never go into the working copy; they go under `~/iqtree3-runs/` in WSL. Fixtures and
@@ -71,7 +71,7 @@ mutable state.
   non-reversible seed keeps its jump chain, which is the flux-preserving transfer of synthesis
   section 6.3.
 - Diagnostics: ‖π*Q‖∞, scaled row residuals, |mean rate − 1|, minimum rate and flux, and the
-  residual of the ν solve.
+  residual of the ν solve. They are reported and never used to reject a proposal (decision 026).
 - Finite-difference step: signed h = η max(s, |x|), exactly representable, negative when x + h
   would leave the upper bound (decision 005).
 - S5 adds the T3 build, inverse and balancing in the D04 gauge (a_{19,20} = 0, h_{i,20} = 0).
@@ -82,16 +82,18 @@ Construction (decisions 002, 006, 011):
 
 1. Construct the `ModelProtein` base with the seed's name, LG by default or the `--init-model`
    name or file, because the base constructor calls `init(name)`, which cannot parse "NQC"
-   (verified, `model/modelprotein.cpp:1079-1088`, `1107-1249`).
+   (verified, `model/modelprotein.cpp:1079-1088`, `1107-1249`). Pass it an empty frequency
+   string, so that `init` does not hand the target to `ModelMarkov::readStateFreq` (verified,
+   `model/modelprotein.cpp:1241-1244`; decision 026).
 2. Reject unsupported combinations (decision 008).
-3. Parse and validate π* from `freq_params` with the pure module.
+3. Parse and validate π* from `freq_params` with the pure module, under decision 006's rules.
 4. For a reversible seed, set `state_freq = π*`, then call `setReversible(false)`, which
    converts R into R_ij π*_j and roots the tree (verified, `model/modelmarkov.cpp:112-119`,
    `145-149`). For a non-reversible seed, keep its jump chain.
 5. Build LG at π* from the built-in models block and take the references from it, whatever the
    start (decision 011).
-6. Encode the start through the inverse chart, check that it lies inside the domain with margin,
-   and reject with the required domain if it does not (decision 007).
+6. Encode the start through the inverse chart. The start is not checked against the domain; as
+   for every IQ-TREE model, the line search clamps trial points into it (decision 027).
 7. Set `freq_type = FREQ_USER_DEFINED`, `num_params = 360` and the name, then decompose.
 
 Optimizer interface: `getNDim` returns 0 when fixed and 360 otherwise; `getNDimFreq` returns 0;
@@ -170,10 +172,11 @@ The package is `test_scripts/fixedeq/oracle/`, and its tests use the pass lines 
 
 Fixtures at n = 3, 4 and 20: random balanced fluxes built from directed cycles rather than
 through the chart under test, reversible matrices, skewed and near-reducible jump chains, and
-adversarial conditioning. Checks: Q entries to a relative 1e-12, relaxed only where a case's
-conditioning is documented; residuals at or below 1e-10 (provisional); round trips; reference
-ties; target validation (zero, NaN, wrong count, below the minimum, sum outside tolerance);
-positive-ratio equivalence; and the step function at bounds.
+adversarial conditioning. Each fixture's provenance header records the condition number κ of its
+augmented ν system, computed by the oracle. Checks, with decision 026's pass lines: Q entries,
+round trips and positive-ratio equivalence within a relative max(1e-12, 1e-14 κ) per entry;
+residuals at or below 1e-10; reference ties; target validation (zero, NaN, wrong count, below the
+minimum, a sum more than 1e-6 from 1); and the step function at bounds.
 
 ### 3.3 Layer 3: differential likelihood
 

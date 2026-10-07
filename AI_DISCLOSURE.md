@@ -8,6 +8,29 @@ Entries record the tool and model version, what it did, and which files or secti
 No AI-generated scientific claim, numerical result, or citation in this project has been accepted
 without human verification against source.
 
+## 2026-10-05 (fifth session)
+
+**Tool:** Claude Code (VS Code extension).
+**Model:** Claude Opus 5.5, 1M context, model id `claude-opus-5-5[1m]`.
+**Operator:** Peter Goodman.
+
+**What it did.**
+- **Audit.** At the operator's request it audited slice S0's completion. It reran the oracle's
+  tests, the 16 differential cases and all 12 regression runs, checked the binaries' checksums,
+  the environment lock and the raw outputs, and read risk 20's source.
+- **Sanitizer binary.** It froze the unmodified sanitizer binary at `~/iqtree3-baseline-asan/`,
+  outside the repository.
+- **Measurement and decisions.** It explained the compiled pass lines, the coordinate domain and
+  the start margin, measured the numbers behind them in an exploratory script, and recorded the
+  operator's choices as decisions 026 and 027. One recommendation (a start margin of 1.0) was
+  withdrawn when the operator set the principle that IQ-TREE's behaviour changes only where the
+  constraint requires it.
+
+**Files touched.** `docs/agent/DECISIONS.md` (entries 026 and 027, the status preamble, and entry
+007's status line), `docs/agent/PLAN.md`, `docs/agent/CODE_PLAN.md` (sections 1.1, 2.1, 2.2 and
+3.2), `CLAUDE.md` (sanitizer bullet), `CHANGELOG.md`, and the new
+`test_scripts/fixedeq/explore/thresholds.py`. No IQ-TREE source file was changed.
+
 ## 2026-10-04 to 2026-10-05 (fourth session)
 
 **Tool:** Claude Code (VS Code extension).

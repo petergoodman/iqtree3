@@ -51,7 +51,7 @@ in place; working code derived from them goes elsewhere, as the code plan specif
 |---|---|---|
 | `scripts/verify_constrained_nq.py` | P-positive section 12, checks 1 to 12 | `fef4315dd728712197a708893816cd5ef9c25b558df0736336095b0166d56b4b` |
 | `scripts/check_builtin_matrices.py` | P-positive section 12, LG and `NQ.PFAM` figures | `71c120b94d1e68019faa927f3c32c3243ed33871de1073e8fa9f3573c5f4233c` |
-| `scripts/chart_fd_bfgs_compare.py` | synthesis section 10 (E1, E2) and Part 2 slide deck Backup B | `8f2a1d095b24efcef62cff881cea213a924d4af7f14279517ee4d90aa9d0591b` |
+| `scripts/chart_fd_bfgs_compare.py` | synthesis section 10 (E1, E2) and Part 2 slide deck Backup B (an earlier draft; see "Slide decks") | `8f2a1d095b24efcef62cff881cea213a924d4af7f14279517ee4d90aa9d0591b` |
 
 The fingerprint of `chart_fd_bfgs_compare.py` matches the one in the synthesis's section 14. The
 other two have no published fingerprint to compare against.
@@ -72,3 +72,20 @@ the documents until they are.
 Not included: `e6_n20_big.py` (synthesis section 10.1), which imports a module `e4_nonrev` that
 was never supplied and so cannot run, and the experiment drivers for E3 to E5, which were not
 supplied.
+
+## Slide decks
+
+`presentation/` holds Peter's two Beamer decks, committed unmodified on 2026-10-07. They are not
+among the documents the synthesis's precedence names. Each header comment gives a different file
+name, recorded below.
+
+| File | Title | Name in its header comment | SHA-256 |
+|---|---|---|---|
+| `presentation/nq_frequency_replacement_part1.tex` | When does frequency replacement preserve stationarity? | `nq_frequency_replacement_part1_final.tex` | `49e79aed60b7b61cb28de470f3704b11d7163e4ebea1707efe499e8a032bbced` |
+| `presentation/nq_frequency_replacement_part2.tex` | Fitting Q at a fixed composition | `nq_frequency_replacement_part2_draft5.tex` | `eae12309ac69f7cd1eaded9806790c30f0057e23483f8552a5485d8408a3ff39` |
+
+The Part 2 deck here has one backup frame, Backup A. The "Backup B" cited for
+`chart_fd_bfgs_compare.py` above belongs to an earlier draft. In this draft, the toy comparison of
+positive and log coordinates appears in Backup A's presenter note, which refers to synthesis
+section 10 for the numbers. The presenter note on its frame "The reversible workflow we want to
+reproduce" is the source PLAN.md cites for the Wheeler et al. DOI.

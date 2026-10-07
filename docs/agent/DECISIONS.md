@@ -1,8 +1,9 @@
 # Decisions
 
-> **Status, 2026-10-05.** Programming decisions 001 to 025 are recorded; 002 to 014 were
+> **Status, 2026-10-05.** Programming decisions 001 to 027 are recorded; 002 to 014 were
 > approved by Peter with the code plan on 2026-09-23, 015 (which supersedes 004) to 018 on
-> 2026-10-03, 019 to 023 on 2026-10-04, and 024 and 025 on 2026-10-05. Ten mathematical and methodological design
+> 2026-10-03, 019 to 023 on 2026-10-04, and 024 to 027 (027 superseding one sentence of 007) on
+> 2026-10-05. Ten mathematical and methodological design
 > decisions, D01 to D10, are recorded from the design synthesis and are revisable (see that
 > section's preamble). The items under "Pending programming candidates" were discussed on
 > 2026-09-15; the first three are now resolved by the entries named in their notes. An agent must
@@ -195,7 +196,7 @@ Number programming entries sequentially from 001 and never reuse a number.
 ## 007. Hold domain and step settings as class defaults, with parse-only options
 
 - **Date:** 2026-09-23
-- **Status:** accepted
+- **Status:** accepted; its sentence on rejecting a start superseded by 027
 - **Decision:** The coordinate domain defaults to the D03 historical benchmark domain, z in
   [log 1e-5, log 10], and the step to D02's η = 1e-4 and s = 1. Two parse-only options, declared
   in `utils/tools.h`, defaulted and parsed in `parseArg`, documented in `usage_iqtree()` and read
@@ -685,6 +686,109 @@ Number programming entries sequentially from 001 and never reuse a number.
   - Comparing with the fit's printed log-likelihood.
 - **Affects:** `CODE_PLAN.md` section 3.5 (nesting); the S3 nesting test; the G0 manifest; PLAN.md
   risk 16.
+
+## 026. Set the compiled code's pass lines before S1's tests are written
+
+- **Date:** 2026-10-05
+- **Status:** accepted
+- **Decision:**
+  - **Residuals.** ‖π*Q‖∞, the scaled row sums and |mean rate − 1| are at most 1e-10 in the unit
+    tests. The shipped NQC class computes and reports them and never rejects a trial matrix on
+    them; a proposal is rejected only for the reasons of PLAN.md constraint 2 (softmax underflow,
+    a non-finite value, a non-positive ν).
+  - **Q against the oracle fixtures.** Every entry of the compiled Q, the diagonal included,
+    agrees with the fixture's within a relative max(1e-12, 1e-14 κ), where κ is the 2-norm
+    condition number of the augmented ν system [1ᵀ; (K − I)ᵀ], computed by the oracle and written
+    in each fixture's provenance header before any C++ runs. The same rule applies to round trips
+    (Q to coordinates to Q) and to the log-ratio chart against the positive-ratio chart on the
+    same Q.
+  - **Target sum.** Decision 006's line stands: a sum within 1e-6 of 1 is normalized once and
+    both vectors are reported, and any other sum is refused. The parser is in
+    `model/fixedeqchart.cpp` and is called only by the NQC class. `ModelMarkov::readStateFreq`
+    and `ModelProtein` are not edited, and the class passes an empty frequency string to the
+    `ModelProtein` base constructor, so the existing reader never sees the target (verified: the
+    base's `init` otherwise calls it, `model/modelprotein.cpp:1241-1244`).
+  - As in decision 021, a pass line is not loosened after a failure.
+- **Why:** Peter's choice on 2026-10-05 (PLAN.md risk 17), from an exploratory measurement,
+  `test_scripts/fixedeq/explore/thresholds.py`, run on 2026-10-05:
+  - **Q.** Two correct floating-point routes to the same Q (NumPy with SciPy's pivoted QR, and
+    NumPy with LU and compensated sums) differed per entry by at most 7.8e-15 on 20 ordinary
+    cases, 6.1e-15 for LG at the decision 023 target, 6.3e-14 for the fitted GTR20 incumbent,
+    2.1e-14 with coordinates spread over the whole box, and 3.8e-11 on a near-reducible case with
+    κ = 2.0e5. The difference tracks κ times about 1e-16, so a fixed 1e-12 would fail correct
+    code on near-reducible fixtures, and relaxing it after a failure is what decision 021 forbids.
+    The scaled line leaves about 100 times the measured difference on ordinary cases (κ near 10)
+    and about 50 times on the near-reducible one. Differences from Eigen and the C library's
+    exponential were not measured.
+  - **Residuals.** The worst residual over all those cases was 4.0e-16, the near-reducible case
+    included: the residual equals the error of the ν solve, which a pivoted QR keeps at rounding
+    level whatever κ is. 1e-10 matches decision 021 and the synthesis's goal (section 4.3) and
+    lies far below an indexing or precision error. A rejection inside a fit returns 1e30, a
+    discontinuity that BFGS handles badly (the maintainers' advice, `CHANGELOG.md` 2026-10-01), so
+    the residuals stay diagnostics.
+  - **Target sum.** The turtle target written at 8, 6, 5 and 4 decimals sums to 1 − 1.0e-8,
+    1 + 1.0e-6, 1 − 2.0e-5 and 1 + 2.0e-4, so the line accepts IQ-TREE's 8-decimal print and
+    refuses vectors copied at 5 decimals or fewer. Of the three lines it alone ships, and it
+    departs from IQ-TREE's reader, which never refuses a sum and normalizes with a warning when
+    it is off by 1e-7 or more (verified, `model/modelmarkov.cpp:1786-1795`). Peter accepted the
+    departure on the condition that no existing model's inference changes, which the placement
+    above ensures.
+- **Alternatives rejected:** a fixed 1e-12 for Q with hard fixtures printed and not asserted (decision
+  021's treatment of the oracle), which leaves near-reducible cases untested; using the residual
+  line to reject trial matrices during a fit; IQ-TREE's reader behaviour for the target, which
+  reshapes a mistyped or low-precision vector with only a warning.
+- **Affects:** `CODE_PLAN.md` sections 2.1, 2.2 and 3.2; `test_scripts/fixedeq/make_fixtures.py`
+  (κ in each header) and the S1 unit tests; `model/fixedeqchart.cpp`;
+  `model/modelnonrevfixedeq.cpp`; PLAN.md risk 17.
+
+## 027. Keep the benchmark box as the default and check no start against it
+
+- **Date:** 2026-10-05
+- **Status:** accepted
+- **Decision:**
+  - **Box.** The NQC default box stays z in [log 1e-5, log 10] (decision 007). It is the per-row
+    translation of IQ-TREE's own constants: rates bounded to [1e-4, 100] (verified,
+    `model/modelmarkov.h:30-32`, applied in `ModelMarkov::setBounds`,
+    `model/modelmarkov.cpp:1139-1149`) and a protein start scaled so that its largest rate is 10
+    (verified, `model/modelprotein.cpp:1090-1105`), with the reference weight pinned at 10.
+  - **Start.** The class does not compare the encoded start with the box and refuses no start
+    for its position. As for every IQ-TREE model today, the start is evaluated as given, and
+    `lnsrch` clamps each later trial point into the box (verified: `dfpmin` first evaluates the
+    unclamped start, `utils/optimization.cpp:805`; `fixBound`, 149-156, is applied to trial
+    points at 686; nothing checks the start, `model/modelmarkov.cpp:1195-1199`). The chart is
+    total on R^360, so a start outside the box still gives a valid Q.
+  - This supersedes decision 007's sentence "A start not representable with margin is rejected
+    with a message that prints the domain required", and revises, for the start only, D03's
+    "Every declared start must be representable with margin" and PLAN.md constraint 8. D03's
+    other clauses stand: the box is explicit and recorded, bound activity is reported after the
+    fit (decision 009), final scientific runs include an expansion-sensitivity check, and an
+    imported matrix is never clipped (`-m FILE` has no chart, and the class's setters re-encode
+    without a box).
+- **Change control (synthesis section 13):** affected ID D03. Reason: explicit direction from
+  Peter. Evidence: the measurement below. Effect: implementation only; the box, and so the
+  estimand, is unchanged, and only the path of the first line search differs for a start outside
+  the box. Regression: none, since no shared file changes. No finished comparison exists to rerun.
+- **Why:** Peter's choice on 2026-10-05: no change to IQ-TREE's behaviour that the constrained
+  inference does not require, even where a change would improve IQ-TREE. A start check is not
+  required for the constraint, since every trial matrix satisfies π*Q = 0, clamped or not. The
+  measurement (`test_scripts/fixedeq/explore/thresholds.py`, 2026-10-05), in coordinates against
+  the references of LG at the decision 023 target:
+  - LG lies inside, 3.51 above the lower edge and 2.32 below the upper. Because the references
+    are LG's own row maxima, its distance to the upper edge is at least log 10 at every target.
+    NQ.pfam lies inside (3.08 and 2.15).
+  - The fitted GTR20 incumbent of probe (g) on `aa_example` has 146 of its 360 coordinates
+    outside, from -15.94 to 11.65; 87 of its 190 exchangeabilities sit at GTR20's floor of 1e-4
+    and 5 at its ceiling of 100.
+  - The NONREV fits of baseline runs 2 and 8 put 189 and 230 of their 380 rates at IQ-TREE's
+    floor and none at 100, and their jump chains have 6 and 7 coordinates above the NQC upper
+    edge, so the per-row ceiling binds where the raw-rate ceiling did not.
+- **Alternatives rejected:** a start margin of 1.0, or of 0 (refusing only a start outside the
+  box), each of which adds a refusal that IQ-TREE does not make; a symmetric default box
+  [log 1e-5, log 1e5], which contains every NONREV fit measured but does not reuse IQ-TREE's
+  numbers. Decision 007's domain option remains for widening the box in a given run.
+- **Affects:** `CODE_PLAN.md` section 2.2 (construction step 6); PLAN.md constraint 8, risk 8 and
+  risk 22 (decision 025's nesting test, whose GTR20 start on `aa_example` lies mostly outside the
+  box); the S2 construction and the S3 nesting test.
 
 ---
 

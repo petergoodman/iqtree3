@@ -1,0 +1,236 @@
+% Compile with: pdflatex nq_frequency_replacement_part1_final.tex
+% Eight main frames including the title, followed by one optional backup frame.
+% No external images, bibliography, or custom theme files are required.
+% Presenter notes are embedded in the source and hidden in the PDF.
+\documentclass[aspectratio=169,11pt]{beamer}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage{amsmath,amssymb,booktabs,tabularx}
+\usefonttheme{professionalfonts}
+\definecolor{Ink}{HTML}{182C42}
+\definecolor{Accent}{HTML}{087F8C}
+\definecolor{Muted}{HTML}{526474}
+\setbeamercolor{normal text}{fg=Ink,bg=white}
+\setbeamercolor{frametitle}{fg=Ink}
+\setbeamercolor{title}{fg=Ink}
+\setbeamercolor{structure}{fg=Accent}
+\setbeamercolor{alerted text}{fg=Accent}
+\setbeamerfont{frametitle}{size=\Large,series=\bfseries}
+\setbeamerfont{title}{size=\LARGE,series=\bfseries}
+\setbeamersize{text margin left=9mm,text margin right=9mm}
+\setbeamertemplate{navigation symbols}{}
+\setbeamertemplate{headline}{}
+\setbeamertemplate{frametitle}{\vspace{3mm}\insertframetitle\par\vspace{1mm}}
+\setbeamertemplate{footline}{%
+  \hspace{9mm}{\color{Muted}\scriptsize Frequency replacement\hfill Part 1\hspace{5mm}\insertframenumber\,/\,8}\hspace{9mm}\vspace{3mm}}
+\setbeamertemplate{itemize item}{\small\textbullet}
+\setlength{\parskip}{0.45em}
+\title{When does frequency replacement\\preserve stationarity?}
+\author{Peter Goodman}
+\institute{Masel Lab}
+\date{}
+\pdfstringdefDisableCommands{\def\translate#1{#1}}
+\begin{document}
+
+% Title: no rebuilding formula here.
+\begin{frame}[plain]
+\vspace{5mm}
+{\color{Accent}\small\bfseries PART 1\par}
+\vspace{5mm}
+{\usebeamerfont{title}\inserttitle\par}
+\vspace{7mm}
+
+\vspace{12mm}
+{\insertauthor\quad\textcolor{Muted}{\insertinstitute}\par}
+\note{This part establishes the precise limit of frequency replacement while keeping the off-diagonal factors fixed. Target-specific compatibility and estimation methods are the subjects of the later parts.}
+\end{frame}
+
+% Content slide 1: definitions in the requested order.
+\begin{frame}{Substitution models and notation}
+\textbf{Generator $Q$.}\quad $q_{ij}$ is the instantaneous substitution rate
+from state $i$ to state $j$, with $n=20$ amino acids:
+\[
+ q_{ij}\ge0\quad(i\ne j),\qquad
+ q_{ii}=-\sum_{j\ne i}q_{ij}\quad\text{(zero row sums)}.
+\]
+\textbf{Stationary composition $\pi$.}\quad A positive probability row vector:
+\[
+ \pi_i>0,\qquad \sum_i\pi_i=1,\qquad \pi Q=0.
+\]
+\textbf{Exchangeabilities $R_{ij}$.}\quad In a reversible model,
+\[
+ R_{ij}=\frac{q_{ij}}{\pi_j},\qquad q_{ij}=R_{ij}\pi_j\quad(i\ne j).
+\]
+\textbf{Reversibility.}\quad Detailed balance holds for every pair:
+\[
+ \pi_iq_{ij}=\pi_jq_{ji}
+ \quad\Longleftrightarrow\quad R_{ij}=R_{ji}.
+\]
+\note{Nonnegative off-diagonal rates and zero row sums define a valid continuous-time Markov generator. The equation pi Q=0 additionally makes the specified pi stationary; it is not part of generator validity itself. We use positive composition vectors throughout. R denotes symmetric exchangeabilities in the reversible model. Q itself need not be symmetric. For fitted matrices later, we assume strictly positive off-diagonal rates, ensuring a unique positive stationary distribution. Zero rates are allowed in the factor-level theorem.}
+\end{frame}
+
+% Content slide 2: rebuilding, detailed balance, and explicit stationarity.
+\begin{frame}{Why reversible frequency replacement works}
+\textbf{Frequency replacement.}\quad Keep symmetric $R$ fixed, choose any
+positive probability vector $\pi$, and rebuild
+\[
+ q_{ij}(\pi)=R_{ij}\pi_j\quad(i\ne j),\qquad
+ q_{ii}(\pi)=-\sum_{j\ne i}R_{ij}\pi_j.
+\]
+Detailed balance holds pair by pair:
+\[
+ \pi_iq_{ij}=\pi_iR_{ij}\pi_j
+ =\pi_jR_{ji}\pi_i=\pi_jq_{ji}.
+\]
+Sum over $i$ and use the zero sum of row $j$:
+\[
+ (\pi Q)_j=\sum_i\pi_iq_{ij}
+ =\sum_i\pi_jq_{ji}
+ =\pi_j\underbrace{\sum_iq_{ji}}_{=\,0}=0.
+\]
+\alert{Thus $\pi Q(\pi)=0$ for every positive frequency vector $\pi$.}
+\note{The pairwise detailed-balance equation is automatic for i=j, so the sum can include the diagonal. In the final sum q_ji varies over column index i of row j. The argument applies to each choice of pi, while keeping the same R. With positive R off the diagonal, the rebuilt generator has pi as its unique equilibrium. A subsequent positive rate normalization preserves this conclusion.}
+\end{frame}
+
+% Content slide 3: retain the preferred held-fixed / varied table.
+\begin{frame}{Why frequency replacement matters to us}
+Symmetric exchangeabilities can be reused across different compositions.
+
+\vspace{4mm}
+\begin{center}
+\small\renewcommand{\arraystretch}{1.55}
+\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{0.25\textwidth}>{\raggedright\arraybackslash}p{0.20\textwidth}>{\raggedright\arraybackslash}p{0.28\textwidth}>{\raggedright\arraybackslash}X@{}}
+\toprule
+\textbf{Application} & \textbf{Held fixed} & \textbf{Varied} & \textbf{Reference}\\
+\midrule
+Profile mixture models & Shared $R$ & Class profiles $\pi^{(1)},\ldots,\pi^{(K)}$ & ---\\
+Branch-group compositions & $R$ across the tree & Composition $\pi^{(g)}$ for each group & McShea et al.\ 2024\\
+Composition correction & Fitted $R$ & $\pi_{\mathrm{clean}}$ replaced by $\pi_{\mathrm{real}}$ & Wheeler et al.\ 2026\\
+\bottomrule
+\end{tabularx}
+\end{center}
+\vspace{3mm}
+\alert{Each rebuilt generator has the assigned composition as an equilibrium.}
+\note{These rows describe the reversible workflows motivating the project, as supplied by the presenter. The mixture row refers to mixtures that share symmetric exchangeabilities, not to every mixture model. The branch-group row concerns each generator's equilibrium; an evolving distribution on a branch need not already equal that equilibrium. Composition correction is algebraically valid under this rule; the scientific interpretation of the target is a separate question. References use the author-year labels supplied by Peter Goodman.}
+\end{frame}
+
+% Content slide 4: question, general factors, and theorem on one frame.
+\begin{frame}{Does this work beyond reversibility?}
+For a positive fitted generator $Q_0$ with equilibrium $\pi_0$, define
+\[
+ A_{ij}=\frac{(Q_0)_{ij}}{\pi_{0,j}}\quad(i\ne j).
+\]
+Keep $A$ fixed, substitute $\pi$, and rebuild $q_{ij}(\pi)=A_{ij}\pi_j$
+with diagonal entries set by zero row sums.
+
+\vspace{1mm}
+\textbf{Theorem.}\hspace{2mm}For fixed off-diagonal factors $A_{ij}\ge0$,
+\[
+ \boxed{\pi Q_A(\pi)=0\ \text{for every positive probability vector }\pi
+ \quad\Longleftrightarrow\quad A=A^{\mathsf T}.}
+\]
+Here $A_{ii}=0$ by convention. Symmetry is sufficient for unrestricted
+equilibrium swaps with fixed off-diagonal factors.
+
+\alert{Is symmetry necessary for the same unrestricted swap?}
+\note{A is a general factor and need not be symmetric. R remains reserved for symmetric exchangeabilities. Positive fitted generator means strictly positive off-diagonal rates. The factor-level theorem is slightly more general and permits zeros. The zero diagonal of A is a bookkeeping convention; the diagonal of Q is always rebuilt by its row sums, never copied from A. This is the only rebuilding rule considered in this theorem.}
+\end{frame}
+
+% Content slide 5: end exactly at the boxed stationarity equation.
+\begin{frame}{Stationarity exposes pairwise asymmetry}
+At state $j$, substitute the rebuilding rule into inflow minus outflow:
+\begin{align*}
+ (\pi Q_A(\pi))_j
+ &=\underbrace{\sum_{i\ne j}\pi_iq_{ij}}_{\text{inflow to }j}
+   -\underbrace{\pi_j\sum_{i\ne j}q_{ji}}_{\text{outflow from }j}\\[2mm]
+ &=\sum_{i\ne j}\pi_iA_{ij}\pi_j
+   -\pi_j\sum_{i\ne j}A_{ji}\pi_i\\[2mm]
+ &=\pi_j\sum_{i\ne j}\pi_i(A_{ij}-A_{ji}).
+\end{align*}
+Since $\pi_j>0$, stationarity at $j$ is equivalent to
+\[
+ \boxed{\sum_{i\ne j}\pi_i(A_{ij}-A_{ji})=0.}
+\]
+\note{All q entries here belong to Q_A(pi). Each difference A_ij-A_ji measures asymmetry in the fixed factors. For a particular composition, weighted asymmetries can cancel. The proof asks what happens if cancellation must hold for every positive composition. The division by pi_j will matter on the next slide.}
+\end{frame}
+
+% Content slide 6: full necessity argument and explicit matrix conclusion.
+\begin{frame}{A frequency transfer forces symmetry}
+Assume stationarity for \emph{every} positive $\pi$. Pick any $i\ne j$
+and transfer $0<t<\pi_j$ from $j$ to $i$:
+\[
+ \pi'_i=\pi_i+t,\qquad \pi'_j=\pi_j-t,\qquad
+ \pi'_k=\pi_k\quad(k\ne i,j).
+\]
+Both compositions remain positive and sum to one. At state $j$,
+\[
+ \sum_{k\ne j}\pi_k(A_{kj}-A_{jk})=0,
+ \qquad
+ \sum_{k\ne j}\pi'_k(A_{kj}-A_{jk})=0.
+\]
+We divided out $\pi_j$ for each composition. Only the $k=i$ term changes.
+Subtracting gives
+\[
+ \boxed{t(A_{ij}-A_{ji})=0\quad\Longrightarrow\quad A_{ij}=A_{ji}.}
+\]
+\alert{The pair was arbitrary, so $A=A^{\mathsf T}$.}\hfill$\square$
+\note{The two stationarity equations refer to different rebuilt generators but identical numerical A. Changing pi_j does not add a second changed term after division: j is excluded from the sum. The transfer stays inside the positive simplex because t is strictly between zero and pi_j. This is an exact finite perturbation argument, not a first-order approximation. Since diagonal entries equal their own transposes and every off-diagonal pair is equal, A is symmetric.}
+\end{frame}
+
+% Content slide 7: fitted matrix first, equivalence next, theorem last.
+\begin{frame}{Exactly the reversible starting generators}
+For the fitted matrix, $A_{ij}=(Q_0)_{ij}/\pi_{0,j}$ gives
+\[
+ A_{ij}=A_{ji}
+ \quad\Longleftrightarrow\quad
+ \frac{(Q_0)_{ij}}{\pi_{0,j}}=\frac{(Q_0)_{ji}}{\pi_{0,i}}
+ \quad\Longleftrightarrow\quad
+ \pi_{0,i}(Q_0)_{ij}=\pi_{0,j}(Q_0)_{ji}.
+\]
+The last equality is detailed balance for $Q_0$. The following are equivalent:
+
+\vspace{2mm}
+\[
+ \begin{aligned}
+ &\pi Q_A(\pi)=0\ \text{for every positive probability vector }\pi\\[1mm]
+ \Longleftrightarrow\quad & A=A^{\mathsf T}\\[1mm]
+ \Longleftrightarrow\quad & Q_A(\pi)\ \text{satisfies detailed balance for every such }\pi
+ \end{aligned}
+\]
+\vspace{1mm}
+\textbf{Conclusion.}\quad With its off-diagonal factors held fixed, a positive
+$Q$ permits arbitrary frequency replacement \alert{\textbf{if and only if it is reversible}}.
+
+\vfill
+{\small\textcolor{Muted}{Rate normalization leaves stationarity unchanged:}
+\quad $\pi(cQ)=c(\pi Q)$ for $c>0$.}
+\note{The first displayed equivalence holds pair by pair. All pairs satisfying it is precisely detailed balance for Q_0. The chain combines both directions of the proof: universal stationarity forces symmetry, and symmetry gives detailed balance and therefore stationarity at every target. No genuinely nonreversible starting matrix has this unrestricted property. Particular frequency replacements can still succeed; characterizing those targets belongs to Part 2. Positive scalar normalization, including a scalar chosen separately at each target, cannot change whether a residual is zero.}
+\end{frame}
+
+% Optional appendix. Keep separate from the main Part 1 narrative.
+\appendix
+\setbeamertemplate{footline}{%
+  \hspace{9mm}{\color{Muted}\scriptsize Frequency replacement\hfill Backup A}\hspace{9mm}\vspace{3mm}}
+\begin{frame}[noframenumbering]{Backup: what the 19 constraints establish}
+For 20 states with positive off-diagonal factors:
+\begin{center}
+\renewcommand{\arraystretch}{1.22}
+\begin{tabular}{@{}l@{\hspace{6mm}}r@{\hspace{6mm}}r@{}}
+\toprule
+\textbf{Allowed fixed factors} & \textbf{Raw} & \textbf{Scale removed}\\
+\midrule
+Unrestricted & 380 & 379\\
+Stationary at one specified $\pi_0$ & 361 & 360\\
+Stationary at every positive $\pi$ & 190 & 189\\
+\bottomrule
+\end{tabular}
+\end{center}
+At one $\pi_0$, stationarity imposes \textbf{19 independent equations}.\\
+For every $\pi$, symmetry imposes \textbf{190 independent pair equalities}.
+\[
+ \underbrace{360-189=171}_{\text{dimensions still present after fixing one equilibrium}}.
+\]
+\alert{Stationarity at one composition does not establish universal compatibility.}
+\note{The residuals sum to zero, so there are at most 19 independent stationarity constraints. Varying A_{20,j}, j=1,...,19, adds pi_{0,20} pi_{0,j} to residual j and subtracts the same amount from residual 20. These 19 residual directions are independent, giving rank 19 and raw dimension 380-19=361. Symmetry instead imposes 190 independent pair equalities and leaves 190 raw dimensions. Positive symmetric factors exist in both sets, so positivity does not reduce these dimensions. A mean-rate normalization at a reference composition fixes the common scale and removes one dimension. These are structural counts: the entire normalized reversible family also allows 19 composition coordinates and has dimension 208.}
+\end{frame}
+\end{document}
