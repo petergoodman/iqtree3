@@ -1,14 +1,10 @@
 # Plan: π-constrained non-reversible amino-acid models
 
-> **Status, 2026-10-07: S0 complete and its records closed out; code plan approved by Peter on 2026-09-23 and amended by
-> decisions 015 to 018 on 2026-10-03, 019 to 023 on 2026-10-04, 024 to 027 on 2026-10-05, and
-> 028 and 029 on 2026-10-07;
-> approach accepted by the IQ-TREE maintainers (reported by Peter, 2026-10-01); no source code
-> changed yet.** Peter owns
-> this document. Its companion, `docs/agent/CODE_PLAN.md`, holds the file-level change map, the
-> NQC class specification and the test specification; it is subordinate to this document and is
-> never read without reading this one first. Decisions are recorded only in
-> `docs/agent/DECISIONS.md` and are cited here by number.
+> **Status, 2026-10-07: S0 complete; no IQ-TREE source changed yet; approach accepted by the
+> IQ-TREE maintainers (reported by Peter, 2026-10-01).** Peter owns this document. Its
+> companion, `docs/agent/CODE_PLAN.md`, holds the file-level change map, the NQC class
+> specification and the test specification, and is read after this file. Decisions are
+> recorded only in `docs/agent/DECISIONS.md` and are cited here by number.
 
 ## What this document is for
 
@@ -23,25 +19,6 @@ appended to. It answers four questions for any agent picking up work:
 It is read at the start of every task, and most tasks need nothing else from the planning
 documents. A task that implements or tests a slice also reads `CODE_PLAN.md`, after this file.
 Keep this file current and short enough to read in full, and put history in `CHANGELOG.md`.
-
-## How it relates to the other documents
-
-| Document | Lifecycle | Read when |
-|---|---|---|
-| `docs/agent/PLAN.md` (this file) | overwritten | start of every task |
-| `docs/agent/CODE_PLAN.md` | overwritten together with this file | only after this file, when implementing or testing a slice |
-| `docs/agent/design/` | fixed copies; a revision is a new file | before planning, or before changing the method |
-| `docs/agent/DECISIONS.md` | append only, never edited | before changing a settled choice |
-| `docs/agent/ARCHITECTURE.md` | corrected in place as findings land | before writing code |
-| `docs/agent/AA_MODEL_INFERENCE.md` | corrected in place | when the method of an existing model matters |
-| `docs/agent/FILE_INDEX.md` | corrected in place | when locating code |
-| `CHANGELOG.md` | append only | to resume, or to check whether something was already tried |
-
-Plans live in this file and in `CODE_PLAN.md`; decisions live only in `DECISIONS.md`
-(programming decisions as numbered entries, the design's mathematical decisions as D01 to D10).
-Neither planning document restates a decision's options or reasoning. `ARCHITECTURE.md`,
-`AA_MODEL_INFERENCE.md`, and `FILE_INDEX.md` describe IQ-TREE's code as it currently is and
-prescribe nothing.
 
 Labels: (verified) means read in source at `63c330d9`, which the branch matches in every IQ-TREE
 source file (checked at `9783ac6a` on 2026-10-07), or run on 2026-09-23; (reported) means taken from a document; (proposed) means a
@@ -241,42 +218,15 @@ block in `main/phyloanalysis.cpp`. Deferred: `main/phylotesting.cpp` (S6).
 
 ### Decisions the code plan rests on
 
-Programming decisions in `DECISIONS.md`: 002 model class, name and registration; 003
-authoritative coordinates and lossless checkpoint; 005 derivative-step delegation; 006 target
-input; 007 domain and step settings; 008 unsupported combinations; 009 surfacing failed line
-searches; 010 export format; 011 reference destinations; 012 C++ test framework; 013 oracle
-location and environment; 014 line endings; 015 Q built in the class's decomposition, which
-calls the unchanged base (superseding 004); 016 root policy for S0 to S4; 017 the oracle's port
-of IQ-TREE's optimizer; 018 the regression rule for run 11 and the added run 12; 019 the
-design-script rerun and its matching rule; 020 the rerun accepted as the reproduced record; 021
-the oracle's test thresholds; 022 the sanitizer build type; 023 the S1 to S4 test target; 024
-the Level 1 flags; 025 the GTR20 incumbent and the nesting tolerance; 026 the compiled code's pass
-lines; 027 the default domain and the start policy; 028 the log-ratio chart only, revising D01's
-retained alternative and D04; 029 a fall below the start reported, not restored (superseding two
-parts of 009).
-Mathematical decisions: D01 to D10.
+Every programming decision and the mathematical decisions D01 to D10 are in
+`docs/agent/DECISIONS.md`, listed in the index at its top.
 
 ### Test strategy
 
-Six layers, specified in `CODE_PLAN.md` section 3: (1) a Python oracle in
-`test_scripts/fixedeq/`, derived from the unedited `docs/agent/design/scripts/` and P-log
-Appendix B, whose own tests reproduce the design documents' numbers; (2) C++ unit tests of the
-pure module against oracle fixtures; (3) a differential test of IQ-TREE's likelihood at a fixed Q
-on a fixed rooted tree against the oracle, validated first against the unmodified binary; (4) a
-regression baseline of NONREV, `NONREV+F{...}`, NQ.pfam, GTR20, UNREST, a Lie-Markov model and
-`--model-joint NONREV` under `-p` and `-S` (list in `CODE_PLAN.md` section 3.4), recorded twice
-from the unmodified build before the first source edit, which must reproduce exactly at `-T 1`,
-with any other run held to the spread seen between the two repeats; (5) invariant and nesting
-checks (GTR20-seeded non-decrease, target immutability, parameter counts, thread count and
-partition order, export and re-import); (6) sanitizer builds with AddressSanitizer and
-UndefinedBehaviorSanitizer (the `Mem` build type, decision 022), run first on the unmodified tree
-so that existing findings are known.
-
-GitHub Actions runs upstream's workflow on every push to any branch (verified,
-`.github/workflows/ci.yaml`). It supplies cross-platform compile checks (clang 22 and gcc on
-Linux, Apple clang, clang cross-compiling for MinGW) and upstream's turtle regression, but never
-runs NQC, and its compilers differ from the local build, so no bitwise comparison happens there.
-The fork-only workflow added in S1 runs the unit tests and the oracle's tests.
+Six layers, specified in `CODE_PLAN.md` section 3: the Python oracle, C++ unit tests, the
+differential likelihood test, the regression baseline, invariant and nesting checks, and
+sanitizer builds. Upstream's GitHub workflow gives portability checks only and never runs NQC;
+the fork workflow added in S1 runs the unit tests and the oracle's tests.
 
 ### Implementation slices
 
@@ -301,104 +251,38 @@ competing implementations, G5 native and outer workflow, G6 scientific validatio
 | # | Item | Resolved by |
 |---|---|---|
 | 1 | Final public model and option names | Peter, with the maintainers |
-| 2 | A `+` or `*` inside a number, for example `1e+00`, splits a `+F{...}` model string (verified by reading, `model/modelfactory.cpp:259, 296`) | Resolved 2026-10-05 by S0 probe (b): the run stops with "Close bracket not found in +F{...", under `-m` and `--model-joint`; the `+F<name>` route through `--mdef` delivers the same vector (probe (a)) and is unaffected; documented in `ARCHITECTURE.md` section 6 |
-| 3 | Whether existing flags give a fully fixed-nuisance Level 1 fit | Resolved 2026-10-05: decision 024, from S0 probe (c) |
-| 4 | An output carrying 10 or more significant digits of the log-likelihood for the differential test; first candidate `--show-lh` (verified, `utils/tools.cpp:3428-3437`), then `-wsl`, then a debug print from the class | Resolved 2026-10-05 by S0 probe (d): `--show-lh` prints the initial log-likelihood with 17 decimals (`model/modelfactory.cpp:1592-1596`) |
 | 5 | Cost: 361 likelihood evaluations per one-sided gradient; realistic training runs may take hours | S3 profiling; analytic gradients stay deferred |
-| 6 | AddressSanitizer with link-time optimization and libomp inside the 6 GB WSL VM | Resolved 2026-10-05: decision 022's first settings built, with no fallback. The build runs about 20 times slower than Release (measured on baseline runs 2 and 4), so sanitizer runs use short, chosen sets |
 | 7 | Active `ASSERT`s abort a linked round that lowers the log-likelihood by more than 0.1 (verified, `model/partitionmodel.cpp:938`, `model/partitionmodelplen.cpp:135`) | Accepted 2026-10-07 by decision 029: NQC meets these `ASSERT`s as NONREV does, with no restore; S2 and S3 tests record whether any fit reaches them |
 | 8 | The default coordinate domain may not contain LG rebuilt at a skewed π* | No construction check (decision 027): coordinates outside the domain are clamped at the first line search, as for every IQ-TREE model, and bound activity is reported after the fit (decision 009); the domain option (decision 007) widens the domain. At decision 023's target the LG seed lies inside, 3.51 above the lower bound and 2.32 below the upper (G0 manifest) |
 | 9 | Real training data: a small real set for S5, and the full set with a written confirmatory plan for S7 | Peter |
-| 10 | The design scripts were rerun on 2026-10-04 under decision 019: 109 of the 133 documented values reproduced and 24 did not (listed in `CHANGELOG.md`): 14 finite-difference errors, 9 optimizer end points or path counts, and 1 bound. `e6_n20_big.py` cannot run | Resolved 2026-10-04: decision 020, the rerun is the reproduced record and the 24 stay reported, never test targets |
 | 11 | Scientific success criterion and manuscript details (placeholder above) | Peter |
 | 12 | A continuity source the chart does not remove: `computeTransMatrixNonrev` switches from the eigen path to scaling-and-squaring when P's row sums deviate by more than 1e-4 (verified, `model/modelmarkov.cpp:489-500`), and the decomposition sets `nondiagonalizable` on a singular eigenvector matrix (verified, `model/modelmarkov.cpp:1330-1336`); shared with `NONREV`, frequency unmeasured | count "INFO: Switch to scaling-squaring" lines (printed under `-v`) in S2 and S3 fits |
-| 13 | Resolved 2026-10-03: whether decision 004's `ModelMarkov` edit was still needed | decision 015, which supersedes 004; `ModelMarkov` is no longer edited |
-| 14 | S5's recording-only edit to `dfpmin` and `lnsrch` (decision 009) touches the optimizer the maintainers advised leaving unchanged, and cannot be made by override (private, non-virtual, verified `utils/optimization.h:229-232`) | Resolved 2026-10-07: decision 029 drops the edit |
-| 15 | Resolved 2026-10-03 for S0 to S4: the root policy, on which a non-reversible likelihood depends | decision 016; the policy for scientific runs at G5 |
-| 16 | How precisely a fitted `GTR20+F{π*}` incumbent reaches an NQC run: the report prints the matrix at 6 decimal places (`main/phyloanalysis.cpp:633`, in the fixed mode set at 1528-1529), decision 010 exports only NQC, and checkpoints hold 10 significant digits | Resolved 2026-10-05: decision 025, from S0 probe (g) |
-| 17 | Thresholds marked provisional (1e-10 residuals, 1e-12 relative Q entries, the 1e-6 target sum) must be final, or declared reported rather than asserted, before their tests are written, because a threshold is not relaxed after a failure | Resolved 2026-10-05: decision 021 sets the oracle's pass lines and decision 026 the compiled code's |
 | 18 | No fallback is recorded if S3 profiling shows training runs impractical while analytic gradients are out of scope | Peter, after S3 profiling |
 | 19 | Baseline run 11 (`--model-joint NONREV` under `-p` at `-T 4`) does not reproduce: five repeats of the unmodified binary ended at log-likelihoods from -4975.0215 to -4974.5963, none equal to the `-T 1` run's -4974.5432, with the same topology and 442 of the model section's 447 numbers varying (largest spread 0.046). Its tree drawing varies too, so the spread rule of `CODE_PLAN.md` section 3.4 cannot judge it, and S3's `-T 1` against `-T 4` test meets the same behaviour in legacy code | Partly resolved 2026-10-03: run 11's rule and the added run 12 are decision 018, implemented in the driver on 2026-10-04. Run 12 (run 10 at `-T 4`) gave identical reports in five repeats, identical to run 10's at `-T 1` in every compared item, so at the report's printed precision the variation arises in the joint fit, not in a fixed evaluation. The S3 thread test's definition: Peter, before S3 |
 | 20 | Upstream finding, sanitizer run of 2026-10-05: `ModelMarkov`'s constructor calls `setReversible` (`model/modelmarkov.cpp:72`), which reads `is_reversible` before anything sets it (line 76; UndefinedBehaviorSanitizer "load of value 190, which is not a valid value for type 'bool'"). It appears once in every run, so the sanitizer runs of S1 to S4 will show it too; its effect on results was not investigated | Known before any edit; a question for the maintainers if Peter wishes to relay it |
 | 21 | Upstream observation, S0 probe (g): after a tree search, the checkpoint keeps the model from before the final model optimization (`main/phyloanalysis.cpp:3895-3899` saves the search state, not the model), and a restart from it prints "Final model parameters restored". The restart itself was not tested. S2 to S4 fits run under `-te`, where no final optimization runs, and decision 025 carries the incumbent from a fixed-tree fit | Avoided by decision 025; a question for the maintainers if Peter wishes to relay it |
 | 22 | Decision 025's nesting start, the fitted `GTR20+F{π*}` of probe (g) on `aa_example`, has 146 of its 360 coordinates outside the default domain (-15.94 to 11.65; `test_scripts/fixedeq/explore/thresholds.py`, 2026-10-05), because 87 of its 190 exchangeabilities sit at GTR20's own floor. Under decision 027 the start is evaluated exactly, so NQC's first log-likelihood still equals GTR20's, but the first line search clamps those coordinates, the fit then searches inside the domain only, and since decision 029 restores nothing, the final score can fall below the start | Peter, before S3: the nesting test in the default domain, in a domain widened by the domain option, or on data large enough for GTR20 to be well determined |
 
+Resolved risks 2, 3, 4, 6, 10 and 13 to 17 were removed on 2026-10-07. Their resolutions are in
+`DECISIONS.md` and `CHANGELOG.md`.
+
 ## Current state
 
-The design is settled (D01 to D10) and programming decisions 001 to 029 are recorded, 015
-superseding 004; 016 sets the root policy for S0 to S4, 017 the oracle's optimizer port, 018 the
-regression rule for run 11 and the added run 12, 019 the design-script rerun's matching rule, 020
-the acceptance of that rerun, 021 the oracle's test thresholds, 022 the sanitizer build type,
-023 the S1 to S4 test target, 024 the Level 1 flags, 025 the GTR20 incumbent, 026 the compiled
-code's pass lines, 027 the default domain and the start policy (superseding one sentence of
-007 and revising D03's start clause), 028 the log-ratio chart only (revising D01's retained
-alternative and D04), and 029 a fall below the start reported, not restored (superseding two
-parts of 009).
-The planning documents are committed on the branch. The IQ-TREE maintainers accepted the log-ratio jump-chain approach and stressed
-that BFGS needs a continuous objective (reported by Peter, 2026-10-01; the mapping of their notes
-to the code is in `CHANGELOG.md`). The unmodified branch builds in WSL2 and passes the smoke tests recorded in
-`CHANGELOG.md`. No source code has changed. The conda environment `iqtree3-fixedeq` exists in WSL,
-built from `test_scripts/fixedeq/environment.yml` with its lock in `environment.lock.txt`. The
-regression baseline is recorded (2026-10-03) from the frozen unmodified binary
-`~/iqtree3-baseline/iqtree3` by `test_scripts/fixedeq/regression/regress.py`, with its summary and
-provenance in `test_scripts/fixedeq/regression/baseline/`: runs 1 to 10 reproduce exactly between
-repeats, and run 11 does not and is judged by decision 018, which the driver implements
-(2026-10-04). Run 12 was recorded on 2026-10-04 from the same frozen binary into
-`baseline/run12/`: five identical repeats. The three design scripts were rerun on 2026-10-04 by
-`test_scripts/fixedeq/design_rerun.py` (decision 019): 109 of 133 documented values reproduced,
-and 24 did not. Peter accepted the rerun as the reproduced record (decision 020). Peter approved
-the oracle plan on 2026-10-04, in five pieces (listed in `CHANGELOG.md`), with its test pass lines
-recorded as decision 021. The oracle is complete in `test_scripts/fixedeq/oracle/`: the chart
-core, the optimizer port, the rooted likelihood and the frequency estimator port, with 147
-passing tests. It met S0's "oracle likelihood matches the unmodified binary": in 16
-fixed-parameter cases (NQ.pfam and a random non-reversible Q; with and without +G4 and +I;
-`aa_example.phy` and turtle partition 1), IQ-TREE's and the oracle's log-likelihoods agreed within
-9.8e-16 relative (run of 2026-10-05, `CHANGELOG.md`). Fixtures do not exist yet.
+S0 is complete (2026-10-05), and its records were closed out on 2026-10-07. No IQ-TREE source
+has changed. In place:
 
-S0 was completed on 2026-10-05; details and numbers are in `CHANGELOG.md`.
+- the conda environment `iqtree3-fixedeq`, built from `test_scripts/fixedeq/environment.yml`;
+- the Python oracle in `test_scripts/fixedeq/oracle/`, whose likelihood matches the unmodified
+  binary in 16 fixed-parameter cases, within 9.8e-16 relative;
+- the regression baseline, runs 1 to 12, from the frozen binary `~/iqtree3-baseline/iqtree3`,
+  with run 11 judged by decision 018;
+- the S0 runtime probes; the sanitizer run of the unmodified code, whose only finding is
+  risk 20; the frozen sanitizer binary `~/iqtree3-baseline-asan/iqtree3`;
+- the G0 manifest, a frozen record of S0.
 
-- **Runtime probes.** The probes ran from `test_scripts/fixedeq/probes/probes.py`, recorded from
-  the clean tree with the frozen binary. Probes (a) to (f) came out as their source predictions
-  said. Probe (g) differs on one comparison: the report's 6-decimal block, with the exact
-  target, carries a GTR20 fit as precisely as the checkpoint does. Probe (g) also found that a
-  fit with a tree search leaves a stale model checkpoint (risk 21).
-- **Decisions from the probes.** They led to decisions 024 (Level 1 flags) and 025 (the GTR20
-  incumbent and the nesting tolerance).
-- **Sanitizer.** The build of the unmodified code (decision 022) ran:
-  - baseline runs 2 and 4;
-  - the 16 differential cases;
-  - probe (a)'s five runs.
-
-  These are the set Peter chose, since the build runs about 20 times slower than Release. The
-  only finding is risk 20, and the differential cases still pass on that build.
-- **G0 run manifest.** Written by `test_scripts/fixedeq/manifest/manifest.py` into
-  `test_scripts/fixedeq/manifest/`.
-
-An audit of S0 on 2026-10-05 reran the oracle's tests, the 16 differential cases and all 12
-regression runs from the clean tree, and all passed; it found risk 20 harmless to NQC by reading
-(the indeterminate value is used only when `rates` is non-null, and the constructor nulls it
-first, `model/modelmarkov.cpp:47, 112`) and added risk 22. The unmodified sanitizer binary is
-frozen at `~/iqtree3-baseline-asan/` with its build record. Peter then set the compiled code's
-pass lines (decision 026) and the default domain and start policy (decision 027), from the
-measurements of `test_scripts/fixedeq/explore/thresholds.py`.
-
-On 2026-10-07 that script was rerun from the clean tree at `d75987f0`, and every number in
-decisions 026 and 027 and risk 22 reproduced. The output is kept in
-`~/iqtree3-runs/explore/20261007T221213Z/thresholds.txt`. The G0 manifest was regenerated at
-`83539476` to record:
-- decisions 026 and 027;
-- the incumbent's placement in the domain;
-- the frozen sanitizer binary.
-
-Peter's two slide decks are registered in `docs/agent/design/README.md`.
-
-On 2026-10-07, Peter and the agent checked the plan against his statement of the goal and against
-the two slide decks the maintainers accepted. The goal is nQMaker's inference with one substantive
-change, the optimizer's variables, plus starts rebuilt at π*. The core matched.
-- **Decision 028** removed the compiled positive-ratio and T3 alternatives.
-- **Decision 029** replaced restoring the start after a fall with reporting the fall, and dropped
-  the optimizer edit.
-- Rebuilt WAG and JTT guide candidates stay in S6.
+On 2026-10-07 the plan was checked against Peter's statement of the goal and his two slide
+decks, which led to decisions 028 and 029. Details and numbers for each step are in
+`CHANGELOG.md`.
 
 ## Next step
 

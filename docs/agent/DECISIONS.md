@@ -1,14 +1,56 @@
 # Decisions
 
-> **Status, 2026-10-07.** Programming decisions 001 to 029 are recorded; 002 to 014 were
-> approved by Peter with the code plan on 2026-09-23, 015 (which supersedes 004) to 018 on
-> 2026-10-03, 019 to 023 on 2026-10-04, 024 to 027 (027 superseding one sentence of 007) on
-> 2026-10-05, and 028 and 029 (029 superseding two parts of 009) on 2026-10-07. Ten mathematical
-> and methodological design
-> decisions, D01 to D10, are recorded from the design synthesis and are revisable (see that
-> section's preamble). The items under "Pending programming candidates" were discussed on
-> 2026-09-15; the first three are now resolved by the entries named in their notes. An agent must
-> not treat a pending item as a decision.
+> **Status.** Programming decisions are numbered entries from 001. The design's mathematical
+> and methodological decisions are D01 to D10, revisable under that section's preamble. The
+> index below lists every entry with its current status. An agent must not treat an item under
+> "Pending programming candidates" as a decision.
+
+## Index
+
+Programming decisions:
+
+- 001 Develop on the fork's `nq-constrained-pi` branch, for an eventual upstream pull request
+- 002 Implement NQC as a `ModelProtein` subclass dispatched from `createModel`
+- 003 Store the 360 coordinates as authoritative state and checkpoint them losslessly
+- 004 Move the numerical half of `decomposeRateMatrixNonrev` into a protected helper (superseded by 015)
+- 005 Reach the scaled derivative step through a `PartitionModel::derivativeFunk` override
+- 006 Take the target through the existing `+F` routes and validate it strictly in the model
+- 007 Hold domain and step settings as class defaults, with parse-only options (one sentence superseded by 027)
+- 008 Reject every model combination the first release does not support
+- 009 Surface failed line searches by post-fit checks first, and record status later (restore step and S5 recording superseded by 029)
+- 010 Export the fitted matrix at 17 digits in the `-m FILE` format, with a metadata file
+- 011 Recompute reference destinations deterministically in every model object
+- 012 Test the pure module with googletest in a standalone CMake project
+- 013 Keep the Python oracle in `test_scripts/fixedeq/`, in a conda environment in WSL
+- 014 Write drivers in Python and scope line-ending rules to the new directories
+- 015 Build Q in the class's decomposition override and call the unchanged base decomposition
+- 016 Root the tree by IQ-TREE's conversion and do not search the root in S0 to S4
+- 017 Port IQ-TREE's optimizer into the oracle from the C++ source
+- 018 Judge baseline run 11 by its fixed parts, and add run 12, run 10 at four threads
+- 019 Rerun the design scripts with a kept driver and match documented values in four classes
+- 020 Accept the design-script rerun as the reproduced record and keep its 24 misses as reported
+- 021 Fix the oracle's test thresholds before its tests are written
+- 022 Build the sanitizer binary with IQ-TREE's `Mem` build type
+- 023 Use the turtle pooled composition as the S1 to S4 test target
+- 024 Run Level 1 for the edge-proportional arrangement under `-q` with the partition rates fixed
+- 025 Carry the GTR20 incumbent from a fixed-tree fit's checkpoint, and test nesting against its re-evaluation
+- 026 Set the compiled code's pass lines before S1's tests are written (positive-ratio line unused under 028)
+- 027 Keep the benchmark box as the default and check no start against it
+- 028 Build only the log-ratio chart, with no compiled positive-ratio or T3 alternative
+- 029 Report a fall below the start and restore nothing
+
+Mathematical and methodological decisions:
+
+- D01 Parameterize the family by jump-chain log-ratios first (retained positive-ratio alternative dropped by 028)
+- D02 Use scale-aware finite differences from the first fitted log-coordinate implementation
+- D03 Declare numerical domains explicitly and report their effect (start clause revised by 027)
+- D04 Implement T3 balancing as a second compiled backend (dropped by 028)
+- D05 Build the first seed and the guide candidates at the target
+- D06 Change only the map from coordinates to generator, and protect its invariant
+- D07 Take one explicit, immutable target and never floor it silently
+- D08 Plan reversible, unrestricted and transport comparison arms
+- D09 Adopt the corrected mathematical qualifications
+- D10 Keep direct balanced flux as an independent reference and defer EM
 
 ## What this document is for
 
@@ -19,6 +61,10 @@ mathematical and methodological decisions from the design stage that the code is
 The two kinds are kept apart because they change for different reasons: a programming decision
 changes when the code or the codebase demands it, a mathematical decision changes when the
 evidence about the model or the optimizer does.
+
+An entry is written only for a choice Peter made between real alternatives, or one that would
+be costly to reverse. Smaller choices, and the measurements behind them, go in the commit
+message. Each new entry adds one line to the index.
 
 It is **append only**. Entries are never edited or deleted. A decision that turns out to be wrong
 is superseded by a new entry that references the old one by its number or ID.

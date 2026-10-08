@@ -4,7 +4,9 @@ Record of substantive contributions by AI tools to this repository, kept so that
 Acknowledgements section of any resulting manuscript, and its cover letter, can state them
 accurately. Newest first.
 
-Entries record the tool and model version, what it did, and which files or sections it touched.
+One entry per milestone (a finished slice, or a manuscript draft), summarized from git history,
+in which commits made with an AI agent carry a `Co-Authored-By: Claude` line. Entries record the
+tool and model version, what it did, and which files or sections it touched.
 No AI-generated scientific claim, numerical result, or citation in this project has been accepted
 without human verification against source.
 

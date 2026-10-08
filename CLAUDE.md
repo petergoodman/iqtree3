@@ -10,28 +10,29 @@ project-specific notes go in `CLAUDE.local.md` (add it to `.gitignore` first).
 
 ## Read these before starting
 
-1. `docs/agent/PLAN.md`, goal, scope, code plan summary, current state, next step. Read every
-   task.
-2. `docs/agent/CODE_PLAN.md`, the file-level change map, the NQC class specification and the
-   test specification. Read only after `PLAN.md`, and only when implementing or testing a slice;
-   never read it on its own.
-3. `docs/agent/DECISIONS.md`, settled choices not to be re-litigated: programming decisions as
-   numbered entries, and the design's mathematical decisions D01 to D10, which are revisable
-   under their own change rule. Read before changing an approach.
-4. `docs/agent/design/`, the mathematical and methodological design (start with its
-   `README.md`; the unified synthesis governs conflicts). Read before planning or changing the
-   method.
-5. `docs/agent/ARCHITECTURE.md`, IQ-TREE's current programming architecture around substitution
-   models. Read before writing code. Start at its "Baseline and staleness" section.
-6. `docs/agent/AA_MODEL_INFERENCE.md`, the mathematics and algorithms of how IQ-TREE currently
-   infers each class of amino-acid model. Read when the behaviour of an existing model matters.
-7. `docs/agent/FILE_INDEX.md`, tiered index of which file to open and when. Use instead of
-   grepping the tree.
-8. `CHANGELOG.md`, history including approaches that failed. The top entry is the current state.
-9. `AI_DISCLOSURE.md`, appended to whenever an AI contribution here is substantive.
+Every session:
 
-Items 5 to 7 describe the code as it is and prescribe nothing. Instructions about what to build
-come only from `PLAN.md` with its companion `CODE_PLAN.md`, `DECISIONS.md`, and the design
+1. `docs/agent/PLAN.md`: goal, scope, constraints, open risks, current state, next step.
+2. The top entry of `CHANGELOG.md`: where the last session stopped.
+
+Only when the task needs them:
+
+3. `docs/agent/CODE_PLAN.md`, after `PLAN.md`, when implementing or testing a slice: that
+   slice's sections.
+4. `docs/agent/DECISIONS.md`, through the index at its top: the entries a task cites, and any
+   entry before changing an approach.
+5. The slide decks in `docs/agent/design/presentation/`, the maintainer-approved statement of
+   the method, before planning or changing the method. The longer design documents in
+   `docs/agent/design/` (start with its `README.md`; the synthesis governs conflicts among them)
+   only when the decks do not settle the question.
+6. `docs/agent/ARCHITECTURE.md`, `docs/agent/AA_MODEL_INFERENCE.md` and
+   `docs/agent/FILE_INDEX.md`: the relevant section, before touching IQ-TREE code not yet read in
+   the session.
+
+Not read at the start: `AI_DISCLOSURE.md` and older `CHANGELOG.md` entries.
+
+The documents in item 6 describe the code as it is and prescribe nothing. Instructions about
+what to build come only from `PLAN.md` with `CODE_PLAN.md`, `DECISIONS.md`, and the design
 documents.
 
 `model/CLAUDE.md` loads automatically for work under `model/`, where most of this project lives.
@@ -96,8 +97,11 @@ cmake --build ~/iqtree3-build -j 4
   `compare --baseline baseline/baseline.json --baseline baseline/run12/baseline.json`. Run 11 is
   judged by the decision 018 rule built into `compare`. Pass `--git git.exe`: Linux git inside WSL
   sees hundreds of false changes in this Windows working copy (line endings), while Windows
-  `git.exe` reports the true state. `run` refuses an unclean working tree, untracked files
-  included, so do not create or edit repository files while it runs.
+  `git.exe` reports the true state. `run`, `probes.py`, `differential.py` and `sanitize.py run`
+  refuse an unclean working tree, untracked files included, unless given `--allow-dirty`. Use
+  `--allow-dirty` for checks during development. Commit first only for a gate run whose result is
+  recorded (the end-of-slice regression comparison), and do not create or edit repository files
+  while it runs.
 - **Sanitizer build** (decision 022):
   - `test_scripts/fixedeq/sanitizer/sanitize.py build --build-dir ~/iqtree3-build-asan --git
     git.exe` builds it, in about 30 minutes of compute.
@@ -112,7 +116,8 @@ cmake --build ~/iqtree3-build -j 4
 - **Probe driver**: `test_scripts/fixedeq/probes/probes.py --binary BIN --out DIR --git git.exe
   [--only a,b,...]` reruns the S0 runtime probes, in about 45 minutes of compute.
   `test_scripts/fixedeq/manifest/manifest.py --out test_scripts/fixedeq/manifest --git git.exe`
-  regenerates the G0 manifest.
+  regenerates the G0 manifest. The manifest is the frozen record of S0: later decisions
+  supersede it, and it is not regenerated when they change.
 - **Long jobs need the laptop awake.** Windows Modern Standby pauses the WSL VM and every job in
   it; idle sleep is set to 3 minutes on battery and 15 minutes plugged in. A job that looks hung
   is usually paused. Compare IQ-TREE's CPU time with its wall-clock time, the VM's `uptime`, and

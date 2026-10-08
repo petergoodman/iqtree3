@@ -1,11 +1,26 @@
 # Changelog
 
 Session history for the π-constrained non-reversible amino-acid model project, newest first.
-Each entry records what was done, what failed and why, and what is next. The next session starts
-from the top entry.
+Each entry is about ten lines: what was done, what failed and why, and what is next, with detail
+left to commit messages and the planning documents. The next session starts from the top entry.
 
 This is a fork of `iqtree/iqtree3`. Entries here describe work on the fork, not upstream
 development.
+
+## 2026-10-07 (sixth session, closing): lighter process
+
+- **Done.** Applied the 16 changes Peter approved:
+  - the global `~/.claude/CLAUDE.md` (outside the repository): ten-line changelog entries, a
+    commit per finished piece of work, kept-script provenance for scientific numbers only, and
+    AI disclosure once per milestone;
+  - CLAUDE.md: a tiered reading list, `--allow-dirty` for development checks, and the G0
+    manifest frozen;
+  - PLAN.md: shortened from 411 to 295 lines (header, current state, recap lists, resolved risks
+    2, 3, 4, 6, 10 and 13 to 17);
+  - DECISIONS.md: an index and a bar for new entries;
+  - the CHANGELOG.md and AI_DISCLOSURE.md headers.
+- **Failed.** Nothing.
+- **Next.** Peter pushes when ready, then the agent plans S1 (log-ratio chart only).
 
 ## 2026-10-07 (sixth session, continued): goal alignment check, decisions 028 and 029
 
