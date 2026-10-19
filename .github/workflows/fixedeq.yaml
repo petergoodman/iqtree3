@@ -1,0 +1,75 @@
+# Fork-only checks for the fixed-equilibrium work (docs/agent/CODE_PLAN.md, section 3.7): the unit
+# tests of model/fixedeqchart.cpp in the Release and sanitizer variants, and the Python oracle's
+# tests. The repository guard keeps it from running anywhere else; this file is left out of the
+# upstream pull request.
+name: fixedeq
+
+on:
+  push:
+    branches: ["nq-constrained-pi"]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  unittests:
+    name: Unit tests (${{ matrix.variant }})
+    if: github.repository == 'petergoodman/iqtree3'
+    runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        variant: [release, asan-ubsan]
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install clang and Eigen
+        run: sudo apt-get update -q && sudo apt-get install -q -y clang libeigen3-dev
+
+      # the flags of test_scripts/fixedeq/unittests/unittests.py (decision 022 for the sanitizer)
+      - name: Configure
+        run: |
+          if [ "${{ matrix.variant }}" = release ]; then
+            cmake -S unittest -B build -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_BUILD_TYPE=Release
+          else
+            cmake -S unittest -B build -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_BUILD_TYPE= \
+              "-DCMAKE_CXX_FLAGS=-g -O1 -fsanitize=address,undefined -fno-omit-frame-pointer" \
+              "-DCMAKE_EXE_LINKER_FLAGS=-fsanitize=address,undefined"
+          fi
+
+      - name: Build
+        run: cmake --build build -j 2
+
+      # UndefinedBehaviorSanitizer reports without stopping, so its reports are failed on separately
+      - name: Test
+        env:
+          ASAN_OPTIONS: detect_leaks=0:allow_user_segv_handler=0
+          UBSAN_OPTIONS: print_stacktrace=1
+        run: |
+          build/fixedeqchart_tests 2>&1 | tee test.log
+          ! grep -E 'runtime error|ERROR: AddressSanitizer' test.log
+
+  oracle:
+    name: Oracle tests
+    if: github.repository == 'petergoodman/iqtree3'
+    runs-on: ubuntu-22.04
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # the environment exactly as locked (decision 013)
+      - name: Create the environment
+        run: |
+          curl -Ls https://micro.mamba.pm/api/micromamba/linux-64/latest | tar -xj bin/micromamba
+          bin/micromamba create -y -r "$HOME/mamba" -n iqtree3-fixedeq -f test_scripts/fixedeq/environment.lock.txt
+
+      - name: Test
+        run: bin/micromamba run -r "$HOME/mamba" -n iqtree3-fixedeq python -m pytest test_scripts/fixedeq/tests -q -p no:cacheprovider

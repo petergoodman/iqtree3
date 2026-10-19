@@ -331,6 +331,14 @@ Upstream's workflow gives portability checks only (PLAN.md, test strategy). The 
 runs layers 1 and 2 from S1, and a short NQC run from S2. Bitwise regression comparison stays
 local.
 
+The fork workflow is `.github/workflows/fixedeq.yaml`:
+- **Trigger.** It runs on pushes to `nq-constrained-pi`, guarded by
+  `github.repository == 'petergoodman/iqtree3'`.
+- **Unit tests.** Both variants on `ubuntu-22.04`, with the flags of `unittests.py`. A
+  sanitizer report fails the job.
+- **Oracle tests.** In the environment created by micromamba from `environment.lock.txt`.
+- **Upstream.** The file is left out of the upstream pull request.
+
 ## 4. Per-slice lists
 
 S0, with no IQ-TREE source:

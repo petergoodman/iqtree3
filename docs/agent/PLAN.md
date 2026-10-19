@@ -1,7 +1,7 @@
 # Plan: π-constrained non-reversible amino-acid models
 
-> **Status, 2026-10-07: S0 complete; no IQ-TREE source changed yet; approach accepted by the
-> IQ-TREE maintainers (reported by Peter, 2026-10-01).** Peter owns this document. Its
+> **Status, 2026-10-19: S1 complete (gate G1); no file the IQ-TREE binary compiles has changed
+> yet; approach accepted by the IQ-TREE maintainers (reported by Peter, 2026-10-01).** Peter owns this document. Its
 > companion, `docs/agent/CODE_PLAN.md`, holds the file-level change map, the NQC class
 > specification and the test specification, and is read after this file. Decisions are
 > recorded only in `docs/agent/DECISIONS.md` and are cited here by number.
@@ -204,10 +204,14 @@ The file-level change map, the NQC class specification and the test specificatio
 
 ### Change map
 
-New files (proposed): `model/fixedeqchart.{h,cpp}` (pure module, Eigen and the standard
-library only), `model/modelnonrevfixedeq.{h,cpp}` (the NQC class), `unittest/` (standalone
-googletest project), `test_scripts/fixedeq/` (oracle, drivers, environment file, fixture
-generator) and `.github/workflows/fixedeq.yaml` (fork-only workflow).
+New files in place since S1:
+- `model/fixedeqchart.{h,cpp}`: the pure module, Eigen and the standard library only, not yet in
+  IQ-TREE's build;
+- `unittest/`: the standalone googletest project;
+- `test_scripts/fixedeq/`: oracle, drivers, environment file, fixture generator;
+- `.github/workflows/fixedeq.yaml`: the fork-only workflow.
+
+Proposed: `model/modelnonrevfixedeq.{h,cpp}`, the NQC class.
 
 Shared IQ-TREE files touched, each opt-in or behaviour-preserving (proposed): in S2,
 `model/CMakeLists.txt` and one `createModel` branch in `model/modelmixture.cpp`; in S2 and S3,
@@ -259,7 +263,7 @@ competing implementations, G5 native and outer workflow, G6 scientific validatio
 | 12 | A continuity source the chart does not remove: `computeTransMatrixNonrev` switches from the eigen path to scaling-and-squaring when P's row sums deviate by more than 1e-4 (verified, `model/modelmarkov.cpp:489-500`), and the decomposition sets `nondiagonalizable` on a singular eigenvector matrix (verified, `model/modelmarkov.cpp:1330-1336`); shared with `NONREV`, frequency unmeasured | count "INFO: Switch to scaling-squaring" lines (printed under `-v`) in S2 and S3 fits |
 | 18 | No fallback is recorded if S3 profiling shows training runs impractical while analytic gradients are out of scope | Peter, after S3 profiling |
 | 19 | Baseline run 11 (`--model-joint NONREV` under `-p` at `-T 4`) does not reproduce: five repeats of the unmodified binary ended at log-likelihoods from -4975.0215 to -4974.5963, none equal to the `-T 1` run's -4974.5432, with the same topology and 442 of the model section's 447 numbers varying (largest spread 0.046). Its tree drawing varies too, so the spread rule of `CODE_PLAN.md` section 3.4 cannot judge it, and S3's `-T 1` against `-T 4` test meets the same behaviour in legacy code | Partly resolved 2026-10-03: run 11's rule and the added run 12 are decision 018, implemented in the driver on 2026-10-04. Run 12 (run 10 at `-T 4`) gave identical reports in five repeats, identical to run 10's at `-T 1` in every compared item, so at the report's printed precision the variation arises in the joint fit, not in a fixed evaluation. The S3 thread test's definition: Peter, before S3 |
-| 20 | Upstream finding, sanitizer run of 2026-10-05: `ModelMarkov`'s constructor calls `setReversible` (`model/modelmarkov.cpp:72`), which reads `is_reversible` before anything sets it (line 76; UndefinedBehaviorSanitizer "load of value 190, which is not a valid value for type 'bool'"). It appears once in every run, so the sanitizer runs of S1 to S4 will show it too; its effect on results was not investigated | Known before any edit; a question for the maintainers if Peter wishes to relay it |
+| 20 | Upstream finding, sanitizer run of 2026-10-05: `ModelMarkov`'s constructor calls `setReversible` (`model/modelmarkov.cpp:72`), which reads `is_reversible` before anything sets it (line 76; UndefinedBehaviorSanitizer "load of value 190, which is not a valid value for type 'bool'"). It appears once in every run, so the IQ-TREE sanitizer runs of S2 to S4 will show it too (S1's sanitizer run covered only the unit tests); its effect on results was not investigated | Known before any edit; a question for the maintainers if Peter wishes to relay it |
 | 21 | Upstream observation, S0 probe (g): after a tree search, the checkpoint keeps the model from before the final model optimization (`main/phyloanalysis.cpp:3895-3899` saves the search state, not the model), and a restart from it prints "Final model parameters restored". The restart itself was not tested. S2 to S4 fits run under `-te`, where no final optimization runs, and decision 025 carries the incumbent from a fixed-tree fit | Avoided by decision 025; a question for the maintainers if Peter wishes to relay it |
 | 22 | Decision 025's nesting start, the fitted `GTR20+F{π*}` of probe (g) on `aa_example`, has 146 of its 360 coordinates outside the default domain (-15.94 to 11.65; `test_scripts/fixedeq/explore/thresholds.py`, 2026-10-05), because 87 of its 190 exchangeabilities sit at GTR20's own floor. Under decision 027 the start is evaluated exactly, so NQC's first log-likelihood still equals GTR20's, but the first line search clamps those coordinates, the fit then searches inside the domain only, and since decision 029 restores nothing, the final score can fall below the start | Peter, before S3: the nesting test in the default domain, in a domain widened by the domain option, or on data large enough for GTR20 to be well determined |
 
@@ -268,26 +272,43 @@ Resolved risks 2, 3, 4, 6, 10 and 13 to 17 were removed on 2026-10-07. Their res
 
 ## Current state
 
-S0 is complete (2026-10-05), and its records were closed out on 2026-10-07. No IQ-TREE source
-has changed. In place:
+S1 is complete (2026-10-19). No file that the IQ-TREE binary compiles has changed, because the
+new module is not yet in `model/CMakeLists.txt`.
 
-- the conda environment `iqtree3-fixedeq`, built from `test_scripts/fixedeq/environment.yml`;
-- the Python oracle in `test_scripts/fixedeq/oracle/`, whose likelihood matches the unmodified
-  binary in 16 fixed-parameter cases, within 9.8e-16 relative;
-- the regression baseline, runs 1 to 12, from the frozen binary `~/iqtree3-baseline/iqtree3`,
-  with run 11 judged by decision 018;
-- the S0 runtime probes; the sanitizer run of the unmodified code, whose only finding is
-  risk 20; the frozen sanitizer binary `~/iqtree3-baseline-asan/iqtree3`;
-- the G0 manifest, a frozen record of S0.
+Added in S1:
+- `model/fixedeqchart.{h,cpp}`: the log-ratio chart and its inverse, references, seeds,
+  diagnostics, the target parser and the scaled step.
+- `unittest/`: the module's standalone test project. Its 27 chart fixtures and 25 target cases
+  were written by `test_scripts/fixedeq/make_fixtures.py` (commit `c349e41a`).
+- `test_scripts/fixedeq/unittests/unittests.py`: builds and runs the tests in the Release and
+  sanitizer variants, and writes the residual table.
+- `.github/workflows/fixedeq.yaml`: the fork workflow, not yet run on GitHub.
 
-On 2026-10-07 the plan was checked against Peter's statement of the goal and his two slide
-decks, which led to decisions 028 and 029. Details and numbers for each step are in
-`CHANGELOG.md`.
+The gate was run from the clean tree at `6c8d3af4`
+(`~/iqtree3-runs/unittest/20261019T180400Z-s1-gate/`):
+- 44 of 44 unit tests passed in both variants, with no sanitizer reports.
+- All 174 fixedeq Python tests passed.
+- The worst Q error was 2.2e-11, against its limit of 2.0e-9 (near-reducible case, κ 2.0e5).
+  Over all fixtures, no error exceeded 3.6e-2 of its limit.
+- The worst residual was 5.9e-16, against 1e-10.
+
+S0's records stay in place:
+- the conda environment `iqtree3-fixedeq`;
+- the Python oracle, whose likelihood matches the unmodified binary within 9.8e-16 relative;
+- the regression baseline, runs 1 to 12, from the frozen binary `~/iqtree3-baseline/iqtree3`;
+- the S0 probes;
+- the unmodified sanitizer run and its frozen binary;
+- the G0 manifest.
+
+Details are in `CHANGELOG.md`.
 
 ## Next step
 
-The agent plans S1 (the pure module `fixedeqchart`, its fixtures and the fork workflow;
-`CODE_PLAN.md` section 4) for Peter's approval.
+1. Peter pushes S1.
+2. The agent checks the fork workflow's first run. The micromamba route to the locked
+   environment is unverified.
+3. The agent plans S2 for Peter's approval: the NQC class, its construction, the decomposition
+   override, and single-alignment fits (`CODE_PLAN.md` section 4).
 
 ## Checklists
 

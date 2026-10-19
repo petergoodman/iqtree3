@@ -7,6 +7,28 @@ left to commit messages and the planning documents. The next session starts from
 This is a fork of `iqtree/iqtree3`. Entries here describe work on the fork, not upstream
 development.
 
+## 2026-10-19 (seventh session): S1, the pure mathematical core
+
+- **Done.** S1 as planned and approved.
+  - **Commits.**
+    - `bbf3623c`: the fixture generator and the oracle's κ.
+    - `c349e41a`: 27 fixtures and the target cases, from the clean tree.
+    - `6c8d3af4`: `model/fixedeqchart.{h,cpp}`, `unittest/`, the `unittests.py` driver, and the
+      CODE_PLAN specification.
+    - This commit: the fork workflow and the records.
+  - **Gate,** at `6c8d3af4` (`~/iqtree3-runs/unittest/20261019T180400Z-s1-gate/`):
+    - 44 of 44 tests passed in Release and ASan+UBSan, with no sanitizer reports.
+    - All 174 Python tests passed.
+    - The worst Q error was 2.2e-11, against a limit of 2.0e-9 (near-reducible, κ 2.0e5), at
+      most 3.6e-2 of any limit.
+    - The worst residual was 5.9e-16.
+- **Failed.** Two step assertions encoded the agent's false claim that h = h₀ exactly when
+  |x| ≥ h₀; the code was right. Peter approved an exact-displacement check (TwoSum) instead.
+- **Next.**
+  1. Peter pushes.
+  2. Check the workflow's first run; its micromamba lock route is unverified.
+  3. Plan S2.
+
 ## 2026-10-07 (sixth session, closing): lighter process
 
 - **Done.** Applied the 16 changes Peter approved:

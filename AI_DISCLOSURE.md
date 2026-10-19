@@ -10,6 +10,42 @@ tool and model version, what it did, and which files or sections it touched.
 No AI-generated scientific claim, numerical result, or citation in this project has been accepted
 without human verification against source.
 
+## 2026-10-19 (seventh session): S1 milestone
+
+**Tool:** Claude Code (VS Code extension).
+**Model:** Claude Opus 5.5, 1M context, model id `claude-opus-5-5[1m]`.
+**Operator:** Peter Goodman.
+
+**What it did.**
+- **Explanation and plan.**
+  - It explained the goal of slice S1 to the operator.
+  - It drafted the S1 plan and had a subagent review it against the plan documents and the
+    code. It revised the plan, and the operator approved it.
+- **Code.** It wrote:
+  - the C++ module `model/fixedeqchart.{h,cpp}`;
+  - its googletest project `unittest/`;
+  - the fixture generator, with the oracle's κ function;
+  - the unit-test driver and two driver tests;
+  - the fork workflow.
+- **Validation.**
+  - It generated the fixtures from a clean tree.
+  - It ran both unit-test variants and the Python suite, and recorded the gate.
+  - Two test assertions that rested on a false claim of its own failed. It reported them and
+    corrected them with the operator's approval.
+- **Records.** It updated the plan documents and the changelog.
+
+**Files touched.**
+- New: `model/fixedeqchart.h`, `model/fixedeqchart.cpp`, and `.github/workflows/fixedeq.yaml`.
+- New: `unittest/` (`CMakeLists.txt`, `test_fixedeqchart.cpp`, `.gitattributes`, `fixtures/`).
+- New in `test_scripts/fixedeq/`: `make_fixtures.py`, `unittests/unittests.py`,
+  `tests/test_make_fixtures.py` and `tests/test_unittests.py`.
+- Changed: `test_scripts/fixedeq/oracle/chart.py` (`nu_condition`).
+- `docs/agent/CODE_PLAN.md`: sections 1.1, 2.1, 2.2, 3.1, 3.2, 3.6, 3.7, 4 and 5.
+- `docs/agent/PLAN.md`: status, change map, risk 20, current state, next step.
+- `CHANGELOG.md`, and this file.
+
+No file that the IQ-TREE binary compiles was changed; the new module enters the build in S2.
+
 ## 2026-10-07 (sixth session, continued)
 
 **Tool:** Claude Code (VS Code extension).
