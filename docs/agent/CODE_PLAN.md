@@ -19,8 +19,8 @@ Labels are those of PLAN.md. Source anchors refer to `63c330d9` and were verifie
 |---|---|---|
 | `model/fixedeqchart.{h,cpp}` | S1 | Pure functions over Eigen types, with no IQ-TREE headers and no process exit (section 2.1) |
 | `model/modelnonrevfixedeq.{h,cpp}` | S2 to S4 | Class `ModelNonrevFixedEq : public ModelProtein`, public name "NQC" held in one constant (decision 002; section 2.2) |
-| `unittest/` | S1 | Standalone CMake project that compiles `model/fixedeqchart.cpp` directly and fetches googletest at cmaple's pinned commit (verified, `cmaple/CMakeLists.txt:281-293`; decision 012); `fixtures/` in plain text at 17 significant digits with a provenance header; its own `.gitattributes` (decision 014) |
-| `test_scripts/fixedeq/` | S0 onward | `environment.yml` and its exported lock (decision 013); the `oracle/` package; `tests/`; `regression/` and `differential/` drivers; `design_rerun.py`, which reruns the design scripts (decision 019); `probes/`, the S0 runtime probes; `sanitizer/`, the decision 022 build and run driver; `manifest/`, the G0 manifest generator and its output; `explore/`, the exploratory measurements cited by decisions 026 and 027; `make_fixtures.py`; its own `.gitattributes`, and a `.gitignore` for Python caches |
+| `unittest/` | S1 | Standalone CMake project that compiles `model/fixedeqchart.cpp` directly, with IQ-TREE's clang Release flags and the `model` target's SSE flags (verified, `CMakeLists.txt:420`, `711-718`, `984`), and fetches googletest 1.12.1 at cmaple's pinned commit, checked by the archive's SHA-256 (verified, `cmaple/CMakeLists.txt:283-293`; decision 012); `fixtures/`, 27 chart cases and `targets.txt` in plain text at 17 significant digits with a provenance header (section 3.2); its own `.gitattributes` (decision 014) |
+| `test_scripts/fixedeq/` | S0 onward | `environment.yml` and its exported lock (decision 013); the `oracle/` package; `tests/`; `regression/` and `differential/` drivers; `design_rerun.py`, which reruns the design scripts (decision 019); `probes/`, the S0 runtime probes; `sanitizer/`, the decision 022 build and run driver; `manifest/`, the G0 manifest generator and its output; `explore/`, the exploratory measurements cited by decisions 026 and 027; `make_fixtures.py`, which writes the S1 fixtures; `unittests/`, the S1 driver that builds and runs `unittest/` in the Release and sanitizer variants and writes the residual table with provenance; its own `.gitattributes`, and a `.gitignore` for Python caches |
 | `.github/workflows/fixedeq.yaml` | S1 | Fork-only workflow that builds and runs the unit tests and the oracle's tests on Linux, and from S2 a short NQC run |
 
 Run outputs never go into the working copy; they go under `~/iqtree3-runs/` in WSL. Fixtures and
@@ -48,30 +48,47 @@ vendored directory.
 
 ### 2.1 Pure module `fixedeqchart`
 
-All functions take and return plain values or Eigen objects plus a status, and none keeps static
-mutable state.
+Free functions in namespace `fixedeq` over Eigen types of dynamic size, with no IQ-TREE headers
+and no process exit; none keeps static mutable state. A function that can fail returns a
+`Status` (`ok`, `invalidInput`, `nonFiniteCoordinate`, `softmaxUnderflow`, `nonPositiveNu`,
+`nonFiniteRate`, `nonPositiveRate`, `invalidTarget`) and writes its outputs only on `ok`. Every
+function works for any n ≥ 3, so the unit tests run at n = 3 and 4 as well as 20.
 
-- Target: strict parse of a frequency string with commas, spaces or slashes as separators;
-  exactly 20 entries; every entry finite, greater than 0 and at least a caller-supplied minimum
-  (`min_state_freq`); a sum within 1e-6 of 1, normalized once, with the pre-normalization sum
-  returned (decision 006). It rejects NaN, infinities and the non-numeric tokens that IQ-TREE's
-  own reader turns into random draws (verified, `model/modelmarkov.cpp:1761-1796`,
-  `utils/tools.cpp:408-428`).
-- Log-ratio jump build (D01): per row, a stable softmax over the 19 off-diagonal destinations
-  with the reference logit fixed at 0; ν from the augmented system [1ᵀ; (K − I)ᵀ] ν = e₁ by
-  column-pivoted Householder QR, the approach of `computeStateFreqFromQMatrix` (verified,
-  `model/modelmarkov.cpp:2119-2131`); q_ij = ν_i K_ij / π*_i; the diagonal completed from the
-  off-diagonal row sums and compared with −ν_i / π*_i.
-- Inverse: K_ij = q_ij / (−q_ii) and z_ij = log(K_ij / K_{i,r(i)}).
+- Coordinates: row-major; within row i, the destinations other than i and r(i) in increasing
+  index (`freeDestinations`; the G0 manifest's `chart.order`). This becomes the checkpoint layout
+  in S3.
+- Target (`parseTarget`): strict parse of a frequency string with commas, ASCII whitespace or
+  slashes as separators, a run of them counting as one; exactly the requested number of entries,
+  each an ASCII decimal (`[+-]?(d+(.d*)?|.d+)([eE][+-]?d+)?`) read in the classic locale, finite,
+  greater than 0 and at least a caller-supplied minimum; a sum, taken left to right, within 1e-6
+  of 1, then each entry divided by that sum once, with the sum returned (decision 006). It
+  rejects NaN, infinities, hexadecimal and the non-numeric tokens that IQ-TREE's own reader turns
+  into random draws (verified, `model/modelmarkov.cpp:1761-1796`, `utils/tools.cpp:408-428`). It
+  is stricter than the oracle's `parse_target`, which through Python also accepts non-ASCII
+  digits, underscores and Unicode separators.
+- Log-ratio jump build (D01; `jumpMatrix`, `solveStationary`, `generatorFromJump`, `build`): per
+  row, a stable softmax over the n − 1 off-diagonal destinations with the reference logit fixed
+  at 0, rejecting a jump probability that is exactly 0 after the exponential or after the
+  division by the row sum (PLAN.md constraint 2; the oracle checks only the first); ν from the
+  augmented system [1ᵀ; (K − I)ᵀ] ν = e₁ by column-pivoted Householder QR, the approach of
+  `computeStateFreqFromQMatrix` (verified, `model/modelmarkov.cpp:2119-2131`) with the transpose
+  formed explicitly, and ν required finite and positive; q_ij = (ν_i / π*_i) K_ij; the diagonal
+  completed from the off-diagonal row sums; every off-diagonal rate required finite and strictly
+  positive.
+- Inverse: K_ij = q_ij / (−q_ii) and z_ij = log(K_ij / K_{i,r(i)}), with no box applied.
 - References: row maxima of a seed matrix, ties to the lower amino-acid index (D01, decision
   011).
-- Seeds: a reversible seed becomes q_ij = R_ij π*_j normalized to unit mean rate; a
-  non-reversible seed keeps its jump chain, which is the flux-preserving transfer of synthesis
-  section 6.3.
-- Diagnostics: ‖π*Q‖∞, scaled row residuals, |mean rate − 1|, minimum rate and flux, and the
-  residual of the ν solve. They are reported and never used to reject a proposal (decision 026).
-- Finite-difference step: signed h = η max(s, |x|), exactly representable, negative when x + h
-  would leave the upper bound (decision 005).
+- Seeds: a reversible seed becomes q_ij = R_ij π*_j normalized to unit mean rate
+  (`reversibleSeed`); a non-reversible seed keeps its jump chain, which is the flux-preserving
+  transfer of synthesis section 6.3 (`transferSeed`).
+- Diagnostics: ‖π*Q‖∞, scaled row residuals, |mean rate − 1|, minimum rate and flux, the
+  residual of the ν solve, and the mismatch of the exit rates with ν_i / π*_i. They are reported
+  and never used to reject a proposal (decision 026).
+- Finite-difference step (`scaledStep`): signed h₀ = η max(s, |x|), negative when x + h₀ would
+  leave the upper bound (decision 005), returned as the probe's displacement (x + h₀) − x,
+  IQ-TREE's own idiom (verified, `utils/optimization.cpp:930-931`). When |x| ≥ h₀ the
+  subtraction is exact (Sterbenz), so the step is exactly the distance the probe moved; it can
+  still differ from h₀ in the last bits, because x + h₀ rounds.
 - No other chart: no positive-ratio or T3 build is compiled (decision 028).
 
 ### 2.2 NQC model class
@@ -84,7 +101,8 @@ Construction (decisions 002, 006, 011):
    string, so that `init` does not hand the target to `ModelMarkov::readStateFreq` (verified,
    `model/modelprotein.cpp:1241-1244`; decision 026).
 2. Reject unsupported combinations (decision 008).
-3. Parse and validate π* from `freq_params` with the pure module, under decision 006's rules.
+3. Parse and validate π* from `freq_params` with the pure module, under decision 006's rules,
+   with the minimum max(`min_state_freq`, `ZERO_FREQ`), so that D07's check against both holds.
 4. For a reversible seed, set `state_freq = π*`, then call `setReversible(false)`, which
    converts R into R_ij π*_j and roots the tree (verified, `model/modelmarkov.cpp:112-119`,
    `145-149`). For a non-reversible seed, keep its jump chain.
@@ -149,7 +167,7 @@ seed identity).
 The package is `test_scripts/fixedeq/oracle/`, and its tests use the pass lines of decision 021.
 
 - Charts (log-ratio, positive-ratio, T3 in the D04 gauge, and conversion from P-positive's star
-  gauge), seeds and residuals. The positive-ratio and T3 charts are test references only
+  gauge), seeds, residuals, and κ of the augmented ν system (`chart.nu_condition`). The positive-ratio and T3 charts are test references only
   (decision 028).
 - Reproductions of the documented numbers: dimensions 360, 189 and 171; round trips; reversible
   reduction; the T3 triangle bound 20.72; the non-concavity curvature 0.01538 (P-log Appendix B;
@@ -170,13 +188,53 @@ The package is `test_scripts/fixedeq/oracle/`, and its tests use the pass lines 
 
 ### 3.2 Layer 2: C++ unit tests
 
-Fixtures at n = 3, 4 and 20: random balanced fluxes built from directed cycles rather than
-through the chart under test, reversible matrices, skewed and near-reducible jump chains, and
-adversarial conditioning. Each fixture's provenance header records the condition number κ of its
-augmented ν system, computed by the oracle. Checks, with decision 026's pass lines: Q entries
-and round trips within a relative max(1e-12, 1e-14 κ) per entry;
-residuals at or below 1e-10; reference ties; target validation (zero, NaN, wrong count, below the
-minimum, a sum more than 1e-6 from 1); and the step function at bounds.
+`unittest/test_fixedeqchart.cpp`, run by `test_scripts/fixedeq/unittests/unittests.py`
+(section 3.6).
+
+The fixtures are written by `test_scripts/fixedeq/make_fixtures.py` from the oracle and committed
+from a clean tree (in S1, commit `c349e41a`, seed 20261019).
+- **27 chart cases** at n = 3, 4 and 20.
+  - 17 have ground truth built without the chart's ν solve: random balanced fluxes from directed
+    cycles (9), reversible seeds of random exchangeabilities (6), two exact 3-state cases (one
+    with a non-uniform ν, which a transposed solve gets wrong, and a reference tie), and LG
+    rebuilt at the decision 023 target.
+  - 10 are built by the oracle's chart: NQ.pfam's jump chain transferred to that target, skewed
+    targets with 19 entries at 1e-4, near-reducible chains at n = 4 and 20, coordinates across the
+    default box and beyond it, and one logit near the exponential's underflow.
+- **Headers.** Each records the condition number κ of the case's augmented ν system
+  (`chart.nu_condition`) and the oracle's own error against the pass line.
+- **Self-check.** The generator writes nothing if any case fails decision 026's lines in the
+  oracle itself, and it refuses a non-empty output directory.
+- **`targets.txt`.** 25 target strings with the oracle's verdicts, and each accepted vector
+  normalized as the compiled parser does it.
+
+Checks use decision 026's pass lines; everything else is compared exactly.
+- **Q.** Q built from each fixture's z, and Q built from the inverse of the fixture's Q, agree
+  with the fixture within a relative max(1e-12, 1e-14 κ) per entry, the diagonal included. For a
+  fixed reference set the build is injective, so the two checks pin the inverse without a line on
+  z.
+- **Residuals.** ‖π*Q‖∞, scaled row sums and |mean rate − 1| are at most 1e-10 on every fixture,
+  hard cases included.
+- **Seeds and references.**
+  - Reversible and transfer seeds match their fixtures under the Q line.
+  - References equal the fixtures': the row maxima, or the row maxima of LG rebuilt at the case's
+    target.
+  - Also checked: the oracle's tie case, and the G0 manifest's LG references.
+- **Rejections**, with the outputs left untouched: a NaN coordinate; softmax underflow after the
+  exponential and after the division; a rate that underflows to 0; non-positive and non-finite
+  rates in the inverse; invalid targets and sizes.
+- **Target parser.** Every oracle verdict is reproduced, accepted vectors and sums match bitwise,
+  and non-ASCII input that Python accepts is refused.
+- **Step.**
+  - The displacement identity holds bitwise.
+  - The displacement is exact, checked by TwoSum, whenever |x| ≥ h₀.
+  - The step is negative at and beyond the upper bound, and forward below the lower bound
+    (decision 027).
+- **Diagnostics.** On a dyadic Q, before and after one perturbation, compared exactly.
+
+**Residual table.** Each fixture test records its errors and residuals with googletest's
+`RecordProperty`, as strings, because googletest 1.12.1's only numeric overload takes an `int`.
+The driver turns them into `residuals.tsv`.
 
 ### 3.3 Layer 3: differential likelihood
 
@@ -258,8 +316,14 @@ unmodified tree over:
 - probe (a)'s five runs.
 
 That covers a single NONREV fit, fixed-matrix evaluation with +G and +I on fixed trees, linked
-fits under `-p` and `-S` on fixed trees, and the `--mdef` target route. At the end of S1 to S4 it
-runs the unit tests and short NQC runs at `-T 1`.
+fits under `-p` and `-S` on fixed trees, and the `--mdef` target route. At the end of S2 to S4 it
+runs short NQC runs at `-T 1`.
+
+The unit tests are a standalone project that this build does not compile.
+`unittests.py run --variant asan-ubsan` therefore builds them with decision 022's flags at
+`-g -O1` (the flags of `Mem`, which only IQ-TREE's CMake defines), and runs them with that
+decision's `ASAN_OPTIONS` and `UBSAN_OPTIONS`. In S1, where no IQ-TREE source changed, that was
+the whole sanitizer run.
 
 ### 3.7 Continuous integration
 
@@ -293,7 +357,7 @@ S0, with no IQ-TREE source:
 S1:
 
 - Files: `model/fixedeqchart.{h,cpp}`, `unittest/`, `test_scripts/fixedeq/make_fixtures.py`,
-  fixtures, `.github/workflows/fixedeq.yaml`.
+  fixtures, `test_scripts/fixedeq/unittests/unittests.py`, `.github/workflows/fixedeq.yaml`.
 - Tests first: layer 2.
 
 S2:
@@ -367,4 +431,5 @@ marked as added 2026-10-03 were read at HEAD `4c5f061f` that day.
 | `alignment/alignment.cpp:4886-4933, 5882-5909` | ambiguity fixed point; `convfreq` |
 | `utils/eigendecomposition.h:24, 81` | `ZERO_FREQ = 1e-10`; `total_num_subst` |
 | `cmaple/CMakeLists.txt:281-293`; `CMakeLists.txt:255-258` | googletest fetch; CMAPLE not an option on Windows |
+| `CMakeLists.txt:420, 711-718, 984`; `utils/optimization.cpp:930-931` | clang Release flags `-O3 -ffunction-sections -fdata-sections`, no fast-math; SSE flags `-D__SSE3 -msse3`, set on the `model` target; the derivative step taken as the probe's displacement (added 2026-10-19) |
 | `.github/workflows/ci.yaml` | upstream workflow, run on every branch push |
