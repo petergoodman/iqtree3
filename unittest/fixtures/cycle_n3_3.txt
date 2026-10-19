@@ -1,0 +1,27 @@
+# note: S1 unit-test fixture (docs/agent/CODE_PLAN.md section 3.2); never regenerated to make a test pass
+# format: '# key: value' header lines, then one line per array: a label, then its values at 17 significant digits, matrices row-major
+# script: test_scripts/fixedeq/make_fixtures.py
+# git_commit: bbf3623cfea70135032d6fddadb1c0a033ef490a
+# git_clean: True
+# generated_utc: 2026-10-19T14:15:44+00:00
+# python: 3.12.14
+# numpy: 2.3.5
+# scipy: 1.17.0
+# seed: 20261019
+# name: cycle_n3_3
+# kind: balanced flux from directed cycles
+# truth: independent
+# ref_rule: row_maxima
+# n: 3
+# kappa: 1.2876556646824993
+# q_limit: 9.9999999999999998e-13
+# oracle_q_error: 3.2033643383510108e-16
+# stationarity: 5.5511151231257827e-17
+# row_sums: 0
+# mean_rate_error: 0
+# min_rate: 0.20678645561123413
+pi 0.23934556325761822 0.4889263259246272 0.27172811081775466
+ref 1 2 1
+z -0.073866156316780909 -0.87101738874471513 -0.09383703215151816
+nu 0.28062388969641117 0.34267365225841773 0.37670245804517122
+Q -1.172463303171253 0.60787315184147284 0.56459015132978019 0.20678645561123413 -0.7008697099923481 0.494083254381114 0.66066240685652522 0.7256588571139212 -1.3863212639704465

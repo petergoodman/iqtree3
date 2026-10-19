@@ -1,0 +1,28 @@
+# note: S1 unit-test fixture (docs/agent/CODE_PLAN.md section 3.2); never regenerated to make a test pass
+# format: '# key: value' header lines, then one line per array: a label, then its values at 17 significant digits, matrices row-major
+# script: test_scripts/fixedeq/make_fixtures.py
+# git_commit: bbf3623cfea70135032d6fddadb1c0a033ef490a
+# git_clean: True
+# generated_utc: 2026-10-19T14:15:44+00:00
+# python: 3.12.14
+# numpy: 2.3.5
+# scipy: 1.17.0
+# seed: 20261019
+# name: reversible_n3_2
+# kind: reversible seed from random exchangeabilities
+# truth: independent
+# ref_rule: row_maxima
+# n: 3
+# kappa: 2.1990703343068367
+# q_limit: 9.9999999999999998e-13
+# oracle_q_error: 6.2109345251659908e-16
+# stationarity: 5.5511151231257827e-17
+# row_sums: 1.4536033057185705e-16
+# mean_rate_error: 0
+# min_rate: 0.02793015236190154
+pi 0.72489239927106097 0.19743414321283653 0.077673457516102495
+ref 1 0 0
+z -0.12520320997396212 -3.8636576894084853 -3.7384544794345236
+nu 0.49448563429862402 0.26821479270957732 0.2372995729917986
+Q -0.68215039196971861 0.36239920196758618 0.31975119000213237 1.3305724264977152 -1.3585025788596168 0.02793015236190154 2.9840979750691696 0.070994209318322524 -3.0550921843874916
+R 0 0.87335403743790474 1.9586863238229069 0.87335403743790474 0 0.17109055154159639 1.9586863238229069 0.17109055154159639 0

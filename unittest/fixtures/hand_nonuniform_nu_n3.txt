@@ -1,0 +1,27 @@
+# note: S1 unit-test fixture (docs/agent/CODE_PLAN.md section 3.2); never regenerated to make a test pass
+# format: '# key: value' header lines, then one line per array: a label, then its values at 17 significant digits, matrices row-major
+# script: test_scripts/fixedeq/make_fixtures.py
+# git_commit: bbf3623cfea70135032d6fddadb1c0a033ef490a
+# git_clean: True
+# generated_utc: 2026-10-19T14:15:44+00:00
+# python: 3.12.14
+# numpy: 2.3.5
+# scipy: 1.17.0
+# seed: 20261019
+# name: hand_nonuniform_nu_n3
+# kind: 3-state, nu = (4, 3, 4)/11, so a transposed solve fails; row A is a reference tie
+# truth: independent, exact
+# ref_rule: row_maxima
+# n: 3
+# kappa: 1.2812662586706922
+# q_limit: 9.9999999999999998e-13
+# oracle_q_error: 2.4424906541753446e-16
+# stationarity: 2.7755575615628914e-17
+# row_sums: 8.1416355139178153e-17
+# mean_rate_error: 0
+# min_rate: 0.22727272727272727
+pi 0.40000000000000002 0.20000000000000001 0.40000000000000002
+ref 1 2 0
+z 0 -0.69314718055994529 -1.0986122886681098
+nu 0.36363636363636365 0.27272727272727271 0.36363636363636365
+Q -0.90909090909090906 0.45454545454545453 0.45454545454545453 0.45454545454545453 -1.3636363636363635 0.90909090909090906 0.68181818181818177 0.22727272727272727 -0.90909090909090906
