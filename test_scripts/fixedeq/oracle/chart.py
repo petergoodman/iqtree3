@@ -31,6 +31,12 @@ def solve_stationary(M):
     return x
 
 
+def nu_condition(K):
+    """kappa of decision 026: the 2-norm condition number of the augmented nu system [1^T; (K - I)^T]."""
+    n = len(K)
+    return float(np.linalg.cond(np.vstack([np.ones(n), (np.asarray(K, dtype=float) - np.eye(n)).T])))
+
+
 def check_target(pi):
     pi = np.asarray(pi, dtype=float)
     if not np.all(np.isfinite(pi)) or np.any(pi <= 0):
