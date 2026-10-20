@@ -122,6 +122,20 @@ cmake --build ~/iqtree3-build -j 4
   it; idle sleep is set to 3 minutes on battery and 15 minutes plugged in. A job that looks hung
   is usually paused. Compare IQ-TREE's CPU time with its wall-clock time, the VM's `uptime`, and
   Windows Kernel-Power events 506 and 507 before assuming a fault.
+- **GitHub from the agent** (Windows `gh` 2.102.0, set up 2026-10-20). It is logged in with
+  Peter's fine-grained token, which can read only `petergoodman/iqtree3` (Actions and
+  Administration, read-only) and cannot write anything.
+  - It reaches runs (`gh run list`), job logs (`gh run view ID --log-failed`) and the Actions
+    settings (`gh api repos/petergoodman/iqtree3/actions/permissions`).
+  - `gh repo set-default` points at the fork.
+  - `.claude/settings.json` allows these read commands. It denies `gh pr`, `gh issue`, printing
+    the token, and `gh api` writes.
+  - Peter's email, notifications and billing, the "Run workflow" button and reruns stay
+    with Peter.
+  - A 401 means the token expired. Peter makes a new one and runs
+    `Get-Clipboard | gh auth login --hostname github.com --with-token` in his own terminal. He
+    does not use the interactive login, which offers to take over git's credentials; pushes go
+    through Git Credential Manager.
 
 ## Layout
 

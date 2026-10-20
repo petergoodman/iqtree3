@@ -7,6 +7,21 @@ left to commit messages and the planning documents. The next session starts from
 This is a fork of `iqtree/iqtree3`. Entries here describe work on the fork, not upstream
 development.
 
+## 2026-10-20 (eighth session): read-only GitHub access for agents
+
+- **Done.** Agents can now read the fork's Actions runs, logs and settings.
+  - Windows `gh` uses Peter's fine-grained, read-only token, limited to the fork.
+  - `.claude/settings.json` allows the read commands and denies PR, issue and API writes.
+  - CLAUDE.md records the setup.
+- **Found.** Actions is enabled on the fork, and GitHub logged the 975971f8 push at 18:19:37Z.
+  It created no check suite, so neither Build nor fixedeq ran. The likely cause is a trigger
+  dropped on GitHub's side; this is unverified.
+  - Build's 2026-10-08 failure was Windows-only: Chocolatey returned 503 while installing LLVM.
+- **Next.**
+  1. Push, which should trigger both workflows.
+  2. Check fixedeq's first run.
+  3. Plan S2.
+
 ## 2026-10-19 (seventh session): S1, the pure mathematical core
 
 - **Done.** S1 as planned and approved.

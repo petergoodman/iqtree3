@@ -1,7 +1,11 @@
 {
   "permissions": {
     "allow": [
-      "Bash(git push origin nq-constrained-pi)"
+      "Bash(git push origin nq-constrained-pi)",
+      "Bash(gh auth status*)",
+      "Bash(gh run list*)", "Bash(gh run view*)", "Bash(gh run watch*)",
+      "Bash(gh workflow list*)", "Bash(gh workflow view*)",
+      "Bash(gh api repos/petergoodman/iqtree3/*)"
     ],
     "deny": [
       "Bash(git push --force *)",
@@ -23,6 +27,10 @@
       "Bash(git reset --hard *)",
       "Bash(git checkout -- *)",
       "Bash(rm -rf *)",
+      "Bash(gh pr *)", "Bash(gh issue *)",
+      "Bash(gh auth token*)", "Bash(gh auth status*--show-token*)", "Bash(gh auth status* -t*)",
+      "Bash(gh api*-X*)", "Bash(gh api*--method*)", "Bash(gh api* -f*)", "Bash(gh api* -F*)",
+      "Bash(gh api*--field*)", "Bash(gh api*--raw-field*)", "Bash(gh api*--input*)",
       "Edit(./cmaple/**)", "Write(./cmaple/**)",
       "Edit(./pll/**)", "Write(./pll/**)",
       "Edit(./ncl/**)", "Write(./ncl/**)",
