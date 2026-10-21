@@ -44,6 +44,17 @@ def test_run_selection_skips_and_narrows_drivers(tmp_path):
     assert "--runs" not in steps[0][1] and "--only" not in steps[1][1]
 
 
+def test_nqc_step_runs_only_when_asked(tmp_path):
+    a = argparse.Namespace(git="git", timeout=60.0, allow_dirty=True, build_dir="b", regression_runs="none",
+                           no_differential=True, probes="none", nqc_cases=None, alisim=None)
+    assert sanitize.plan_steps(a, Path("/bin/x"), tmp_path, "py") == []
+    a.nqc_cases, a.alisim = "seed,short", "/frozen/iqtree3"
+    [(name, argv)] = sanitize.plan_steps(a, Path("/bin/x"), tmp_path, "py")
+    assert name == "nqc" and argv[1].endswith("nqcchecks.py")
+    assert argv[argv.index("--cases") + 1] == "seed,short" and argv[-2:] == ["--alisim", "/frozen/iqtree3"]
+    assert "--allow-dirty" in argv
+
+
 def test_build_environment_drops_conda(monkeypatch):
     monkeypatch.setenv("PATH", "/home/u/anaconda3/envs/x/bin:/usr/bin:/home/u/anaconda3/condabin")
     monkeypatch.setenv("CONDA_PREFIX", "/home/u/anaconda3/envs/x")

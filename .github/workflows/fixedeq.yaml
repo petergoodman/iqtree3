@@ -1,7 +1,7 @@
 # Fork-only checks for the fixed-equilibrium work (docs/agent/CODE_PLAN.md, section 3.7): the unit
-# tests of model/fixedeqchart.cpp in the Release and sanitizer variants, and the Python oracle's
-# tests. The repository guard keeps it from running anywhere else; this file is left out of the
-# upstream pull request.
+# tests of model/fixedeqchart.cpp in the Release and sanitizer variants, the Python oracle's tests,
+# and the NQC seed case against a Release build of IQ-TREE. The repository guard keeps it from
+# running anywhere else; this file is left out of the upstream pull request.
 name: fixedeq
 
 on:
@@ -73,3 +73,35 @@ jobs:
 
       - name: Test
         run: bin/micromamba run -r "$HOME/mamba" -n iqtree3-fixedeq python -m pytest test_scripts/fixedeq/tests -q -p no:cacheprovider
+
+  nqc:
+    name: NQC seed case
+    if: github.repository == 'petergoodman/iqtree3'
+    runs-on: ubuntu-22.04
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install clang and the libraries
+        run: sudo apt-get update -q && sudo apt-get install -q -y clang lld libomp-dev libeigen3-dev libboost-dev
+
+      # outside the checkout, so that the driver finds a clean tree
+      - name: Build IQ-TREE
+        run: |
+          cmake -S . -B "$RUNNER_TEMP/build" -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++
+          cmake --build "$RUNNER_TEMP/build" -j 4
+
+      - name: Create the environment
+        run: |
+          curl -Ls https://micro.mamba.pm/api/micromamba/linux-64/latest | tar -xj -C "$RUNNER_TEMP" bin/micromamba
+          "$RUNNER_TEMP/bin/micromamba" create -y -r "$HOME/mamba" -n iqtree3-fixedeq -f test_scripts/fixedeq/environment.lock.txt
+
+      - name: Seed case
+        run: |
+          "$RUNNER_TEMP/bin/micromamba" run -r "$HOME/mamba" -n iqtree3-fixedeq python test_scripts/fixedeq/nqc/nqcchecks.py \
+            --binary "$RUNNER_TEMP/build/iqtree3" --out "$RUNNER_TEMP/nqc" --cases seed

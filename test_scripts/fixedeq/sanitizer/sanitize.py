@@ -2,7 +2,8 @@
 """Sanitizer build and run of IQ-TREE (decision 022; docs/agent/CODE_PLAN.md section 3.6).
 
   build  configure and build into a new directory with decision 022's flags; write sanitizer-build.json
-  run    run the regression list, the differential cases and the probes with a sanitizer binary, then scan
+  run    run the regression list, the differential cases, the probes and, when asked, the NQC checks
+         with a sanitizer binary, then scan
   scan   group the sanitizer reports found in a run directory; write findings.json and findings.md
 
 Findings in upstream code are recorded, not fixed.
@@ -160,6 +161,11 @@ def plan_steps(a, binary, out, py):
     if a.probes != "none":
         steps.append(("probes", [py, str(DRIVERS / "probes" / "probes.py"), "--binary", str(binary),
                                  "--out", str(out / "probes"), *common, *(["--only", a.probes] if a.probes else [])]))
+    nqc_cases, alisim = getattr(a, "nqc_cases", None), getattr(a, "alisim", None)
+    if nqc_cases:
+        steps.append(("nqc", [py, str(DRIVERS / "nqc" / "nqcchecks.py"), "--binary", str(binary),
+                              "--out", str(out / "nqc"), "--cases", nqc_cases, *common,
+                              *(["--alisim", alisim] if alisim else [])]))
     return steps
 
 
@@ -206,6 +212,8 @@ def main():
     r.add_argument("--regression-runs", help="comma-separated baseline runs, or 'none' (default: all)")
     r.add_argument("--probes", help="comma-separated probes, or 'none' (default: all)")
     r.add_argument("--no-differential", action="store_true")
+    r.add_argument("--nqc-cases", help="comma-separated nqc/nqcchecks.py cases (default: none)")
+    r.add_argument("--alisim", help="the frozen unmodified binary, for the NQC cases that simulate data")
     s = sub.add_parser("scan")
     s.add_argument("dir")
     a = parser.parse_args()
