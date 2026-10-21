@@ -1087,6 +1087,12 @@ ModelProtein::ModelProtein(const char *model_name, string model_params, StateFre
 	init(model_name, model_params, freq, freq_params);
 }
 
+ModelProtein::ModelProtein(PhyloTree *tree, ModelsBlock *models_block)
+ : ModelMarkov(tree, true, false)
+{
+    this->models_block = models_block;
+}
+
 void rescaleRates(double *rates, int nrates) {
     int i;
 

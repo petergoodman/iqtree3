@@ -88,6 +88,15 @@ public:
      */
     virtual void printMrBayesModelText(ofstream& out, string partition, string charset);
 
+protected:
+    /**
+        constructor for a subclass that reads its own starting matrix: a reversible model on the
+        tree, with no model read and the tree not adapted (used by ModelNonrevFixedEq)
+        @param tree associated phylogenetic tree
+        @param models_block built-in and user-defined models
+    */
+    ModelProtein(PhyloTree *tree, ModelsBlock *models_block);
+
 private:
     ModelsBlock *models_block;
 

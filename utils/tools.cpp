@@ -3164,6 +3164,18 @@ void parseArg(int argc, char *argv[], Params &params) {
                     throw "--min-freq must be < 1.0";
                 continue;
             }
+            if (strcmp(argv[cnt], "--nqc-domain") == 0) {
+                cnt++;
+                if (cnt >= argc)
+                    throw "Use --nqc-domain LO,HI";
+                DoubleVector bounds;
+                convert_double_vec(argv[cnt], bounds);
+                if (bounds.size() != 2 || !(bounds[0] > 0.0) || !(bounds[0] < bounds[1]) || !std::isfinite(bounds[1]))
+                    throw "--nqc-domain needs two numbers with 0 < LO < HI";
+                params.nqc_domain_lo = bounds[0];
+                params.nqc_domain_hi = bounds[1];
+                continue;
+            }
 
             if (strcmp(argv[cnt], "--inc-zero-freq") == 0) {
                 params.keep_zero_freq = false;
@@ -5999,6 +6011,7 @@ void usage_iqtree(char* argv[], bool full_command) {
     << "                       NONREV, UNREST (unrestricted model, equiv. 12.12)" << endl
     << "                       NQ.pfam, NQ.bird, NQ.mammal, NQ.insect, NQ.plant, NQ.yeast" << endl
     << "           Otherwise:  Name of file containing user-model parameters" << endl
+    << "  --nqc-domain LO,HI   Bounds on each NQC jump-probability ratio (default: 1e-5,10)" << endl
     << endl << "STATE FREQUENCY:" << endl
     << "  -m ...+F             Empirically counted frequencies from alignment" << endl
     << "  -m ...+FO            Optimized frequencies by maximum-likelihood" << endl
@@ -7261,6 +7274,8 @@ void Params::setDefault() {
     freq_type = FREQ_UNKNOWN;
     keep_zero_freq = true;
     min_state_freq = MIN_FREQUENCY;
+    nqc_domain_lo = 1e-5;
+    nqc_domain_hi = 10.0;
     min_rate_cats = 2;
     num_rate_cats = 4;
     max_rate_cats = 10;

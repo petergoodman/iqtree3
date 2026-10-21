@@ -102,8 +102,10 @@ Construction (decisions 002, 006, 011, 031):
    named model (verified, `model/modelprotein.cpp:1121`, `model/modelmarkov.cpp:1856`, `97-101`).
    Then read the seed as the NONREV branch of `init` does (verified,
    `model/modelprotein.cpp:1214-1231`): the `--init-model` name from the models block, or the
-   `--init-model` file, otherwise LG, each with tree adaptation off, then `rescaleRates`. The target
-   never reaches `ModelMarkov::readStateFreq` (decision 026).
+   `--init-model` file, otherwise LG, each with tree adaptation off. Unlike the NONREV branch it does
+   not call `rescaleRates`, which no header declares: a reversible seed is renormalized and a
+   non-reversible one keeps only its jump chain, so a common scale changes nothing beyond rounding.
+   The target never reaches `ModelMarkov::readStateFreq` (decision 026).
 2. Reject unsupported combinations (decisions 008, 032, 034).
 3. Parse and validate π* from `freq_params` with the pure module, under decision 006's rules,
    with the minimum max(`min_state_freq`, `ZERO_FREQ`), so that D07's check against both holds.

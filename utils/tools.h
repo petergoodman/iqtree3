@@ -1704,6 +1704,10 @@ public:
     /** minimal state frequency for optimisation, default=0.0001 */
     double min_state_freq;
 
+    /** NQC's coordinate domain, as bounds on each jump-probability ratio K_ij / K_i,ref(i)
+        (--nqc-domain LO,HI; default 1e-5,10) */
+    double nqc_domain_lo, nqc_domain_hi;
+
 
     /**
             the number of rate categories

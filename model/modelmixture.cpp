@@ -15,6 +15,7 @@
 #include "modelset.h"
 #include "modelmixture.h"
 #include "modelpomo.h"
+#include "modelnonrevfixedeq.h"
 //#include "phylokernelmixture.h"
 #include "modelpomomixture.h"
 
@@ -3227,6 +3228,12 @@ ModelSubst* createModel(string model_str, ModelsBlock *models_block,
 		model = new ModelSubst(tree->aln->num_states);
 	} else */
 
+    if (ModelNonrevFixedEq::isName(model_str)) {
+        if (tree->aln->seq_type != SEQ_PROTEIN)
+            outError("NQC is a model for protein data only");
+        return new ModelNonrevFixedEq(model_params, freq_type, freq_params, tree, models_block);
+    }
+
     if ((pomo) || (tree->aln->seq_type == SEQ_POMO)) {
         if (pomo_rate_str == "")
             model = new ModelPoMo(model_str.c_str(), model_params, freq_type, freq_params, tree, pomo_heterozygosity);
@@ -3443,6 +3450,7 @@ void ModelMixture::initMixture(string orig_model_name, string model_name, string
 					model = (ModelMarkov*)createModel(this_name, models_block, FREQ_ESTIMATE, "", tree);
 				else
 					model = (ModelMarkov*)createModel(this_name, models_block, FREQ_USER_DEFINED, freq_vec[f]->description, tree);
+				ModelNonrevFixedEq::refuseAsMixtureComponent(model);
 				model->total_num_subst = rate * freq_rates[f];
 				if (Params::getInstance().optimize_mixmodel_freq)
 					model->freq_type = FREQ_ESTIMATE;
@@ -3516,6 +3524,7 @@ void ModelMixture::initMixture(string orig_model_name, string model_name, string
             }
             
 			model = (ModelMarkov*)createModel(this_name, models_block, model_freq, freq_params, tree);
+			ModelNonrevFixedEq::refuseAsMixtureComponent(model);
 			model->total_num_subst = rate;
             if (nxsmodel_freq_name.length() > 0) {
                 model->name += "+F" + nxsmodel_freq_name + "";
