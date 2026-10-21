@@ -96,8 +96,9 @@ def site_log_likelihoods(tree, columns, Q, pi, rates=(1.0,), weights=(1.0,), inv
     return site
 
 
-def alignment_log_likelihood(alignment, tree, Q, pi, shape=None, ncat=4, p_invar=0.0, sites=None):
-    """Total log-likelihood of an alignment (name -> sequence), summed over distinct columns."""
+def compress(alignment, tree, sites=None):
+    """The alignment's distinct columns in first-seen order (leaf characters in the tree's leaf
+    order), their counts, and their tip vectors (leaf name -> vector)."""
     names = [leaf.name for leaf in tree.leaves()]
     if set(names) != set(alignment):
         raise ValueError("the tree's leaves and the alignment's names differ")
@@ -108,12 +109,21 @@ def alignment_log_likelihood(alignment, tree, Q, pi, shape=None, ncat=4, p_invar
         counts[col] = counts.get(col, 0) + 1
     patterns = list(counts)
     columns = [{n: tip_vector(c) for n, c in zip(names, col)} for col in patterns]
+    return patterns, np.array([counts[p] for p in patterns], dtype=float), columns
+
+
+def rate_categories(shape=None, ncat=4, p_invar=0.0):
     if shape is not None:
-        rates, weights = category_rates(shape, ncat, p_invar)
-    elif p_invar:
-        rates, weights = invariant_rates(p_invar)
-    else:
-        rates, weights = np.array([1.0]), np.array([1.0])
+        return category_rates(shape, ncat, p_invar)
+    if p_invar:
+        return invariant_rates(p_invar)
+    return np.array([1.0]), np.array([1.0])
+
+
+def alignment_log_likelihood(alignment, tree, Q, pi, shape=None, ncat=4, p_invar=0.0, sites=None):
+    """Total log-likelihood of an alignment (name -> sequence), summed over distinct columns."""
+    patterns, counts, columns = compress(alignment, tree, sites)
+    rates, weights = rate_categories(shape, ncat, p_invar)
     invariant = [invariant_term(col, pi, p_invar) for col in patterns] if p_invar else None
     site = site_log_likelihoods(tree, columns, Q, pi, rates, weights, invariant)
-    return float(np.array([counts[p] for p in patterns]) @ site)
+    return float(counts @ site)
