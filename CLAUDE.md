@@ -128,6 +128,10 @@ cmake --build ~/iqtree3-build -j 4
   - It reaches runs (`gh run list`), job logs (`gh run view ID --log-failed`) and the Actions
     settings (`gh api repos/petergoodman/iqtree3/actions/permissions`).
   - `gh repo set-default` points at the fork.
+  - A repository that GitHub itself has disabled still reads `"enabled":true` from
+    `actions/permissions`. The signs are a push with no check suite
+    (`gh api repos/petergoodman/iqtree3/commits/SHA/check-suites`) and a red banner that only
+    Peter sees on the Actions page.
   - `.claude/settings.json` allows these read commands. It denies `gh pr`, `gh issue`, printing
     the token, and `gh api` writes.
   - Peter's email, notifications and billing, the "Run workflow" button and reruns stay

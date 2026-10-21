@@ -38,6 +38,11 @@ Programming decisions:
 - 027 Keep the benchmark box as the default and check no start against it
 - 028 Build only the log-ratio chart, with no compiled positive-ratio or T3 alternative
 - 029 Report a fall below the start and restore nothing
+- 030 Set the S2 pass lines and the toy problem before S2's tests are written
+- 031 Build NQC's base through a protected `ModelProtein` constructor that reads no model (supersedes part of 002 and 026)
+- 032 Refuse NQC as a mixture component where `initMixture` creates components
+- 033 Save and restore NQC's coordinates from S2
+- 034 Adopt seven refinements to NQC's specification from the S2 plan review
 
 Mathematical and methodological decisions:
 
@@ -895,6 +900,199 @@ Number programming entries sequentially from 001 and never reuse a number.
   the S5 recording fields in the shared optimizer.
 - **Affects:** `CODE_PLAN.md` sections 1.2 and 2.2; PLAN.md risks 7, 14 and 22 and the change map;
   `model/modelnonrevfixedeq.cpp` (S2); the S3 post-fit hook and nesting test.
+
+## 030. Set the S2 pass lines and the toy problem before S2's tests are written
+
+- **Date:** 2026-10-20
+- **Status:** accepted
+- **Decision:** S2's checks of the compiled class use decision 026's line for Q against the
+  oracle, decision 021's line (1e-8 × |lnL|) for a likelihood against the oracle, and these:
+  - **Gradient, same rule.** IQ-TREE's scaled forward-difference gradient against the oracle's
+    forward difference with the same step rule, per coordinate:
+    |g_k − g_k^oracle| ≤ 2 × 1e-12 × |lnL| / |h_k|, with h_k the step's displacement.
+  - **Gradient, step size (D02).** The oracle computes central differences at steps of 1e-2, 1e-3
+    and 1e-4 times max(1, |x_k|) and reports their spread; the reference g_k^ref is the one at
+    1e-3, and the curvature f″_kk is the second central difference at that step. Per coordinate:
+    |g_k − g_k^ref| ≤ 2 × [(|h_k| / 2) × |f″_kk| + 2 × 1e-12 × |lnL| / |h_k|].
+  - **Gradient points.** On `example/aa_example.phy`, decision 023's target, `+G4{0.5}`, the
+    rooted tree of baseline run 2 with branch lengths fixed: at the LG seed, and at a start
+    built by the oracle from the seed's coordinates with one free coordinate per row set to 1e-9,
+    written at 17 significant digits and passed by `--init-model`. IQ-TREE's legacy step at the
+    second point is computed by the oracle and reported, not asserted.
+  - **Toy problem (decision 017).** 8 taxa, 3000 sites, no rate variation, simulated from NQ.pfam's
+    jump chain transferred to decision 023's target, on a rooted 8-taxon tree with branch
+    lengths drawn uniformly from [0.05, 0.3], by the frozen binary's AliSim (or, if AliSim does
+    not accept a non-reversible Q file, by a seeded simulator in the oracle), with every seed
+    recorded. IQ-TREE runs a Level 1 fit with `-te`, `-blfix` and `-nparam 3`, which makes exactly
+    one model fit; the oracle's port runs one `optimize_model` call with the scaled step, the
+    same bounds and the same gradient tolerance. Both start at LG rebuilt at the target.
+    Asserted: the start scores (decision 021's line) and the first gradients (the same-rule
+    line). The final scores agree within max(10 × spread, 1e-8 × |lnL|), where the spread is the
+    largest final-score difference among oracle fits that differ from the plain one only by
+    rounding: every start coordinate moved by one unit in the last place, and an LU solve in place
+    of the pivoted QR for ν. The spread is measured by a kept exploratory script before the
+    compiled comparison runs, and recorded with its command in the commit that adds the
+    comparison. Reported: the largest Q difference, iterations and evaluations.
+  - **Re-evaluation.** For Level 1 fits, the oracle's log-likelihood of the final coordinates in
+    the class's checkpoint, on the same fixed tree and rates, against the accepted score in that
+    checkpoint: decision 021's line. IQ-TREE's printed final score is reported, not compared.
+  - **Target.** π* read from the checkpoint after every fit equals the parsed, normalized vector
+    bit for bit.
+  - As in decisions 021 and 026, no line is loosened after a failure.
+- **Why:** Peter's approval of the S2 plan on 2026-10-20.
+  - **Same rule.** Both sides take the same steps, so only the two likelihoods can differ. Two
+    correct routes to the same Q differed per entry by up to 7.8e-15 (decision 026), and the
+    oracle's likelihood matched IQ-TREE's within 9.8e-16 relative on fixed matrices (S0); 1e-12
+    leaves a factor of about 100, and dividing by the step converts a likelihood difference into
+    a gradient difference.
+  - **Step size.** A forward difference is off by about half the step times the curvature, plus
+    rounding; the line allows twice that per coordinate, so a small component cannot be wholly
+    wrong while a large one passes. At a coordinate of 1e-9 the legacy step is 1e-13
+    (`utils/optimization.cpp:916-939`), and its rounding error alone is about 1e-15 × |lnL| / 1e-13,
+    orders of magnitude outside the line, which is the failure D02 exists to avoid.
+  - **Toy.** IQ-TREE repeats model fits round after round until the gain falls below `modelEps`
+    (`model/modelfactory.cpp:1636-1704`; default 0.01, `utils/tools.cpp:7409`); `-nparam 3` leaves
+    one round (`utils/tools.cpp:2860-2867`), matching the port's single call. `dfpmin` stops when the
+    scaled gradient falls below its tolerance (`utils/optimization.cpp:848-855`), which leaves more
+    slack than any fixed relative line, and rounding differences send two correct optimizers down
+    different paths (decision 017), so the final-score line is set from the oracle's own spread,
+    as decision 026 set Q's line from a measurement. Simulated data with many sites per
+    parameter make the optimum well determined; `aa_example` has 697 sites for 360 parameters.
+  - **Re-evaluation.** Under fixed branch lengths, the round loop stops when a round gains less
+    than `modelEps` but keeps that round's model, while the printed score stays at the previous
+    round's (`model/modelfactory.cpp:1684-1703`). This holds for every model, so the printed score
+    can lag the model's state by up to 0.01, about 5e-7 × |lnL| on `aa_example`.
+  - **Target.** The parser divides by the sum once, so the stored vector can differ from the text
+    in the last bits (for the turtle target at 17 digits the sum is 1.0000000000000002).
+- **Alternatives rejected:** one scale for the step-size check, 1e-3 × max(1, max|g^ref|), which
+  lets a small component be wholly wrong; a fixed final-score line of 1e-6 × |lnL| for the toy,
+  which the stop test's slack can fail on correct code; `aa_example` itself as the toy, whose
+  optimum is poorly determined; IQ-TREE's printed final score as the re-evaluation target.
+- **Affects:** `test_scripts/fixedeq/oracle/nqc.py`; `test_scripts/fixedeq/nqc/`; the toy
+  calibration script in `test_scripts/fixedeq/explore/`; `CODE_PLAN.md` sections 3.3 and 4.
+
+## 031. Build NQC's base through a protected `ModelProtein` constructor that reads no model
+
+- **Date:** 2026-10-20
+- **Status:** accepted
+- **Decision:** `ModelProtein` gains a protected constructor taking the tree and the models block,
+  which constructs `ModelMarkov(tree, true, false)`, stores the models block and does nothing
+  else. Only `ModelNonrevFixedEq` calls it. NQC then reads its seed as the NONREV branch of
+  `ModelProtein::init` does: the `--init-model` name from the models block, or the
+  `--init-model` file, otherwise LG, each read with tree adaptation off, then `rescaleRates`.
+  `ModelProtein::init` and `ModelMarkov::readStateFreq` stay unedited, and the target still never
+  reaches the shared reader. This supersedes decision 002's "the subclass constructs its base with
+  the seed model's name and converts in its own constructor", and decision 026's statement that
+  `ModelProtein` is not edited.
+- **Why:** Peter's choice on 2026-10-20, from a defect the S2 plan review found. Built with the
+  name "LG", `ModelProtein::init` reads LG through `readParametersString(desc)` (verified,
+  `model/modelprotein.cpp:1121`), whose tree adaptation defaults to on (`model/modelmarkov.h:179`),
+  so `setReversible(true, true)` (`model/modelmarkov.cpp:1856`) unroots a rooted tree
+  (`model/modelmarkov.cpp:97-101`). The `-te` tree already exists then
+  (`initializeParams`, `main/phyloanalysis.cpp:3568`, precedes `initializeModel` at 3586), and NQC's later
+  `setReversible(false)` roots it again at the midpoint (`model/modelmarkov.cpp:145-149`), so a
+  rooted input tree would lose its root, against decision 016. The NONREV branch reads its seed
+  with adaptation off (`model/modelprotein.cpp:1214-1231`), which is why S0 probe (f) found NONREV's
+  root unchanged. No class derives from `ModelProtein` today (verified), and the added
+  constructor changes nothing for any existing model.
+- **Alternatives rejected:** constructing the base with the name "NONREV", which keeps the root
+  but prints NONREV's two overfitting warnings (`model/modelprotein.cpp:1208-1211`) in every NQC
+  run, reads LG twice and depends on that branch staying as it is; clearing the tree's rooted flag
+  while the base is built, which relies on nothing reading the flag in between; a direct
+  `ModelMarkov` subclass, which reverses decision 002.
+- **Affects:** `model/modelprotein.{h,cpp}`, `model/modelnonrevfixedeq.{h,cpp}`; `CODE_PLAN.md`
+  sections 1.2 and 2.2; PLAN.md's change map; the regression comparison of S2.
+
+## 032. Refuse NQC as a mixture component where `initMixture` creates components
+
+- **Date:** 2026-10-20
+- **Status:** accepted
+- **Decision:** `ModelMixture::initMixture` stops with an error when a component it has just
+  created is an NQC model, at both creation sites: the `+FMIX` loop
+  (`model/modelmixture.cpp:3441-3445`) and the `MIX{...}` path (3518). This settles decision 008's
+  "How a mixture context is detected is settled in S2".
+- **Why:** Peter's choice on 2026-10-20. `createModel` receives no mixture flag (verified,
+  `model/modelmixture.cpp:3122`), and `initMixture` writes each component's `total_num_subst` and,
+  under `optimize_mixmodel_freq`, its `freq_type` directly after creating it (3446-3448,
+  3519-3525), bypassing the class. A mixture defined in an `--mdef` file never puts "MIX" in the
+  command-line model string. A check at the creation sites catches every route, fires only for
+  NQC, and sits in the file S2 already edits.
+- **Alternatives rejected:** searching the command-line model string for "MIX" in the class
+  constructor, which needs no further shared edit but misses `--mdef` mixtures.
+- **Affects:** `model/modelmixture.cpp`; S2's refusal tests.
+
+## 033. Save and restore NQC's coordinates from S2
+
+- **Date:** 2026-10-20
+- **Status:** accepted
+- **Decision:** Decision 003's class checkpoint is implemented in S2 rather than S3: saving the
+  coordinates and metadata under the class's own keys, and restoring them with verification. A
+  restore that finds none of the class's keys leaves the model unchanged. S3 keeps the restart
+  test, the incompatible-restart test and the linked checks.
+- **Why:** Peter's choice on 2026-10-20. When +I and +G are both free, IQ-TREE's default
+  optimization (`opt_gammai` true, `utils/tools.cpp:7082`; `tree/iqtree.cpp:2333`) keeps the best of
+  its starts by saving the model to a checkpoint and restoring it
+  (`model/modelfactory.cpp:1441`, `1488`, `1503-1505`, `1550`). Without the class's keys,
+  `ModelProtein`'s restore writes 10-digit rates that NQC's decomposition replaces with the
+  current coordinates (decision 015), so the restored Q would be the last start's, out of step
+  with the restored gamma shape, proportion of invariant sites and branch lengths, and the run can
+  stop at the check at `model/modelfactory.cpp:1519`. That path copies the model's checkpoint
+  before any model state is saved (`tree/iqtree.cpp:2365` restores, the first save is at 2389), so
+  a restore without the class's keys must leave the state as it is, as IQ-TREE's own restores do.
+- **Alternatives rejected:** keeping S3's boundary and limiting S2's fits to `+G4` and fixed
+  `+I+G4`, which leaves a reachable wrong result in the S2 build.
+- **Affects:** `model/modelnonrevfixedeq.{h,cpp}`; `CODE_PLAN.md` sections 2.2 and 4; S2's Level 2
+  `+I+G4` fit.
+
+## 034. Adopt seven refinements to NQC's specification from the S2 plan review
+
+- **Date:** 2026-10-20
+- **Status:** accepted
+- **Decision:**
+  1. **Root distribution.** NQC's `getStateFrequency` returns π* unchanged, without the
+     renormalization `ModelMarkov::getStateFrequency` applies.
+  2. **Linked use before S3.** NQC refuses `--model-joint` and `--link-model` until S3 adds the
+     linked derivative and post-fit hook.
+  3. **Matrix setters.** `setRateMatrix` and `setFullRateMatrix` stop with an error rather than
+     re-encode, superseding `CODE_PLAN.md` section 2.2's re-encoding until a reachable caller
+     exists.
+  4. **GHOST models.** NQC refuses `+H` models, detected as IQ-TREE detects them, by the model
+     string (`main/phyloanalysis.cpp:190`). This extends decision 008's list.
+  5. **Matrix exponential.** Of the matrix-exponential methods, only `--eigen` is refused, as
+     decision 008 says; the others behave for NQC as they do for NONREV.
+  6. **Non-protein data.** The NQC name is dispatched at the top of `createModel`'s chain, before
+     the PoMo, Lie-Markov, binary and DNA branches, so that non-protein data reach NQC's own
+     refusal; it is still one branch.
+  7. **What the tests read.** The S2 checks read final coordinates, π*, references and the accepted
+     score from the class's 17-digit checkpoint keys. The class prints, only under verbose output,
+     the seed Q after the base routine's rescaling (`-v`) and the first gradient of its first fit
+     (`-vv`), which no file holds.
+- **Why:** Peter's approval of the S2 plan on 2026-10-20.
+  1. The non-reversible likelihood takes its root distribution from `getStateFrequency`
+     (`tree/phylokernelnonrev.h:647`, `1123`), which divides a copy by its sum
+     (`model/modelmarkov.cpp:886-891`); unless the normalized π* sums to exactly 1.0 in floating
+     point, the root distribution would differ from π* in the last bits, against PLAN.md
+     constraint 3.
+  2. Otherwise the S2 build would run linked training with the legacy step and no post-fit checks,
+     against D02 and decision 005.
+  3. Their only callers, rate-linking inside mixtures and site-specific frequency models
+     (`model/modelmixture.cpp:4374-4391`, `model/modelfactory.cpp:643-672`), are refused, so
+     re-encoding code could not be exercised.
+  4. Branch-length mixtures are undesigned for NQC and were not on decision 008's list.
+  5. `--scaling-squaring` works for non-reversible models (`model/modelmarkov.cpp:465-479`), and
+     `--lie-markov` fails for NONREV today (`model/modelmarkov.cpp:501-502`); refusing either would
+     change behaviour the constraint does not require.
+  6. DNA, binary and other data never reach the protein branch
+     (`model/modelmixture.cpp:3230-3257`), and `ModelProtein::init` asserts 20 states
+     (`model/modelprotein.cpp:1108`).
+  7. Peter's rule against tests that assert on printed output; the checkpoint is a data file
+     written by the class at 17 digits.
+- **Alternatives rejected:** leaving the renormalized copy; leaving linked use open in S2;
+  re-encoding setters with no caller; refusing every non-default matrix-exponential method;
+  dispatching inside the protein branch, as `CODE_PLAN.md` section 1.2 said; reading every number
+  from the log.
+- **Affects:** `model/modelnonrevfixedeq.{h,cpp}`, `model/modelmixture.cpp`; `CODE_PLAN.md`
+  sections 1.2 and 2.2; S2's refusal tests and check driver.
 
 ---
 

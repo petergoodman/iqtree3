@@ -1,7 +1,8 @@
 # Plan: π-constrained non-reversible amino-acid models
 
-> **Status, 2026-10-19: S1 complete (gate G1); no file the IQ-TREE binary compiles has changed
-> yet; approach accepted by the IQ-TREE maintainers (reported by Peter, 2026-10-01).** Peter owns this document. Its
+> **Status, 2026-10-20: S1 complete (gate G1); S2 planned and approved (decisions 030 to 034);
+> no file the IQ-TREE binary compiles has changed yet; approach accepted by the IQ-TREE
+> maintainers (reported by Peter, 2026-10-01).** Peter owns this document. Its
 > companion, `docs/agent/CODE_PLAN.md`, holds the file-level change map, the NQC class
 > specification and the test specification, and is read after this file. Decisions are
 > recorded only in `docs/agent/DECISIONS.md` and are cited here by number.
@@ -214,7 +215,9 @@ New files in place since S1:
 Proposed: `model/modelnonrevfixedeq.{h,cpp}`, the NQC class.
 
 Shared IQ-TREE files touched, each opt-in or behaviour-preserving (proposed): in S2,
-`model/CMakeLists.txt` and one `createModel` branch in `model/modelmixture.cpp`; in S2 and S3,
+`model/CMakeLists.txt`, one `createModel` branch and a mixture-component check in
+`model/modelmixture.cpp` (decisions 032, 034), and a protected constructor in
+`model/modelprotein.{h,cpp}` (decision 031); in S2 and S3,
 parse-only options in `utils/tools.{h,cpp}`; in S3, derivative delegation, a linked-compatibility
 check and a post-fit hook in `model/partitionmodel.{h,cpp}`; in S4, the export hook and citation
 block in `main/phyloanalysis.cpp`. Deferred: `main/phylotesting.cpp` (S6).
@@ -243,7 +246,7 @@ competing implementations, G5 native and outer workflow, G6 scientific validatio
 |---|---|---|---|---|---|
 | S0 | G0 | Evidence before any source edit | `test_scripts/fixedeq/` only; no IQ-TREE source | oracle tests; regression driver | environment built from its file; design scripts rerun from copies and compared with their reported values; oracle likelihood matches the unmodified binary; baseline recorded twice with the binary's SHA-256; S0 runtime checks answered; unmodified sanitizer run recorded; G0 run manifest written |
 | S1 | G1 | Pure mathematical core | `model/fixedeqchart.*`, `unittest/`, fixtures, fork workflow | unit tests at n = 3, 4 and 20 against oracle fixtures | all pass in Release and sanitizer builds; residual maxima tabled |
-| S2 | G2 | First compiled model, one alignment | class files, `model/modelmixture.cpp`, `model/CMakeLists.txt`, domain option | differential at the seed; gradient step checks; target-overwrite and invalid-target rejections; re-evaluation of the accepted state; compiled optimizer against the Python port on a toy case | all pass; Level 1 and Level 2 fits on `example/aa_example.phy`; regression reproduces; sanitizers clean for new code |
+| S2 | G2 | First compiled model, one alignment | class files with the class checkpoint (decision 033), `model/modelmixture.cpp`, `model/modelprotein.*`, `model/CMakeLists.txt`, domain option | root kept as for NONREV; differential at the seed; gradient step checks; target-overwrite and invalid-target rejections; re-evaluation of the accepted state; compiled optimizer against the Python port on a toy case; all under decision 030's lines | all pass; Level 1 and Level 2 fits on `example/aa_example.phy`, `+I+G4` included; regression reproduces; sanitizers clean for new code |
 | S3 | G2, G3 | Linked training and lifecycle | `model/partitionmodel.*`, class checkpoint | two partitions with different compositions; `-S` and `-p`; `-T 1` against `-T 4`; restart; GTR20-seeded nesting | all pass; the linked gradient uses the scaled step |
 | S4 | G3 | Export, re-import and report | `main/phyloanalysis.cpp`, class export | export then `-m FILE` likelihood equality; metadata completeness | G3 met; first release candidate |
 | S5 | G4, as reduced by decision 028 | Independent reference | `test_scripts/fixedeq/` only: D10's direct balanced-flux fit in Python | agreement with NQC fits on small problems | comparison report |
@@ -304,11 +307,14 @@ Details are in `CHANGELOG.md`.
 
 ## Next step
 
-1. Peter pushes S1.
-2. The agent checks the fork workflow's first run. The micromamba route to the locked
-   environment is unverified.
-3. The agent plans S2 for Peter's approval: the NQC class, its construction, the decomposition
-   override, and single-alignment fits (`CODE_PLAN.md` section 4).
+1. S2, as planned and approved on 2026-10-20 (decisions 030 to 034; `CODE_PLAN.md` section 4):
+   oracle additions and the toy calibration; the NQC class, its shared-file hooks and the domain
+   option; the check driver, the sanitizer step and the CI job; then the gate from a clean tree.
+2. Peter asks GitHub Support to re-enable Actions. GitHub disabled it on the fork between
+   2026-10-08 and 2026-10-19 (`CHANGELOG.md`, 2026-10-20); S1 is pushed. Not a blocker for S2,
+   whose gate is local.
+3. Once Actions is re-enabled, the agent checks the fork workflow's first run. The micromamba
+   route to the locked environment, and the S2 NQC job, are unverified.
 
 ## Checklists
 

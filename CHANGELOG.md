@@ -13,13 +13,17 @@ development.
   - Windows `gh` uses Peter's fine-grained, read-only token, limited to the fork.
   - `.claude/settings.json` allows the read commands and denies PR, issue and API writes.
   - CLAUDE.md records the setup.
-- **Found.** Actions is enabled on the fork, and GitHub logged the 975971f8 push at 18:19:37Z.
-  It created no check suite, so neither Build nor fixedeq ran. The likely cause is a trigger
-  dropped on GitHub's side; this is unverified.
+- **Found.** GitHub itself has disabled Actions on the fork.
+  - The Actions page reads "GitHub Actions is currently disabled for this repository. Please
+    reach out to GitHub Support for assistance."
+  - The repository's own setting, which is all the API shows, still reads enabled.
+  - The last run was on 2026-10-08. Pushes 975971f8 (2026-10-19) and b4299e32 (2026-10-20)
+    created no check suite.
+  - The reason and the date it was disabled are unknown.
   - Build's 2026-10-08 failure was Windows-only: Chocolatey returned 503 while installing LLVM.
 - **Next.**
-  1. Push, which should trigger both workflows.
-  2. Check fixedeq's first run.
+  1. Peter asks GitHub Support for the reason and to re-enable Actions.
+  2. Once Actions is re-enabled, check fixedeq's first run.
   3. Plan S2.
 
 ## 2026-10-19 (seventh session): S1, the pure mathematical core
