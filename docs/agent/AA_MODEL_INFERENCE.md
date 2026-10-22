@@ -8,14 +8,14 @@ non-time-reversible (nQ), stated as mathematics together with the code that impl
 constant, and default below was read out of the source in that tree. Line numbers drift, symbol
 names do not, so grep the name if an anchor misses.
 
-**Companions:** `docs/agent/ARCHITECTURE.md` (how the codebase is organised) and
-`docs/agent/FILE_INDEX.md` (which file to open when). This document is about the method, not the
-plumbing. Section 16 records which claims were verified directly and which were not.
+**Companion:** `docs/agent/ARCHITECTURE.md` (how the codebase is organised). This document is
+about the method, not the plumbing. Section 16 records which claims were verified directly and
+which were not. Both describe upstream code at the baseline; this fork's additions (the NQC
+model) are specified in `docs/agent/CODE_PLAN.md` section 2.
 
 **What this document is not.** It describes how IQ-TREE 3 infers amino-acid models today, from
-the mathematical, optimization, and algorithmic side; it is one of the three reference
-documents on the current code, with `ARCHITECTURE.md` (programming architecture) and
-`FILE_INDEX.md` (navigation). It is not a plan, a design, or a decision record for this project,
+the mathematical, optimization, and algorithmic side; it is one of the two reference documents
+on the current code, with `ARCHITECTURE.md` (programming architecture). It is not a plan, a design, or a decision record for this project,
 and nothing in it is an instruction about what the project should build. Where it mentions a
 π-constrained model, it does so only for comparison with what exists. The project's design is in
 `docs/agent/design/`, its decisions in `docs/agent/DECISIONS.md`, and its plan in
@@ -662,11 +662,14 @@ The compatibility vectors come from `Alignment::getAppearance`: B resolves to {N
 {Q, E}, J to {I, L}, and X or a gap to all 20 states. The iteration count is a hard-coded
 `NUM_TIME = 8`, not a convergence test.
 
-A post-processing step, `Alignment::convfreq`, raises any frequency below
-`Params::min_state_freq` (default 1e-4) to that floor and absorbs the deficit into the largest
-frequency, unless `--keep-ident`-style `keep_zero_freq` is set. So an amino acid absent from the
-alignment gets 1e-4, not 0, which matters because `ZERO_FREQ = 1e-10`
-(`utils/eigendecomposition.h:24`) would otherwise delete the state from the matrix entirely.
+A post-processing step, `Alignment::convfreq`, returns at once by default, because
+`keep_zero_freq` defaults to true (`utils/tools.cpp:7262`; corrected 2026-10-22, this paragraph
+previously said the floor applied by default). Only under `--inc-zero-freq` does it raise every
+frequency below `Params::min_state_freq` (default 1e-4) to that floor and take the deficit from
+the largest frequency. So by default an amino acid absent from the alignment keeps a frequency
+near 0, and `ZERO_FREQ = 1e-10` (`utils/eigendecomposition.h:24`) can delete the state from the
+matrix. Because the fixed point runs exactly 8 rounds, unknown cells shift the estimate only
+slightly.
 
 ### 4.2 Eigendecomposition, reversible
 
@@ -1619,8 +1622,8 @@ Found while reading, listed because each one can change a number or waste a week
    left untouched.
    `computeTransMatrixEigen`, the function that would consume that output, has zero callers.
 
-2. **`--matrix-exp` does not exist.** An earlier version of `docs/agent/FILE_INDEX.md` named it;
-   the index has since been corrected. The real flags are `--eigenlib`, `--eigen`,
+2. **`--matrix-exp` does not exist.** An earlier agent document named it; it was corrected
+   before that document was retired. The real flags are `--eigenlib`, `--eigen`,
    `--scaling-squaring` and `--lie-markov` (`utils/tools.cpp:5093-5108`), and the default is
    `MET_EIGEN3LIB_DECOMPOSITION`.
 

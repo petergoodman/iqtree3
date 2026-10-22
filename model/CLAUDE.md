@@ -1,7 +1,8 @@
 # model/ local notes
 
-Loaded automatically when working on files in this directory. Full map:
-`docs/agent/ARCHITECTURE.md`. File-by-file index: `docs/agent/FILE_INDEX.md`.
+Loaded automatically when working on files in this directory. Map of upstream code:
+`docs/agent/ARCHITECTURE.md`. This project's model is NQC, in `modelnonrevfixedeq.{h,cpp}` with
+its pure module `fixedeqchart.{h,cpp}`; its specification is `docs/agent/CODE_PLAN.md` section 2.
 
 ## Dead files in this directory, do not read or edit
 
@@ -46,5 +47,4 @@ One boolean, `is_reversible`, separates the two. For non-reversible models `rate
 `n(n-1)` off-diagonal entries of Q in row-major order, the tree is rooted, the eigen spectrum is
 complex, and `state_freq` is an output derived from Q on every evaluation rather than an input.
 The exception is NQC (`modelnonrevfixedeq.*`), whose `state_freq` is the fixed target π*, never
-derived from Q. NQC's checkpoint key `accepted_score` is the score after its last accepted fit,
-before that round's rate and branch-length updates, so in Level 2 it is not the run's final score.
+derived from Q.

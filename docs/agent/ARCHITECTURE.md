@@ -15,22 +15,21 @@ project choice. The project's design is in `docs/agent/design/`, its decisions i
 `docs/agent/DECISIONS.md`, and its plan in `docs/agent/PLAN.md`. A passage here that reads as a
 recommendation for the project is a defect; report it rather than follow it.
 
-**Companions.** Three reference documents describe the current code, each from a different
-angle, and none of them prescribes anything:
+**Companions.** Two reference documents describe the current code, each from a different
+angle, and neither prescribes anything:
 
 - `docs/agent/ARCHITECTURE.md` (this file): the programming architecture.
 - `docs/agent/AA_MODEL_INFERENCE.md`: the mathematics, optimization, and algorithms by which each
   class of amino-acid model is inferred.
-- `docs/agent/FILE_INDEX.md`: which file to open for which question, with line anchors, so that
-  agents do not grep the whole repository.
 
-Read this document first, then use the file index to locate specific code.
+Both describe upstream code at the baseline. This fork's additions (the NQC model) are not
+described here; their specification is `docs/agent/CODE_PLAN.md` section 2.
 
 ## Baseline and staleness
 
-**Baseline: `63c330d9` (upstream tag `v3.1.4`).** All line anchors in this document and in
-`FILE_INDEX.md` were re-verified against that commit on 2026-09-15; anchors added or changed on
-2026-09-23 were read at the same commit. Names and structure drift far more slowly than line
+**Baseline: `63c330d9` (upstream tag `v3.1.4`).** All line anchors in this document were
+re-verified against that commit on 2026-09-15; anchors added or changed on 2026-09-23 were read
+at the same commit. Names and structure drift far more slowly than line
 numbers; if an anchor misses, grep for the symbol name nearby.
 
 Repository layout as of that date: `origin` is the fork `petergoodman/iqtree3`, `upstream` is

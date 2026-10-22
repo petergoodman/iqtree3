@@ -6,7 +6,8 @@ accurately. Newest first.
 
 One entry per milestone (a finished slice, or a manuscript draft), summarized from git history,
 in which commits made with an AI agent carry a `Co-Authored-By: Claude` line. Entries record the
-tool and model version, what it did, and which files or sections it touched.
+tool and model version, what it did, and which files or sections it touched, in at most 15
+lines: tool and model, operator, up to five "what it did" bullets, files touched.
 No AI-generated scientific claim, numerical result, or citation in this project has been accepted
 without human verification against source.
 

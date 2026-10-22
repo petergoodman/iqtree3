@@ -2,10 +2,26 @@
 
 Session history for the π-constrained non-reversible amino-acid model project, newest first.
 Each entry is about ten lines: what was done, what failed and why, and what is next, with detail
-left to commit messages and the planning documents. The next session starts from the top entry.
+left to commit messages and the planning documents. An entry that closes a slice also holds its
+gate record and may run to 25 lines. The next session starts from the top entry.
 
 This is a fork of `iqtree/iqtree3`. Entries here describe work on the fork, not upstream
 development.
+
+## 2026-10-22 (third session): agent records restructured
+
+- **Done.** Reviewed the agent documents at Peter's request, then the restructure he approved:
+  - DECISIONS.md: the 1451-line append-only log moved unchanged to `docs/agent/archive/`; a
+    441-line rulebook, edited in place, replaces it, with a number map that resolves every number.
+  - PLAN.md 358 → 248 lines: maintainer questions split from open risks; the S2 gate numbers moved
+    to the S2 entry below; S3-1, the risk 7 and 12 checks and the post-fit hook question moved to
+    CODE_PLAN.md section 4. FILE_INDEX.md deleted. CLAUDE.md gains "Records": homes and budgets.
+  - AA_MODEL_INFERENCE.md 4.1 corrected: `convfreq` floors only under `--inc-zero-freq`.
+- **Failed.** The plan's size estimates were low (DECISIONS.md 441, planned 320; CODE_PLAN.md 527,
+  planned 440), so the budgets were set from the results. A review subagent found 14 losses or
+  drifts in the first draft, among them decision 021's checkpoint rule stated too broadly; all
+  were fixed.
+- **Next.** Unchanged: Peter decides risks 19 and 22, then S3 is planned, starting with S3-1.
 
 ## 2026-10-22 (second session): S2 close-out checked, records corrected
 
@@ -34,14 +50,24 @@ development.
     - the unit tests passed in both builds, and all 182 Python tests passed;
     - the sanitizer rerun found only risk 20's upstream report.
 
-    The numbers are in PLAN.md's current state.
+    Asserted checks: root; seed, IQ-TREE's first log-likelihood within 1.06e-15 relative of the
+    oracle's in five setups; gradient at the seed and near zero; target; 21 refusals; Level 1,
+    Level 2 `+G4` and `+I+G4` fits; the toy fit against the oracle's port (difference 1.9e-6
+    against a line of 3.9e-4). The sanitizer rerun (`sanitizer-rerun/`) covered regression runs
+    2 and 4, the 16 differential cases, probe (a), and the NQC root, seed, target, refusal and
+    short cases. (Moved here from PLAN.md on 2026-10-22.)
 - **Failed.** The first sanitizer run had no keep-awake. Modern Standby froze it 16 s into probe
   a5, and a Windows restart ended it, so its NQC cases never ran. It was rerun on 2026-10-21 with
   a keep-awake helper: 4899 s, with no standby.
 - **Corrected.**
   - The check driver's `results.md` double-counts fits, reads the `+I+G4` residuals from the last
-    start, and checks π* from the class's own copy. The true values are in PLAN.md's current
-    state.
+    start, and checks π* from the class's own copy. Recomputed by `fitrecords.py` (`fitrecords/`
+    in the gate directory): the three fit runs made 6, 6 and 171 fits; over all 171 fit records
+    the largest residuals are 2.8e-16 (‖π*Q‖∞), 6.7e-16 (row sums) and 4.4e-16 (mean rate); the
+    restored `+I+G4` model has 1 coordinate at the upper bound, none at the lower, and residuals
+    of at most 2.5e-16 as the oracle computes them. The bitwise `state_freq` guard held and every
+    run exited normally. The Level 1 score IQ-TREE prints is 0.006 below the accepted score: the
+    round loop kept fit 6 and printed the previous round's score.
   - Decision 030 says the legacy step near zero falls orders of magnitude outside the line. It
     does not, because the line's rounding term grows as 1/h; the measured relative errors were
     9.5 for the legacy step and 3.0e-4 for the scaled step. The control stays reported, not

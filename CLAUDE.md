@@ -2,8 +2,7 @@
 
 Fork of `iqtree/iqtree3` (C++17, CMake). The project adds constrained maximum-likelihood
 estimation of non-reversible amino-acid rate matrices under a supplied target stationary
-frequency vector. The goal, scope, code plan and next step are in `docs/agent/PLAN.md` (code
-plan approved 2026-09-23); where it is silent, ask rather than infer.
+frequency vector. Goal, scope, plan and next step: `docs/agent/PLAN.md`; where it is silent, ask.
 
 Project facts only. Personal working preferences live in `~/.claude/CLAUDE.md`; personal
 project-specific notes go in `CLAUDE.local.md` (add it to `.gitignore` first).
@@ -19,23 +18,19 @@ Only when the task needs them:
 
 3. `docs/agent/CODE_PLAN.md`, after `PLAN.md`, when implementing or testing a slice: that
    slice's sections.
-4. `docs/agent/DECISIONS.md`, through the index at its top: the entries a task cites, and any
-   entry before changing an approach.
+4. `docs/agent/DECISIONS.md`, the active rules: the entries a task cites, and all of it before
+   planning a slice or changing an approach.
 5. The slide decks in `docs/agent/design/presentation/`, the maintainer-approved statement of
    the method, before planning or changing the method. The longer design documents in
    `docs/agent/design/` (start with its `README.md`; the synthesis governs conflicts among them)
    only when the decks do not settle the question.
-6. `docs/agent/ARCHITECTURE.md`, `docs/agent/AA_MODEL_INFERENCE.md` and
-   `docs/agent/FILE_INDEX.md`: the relevant section, before touching IQ-TREE code not yet read in
-   the session.
+6. `docs/agent/ARCHITECTURE.md` and `docs/agent/AA_MODEL_INFERENCE.md`: the relevant section,
+   before touching IQ-TREE code not yet read in the session. They describe upstream code and
+   prescribe nothing; what to build comes only from items 1 to 5.
 
-Not read at the start: `AI_DISCLOSURE.md` and older `CHANGELOG.md` entries.
-
-The documents in item 6 describe the code as it is and prescribe nothing. Instructions about
-what to build come only from `PLAN.md` with `CODE_PLAN.md`, `DECISIONS.md`, and the design
-documents.
-
-`model/CLAUDE.md` loads automatically for work under `model/`, where most of this project lives.
+Not read at the start: `AI_DISCLOSURE.md`, older `CHANGELOG.md` entries, and
+`docs/agent/archive/` (frozen history, read only to trace how a rule arose). `model/CLAUDE.md`
+loads automatically for work under `model/`.
 
 ## Commands
 
@@ -87,35 +82,27 @@ cmake --build ~/iqtree3-build -j 4
   Python: `~/anaconda3/bin/conda run --no-capture-output -n iqtree3-fixedeq python ...`. Tests,
   from the repository root: `... python -m pytest test_scripts/fixedeq/tests -q -p no:cacheprovider`.
   Conda's FutureWarning about the `defaults` channel is harmless.
+- **Drivers and git.** Pass `--git git.exe`: Linux git inside WSL sees hundreds of false changes
+  in this working copy (line endings). `regress.py run`, `probes.py`, `differential.py` and
+  `sanitize.py run` refuse an unclean tree, untracked files included, unless given
+  `--allow-dirty`, which is for development checks. Commit first only for a gate run whose result
+  is recorded, and create or edit no repository file while it runs.
 - **Regression driver**: `test_scripts/fixedeq/regression/regress.py` (`freeze`, `run`,
-  `baseline`, `compare`; `CODE_PLAN.md` section 3.4). The baseline in
-  `test_scripts/fixedeq/regression/baseline/` (runs 1 to 11) and run 12's in `baseline/run12/`
-  were recorded from the frozen unmodified binary `~/iqtree3-baseline/iqtree3` (SHA-256 in
-  `iqtree3.sha256` beside it), which is never rebuilt or overwritten; their raw outputs are in
-  `~/iqtree3-runs/baseline/` and `~/iqtree3-runs/baseline/run12/`. After a source change, `run`
-  the new build into a new directory and `compare` its `extract.json` with both files:
-  `compare --baseline baseline/baseline.json --baseline baseline/run12/baseline.json`. Run 11 is
-  judged by the decision 018 rule built into `compare`. Pass `--git git.exe`: Linux git inside WSL
-  sees hundreds of false changes in this Windows working copy (line endings), while Windows
-  `git.exe` reports the true state. `run`, `probes.py`, `differential.py` and `sanitize.py run`
-  refuse an unclean working tree, untracked files included, unless given `--allow-dirty`. Use
-  `--allow-dirty` for checks during development. Commit first only for a gate run whose result is
-  recorded (the end-of-slice regression comparison), and do not create or edit repository files
-  while it runs.
-- **Sanitizer build** (decisions 022, 035):
-  - `test_scripts/fixedeq/sanitizer/sanitize.py build --build-dir DIR --git git.exe` builds it
-    into a new directory, one per slice: S0's is `~/iqtree3-build-asan`, S2's
-    `~/iqtree3-build-asan-s2`. S0's build took about 30 minutes of compute; S2's took 4.2 hours
-    of wall time with the S2 checks running beside it.
-  - `sanitize.py run --binary DIR/iqtree3 --build-dir DIR --out OUT --git git.exe` runs it.
-    `--regression-runs`, `--probes` and `--no-differential` choose what runs, `--nqc-cases` adds
-    NQC cases (`--alisim` with the frozen binary for `short`), and `sanitize.py scan OUT` groups
-    the reports.
-  - The build runs about 20 times slower than Release. Every run so far shows one known upstream
-    finding at `model/modelmarkov.cpp:76` (PLAN.md risk 20).
-  - The unmodified sanitizer binary is frozen at `~/iqtree3-baseline-asan/iqtree3` (SHA-256 in
-    `iqtree3.sha256`, with its `sanitizer-build.json` and `CMakeCache.txt`), never rebuilt or
-    overwritten, so a later finding can be checked against unmodified code.
+  `baseline`, `compare`; `CODE_PLAN.md` section 3.4). The baseline (runs 1 to 11 in
+  `regression/baseline/`, run 12 in `baseline/run12/`; raw outputs under `~/iqtree3-runs/baseline/`)
+  came from the frozen unmodified binary `~/iqtree3-baseline/iqtree3` (SHA-256 beside it), never
+  rebuilt or overwritten. After a source change, `run` the new build into a new directory, then
+  `compare --baseline baseline/baseline.json --baseline baseline/run12/baseline.json`.
+- **Sanitizer build** (decision 022; flags and coverage in `CODE_PLAN.md` section 3.6):
+  `sanitize.py build --build-dir DIR --git git.exe` into a new directory per slice (about 30
+  minutes of compute alone, 4.2 hours of wall time beside other checks);
+  `sanitize.py run --binary DIR/iqtree3 --build-dir DIR --out OUT --git git.exe`, with
+  `--regression-runs`, `--probes`, `--no-differential` and `--nqc-cases` (`--alisim` with the
+  frozen binary for `short`); `sanitize.py scan OUT` groups the reports. Every run so far shows
+  one upstream finding at `model/modelmarkov.cpp:76` (PLAN.md, maintainer question 4). The
+  unmodified sanitizer binary is frozen at `~/iqtree3-baseline-asan/iqtree3` (SHA-256,
+  `sanitizer-build.json` and `CMakeCache.txt` beside it), never rebuilt, so a later finding can
+  be checked against unmodified code.
 - **Probe driver**: `test_scripts/fixedeq/probes/probes.py --binary BIN --out DIR --git git.exe
   [--only a,b,...]` reruns the S0 runtime probes, in about 45 minutes of compute.
   `test_scripts/fixedeq/manifest/manifest.py --out test_scripts/fixedeq/manifest --git git.exe`
@@ -125,24 +112,20 @@ cmake --build ~/iqtree3-build -j 4
   it; idle sleep is set to 3 minutes on battery and 15 minutes plugged in. A job that looks hung
   is usually paused. Compare IQ-TREE's CPU time with its wall-clock time, the VM's `uptime`, and
   Windows Kernel-Power events 506 and 507 before assuming a fault.
-- **GitHub from the agent** (Windows `gh` 2.102.0, set up 2026-10-20). It is logged in with
-  Peter's fine-grained token, which can read only `petergoodman/iqtree3` (Actions and
-  Administration, read-only) and cannot write anything.
-  - It reaches runs (`gh run list`), job logs (`gh run view ID --log-failed`) and the Actions
-    settings (`gh api repos/petergoodman/iqtree3/actions/permissions`).
-  - `gh repo set-default` points at the fork.
-  - A repository that GitHub itself has disabled still reads `"enabled":true` from
+- **GitHub from the agent** (Windows `gh` 2.102.0, set up 2026-10-20): Peter's fine-grained
+  token, read-only on `petergoodman/iqtree3` (Actions and Administration); `gh repo set-default`
+  points at the fork. `.claude/settings.json` allows `gh run list`, `gh run view ID --log-failed`
+  and `gh api` reads such as `repos/petergoodman/iqtree3/actions/permissions`, and denies
+  `gh pr`, `gh issue`, `gh api` writes and printing the token. Email, notifications, billing, the
+  "Run workflow" button and reruns stay with Peter.
+  - A repository GitHub itself has disabled still reads `"enabled":true` from
     `actions/permissions`. The signs are a push with no check suite
     (`gh api repos/petergoodman/iqtree3/commits/SHA/check-suites`) and a red banner that only
     Peter sees on the Actions page.
-  - `.claude/settings.json` allows these read commands. It denies `gh pr`, `gh issue`, printing
-    the token, and `gh api` writes.
-  - Peter's email, notifications and billing, the "Run workflow" button and reruns stay
-    with Peter.
   - A 401 means the token expired. Peter makes a new one and runs
-    `Get-Clipboard | gh auth login --hostname github.com --with-token` in his own terminal. He
-    does not use the interactive login, which offers to take over git's credentials; pushes go
-    through Git Credential Manager.
+    `Get-Clipboard | gh auth login --hostname github.com --with-token` in his own terminal, not
+    the interactive login, which offers to take over git's credentials (pushes go through Git
+    Credential Manager).
 
 ## Layout
 
@@ -154,7 +137,8 @@ cmake --build ~/iqtree3-build -j 4
   documentation tree goes here, so upstream merges stay clean.
 - `test_scripts/fixedeq/` this project's Python environment, oracle, drivers, tests and
   regression baseline; the rest of `test_scripts/` is upstream's.
-- `doc/` is generated Doxygen output from upstream, not ours, and is not worth reading.
+- Not worth reading: `doc/` (generated Doxygen), `nn/`, `nn_models/`, `terrace/`, `phylo-yaml/`,
+  `lib*/`, `test_scripts/iqtree2/`, and `simulator/` until S6's simulations.
 
 ## Conventions that differ from defaults
 
@@ -193,7 +177,7 @@ cmake --build ~/iqtree3-build -j 4
   opening a pull request from the fork on GitHub.
 - **Never contact the IQ-TREE maintainers.** No agent opens issues or pull requests, comments,
   posts to discussions, or emails anyone at `iqtree/iqtree3`. Peter handles all communication
-  with them; questions meant for the maintainers go to the open questions in
+  with them; questions meant for the maintainers go to "Questions for the maintainers" in
   `docs/agent/PLAN.md`. Development on the fork never waits on upstream.
 - Work happens on `nq-constrained-pi`. **Never commit to `master`**, which is kept as an exact
   mirror of upstream so that syncing stays a fast-forward.
@@ -203,6 +187,34 @@ cmake --build ~/iqtree3-build -j 4
   git merge master`. Afterwards, re-verify the `docs/agent/` anchors for any file the merge
   touched, in the same change.
 
-## Status
+## Records
 
-`docs/agent/PLAN.md` holds the current state and the next step. `CHANGELOG.md` holds history.
+Each kind of fact has one home. Other files cite it by section or number and do not restate it.
+
+| Home | Holds | Budget |
+|---|---|---|
+| `docs/agent/PLAN.md` | goal, scope, constraints, open risks, questions for the maintainers, current state, next step | 250 lines |
+| `docs/agent/CODE_PLAN.md` | change map, specification, test procedures, per-slice task lists with known shortfalls, source line anchors | 540 lines |
+| `docs/agent/DECISIONS.md` | the active rules, edited in place | 450 lines; 12 per entry, the pass-line table excepted |
+| `CHANGELOG.md` | what each session did, what failed, what is next; each slice's gate record | 10 lines per entry, 25 for a slice close |
+| commit messages | measurements, commands, detail | |
+| `AI_DISCLOSURE.md` | one entry per milestone | 15 lines per entry |
+| this file, `model/CLAUDE.md` | build, environment, commands, conventions, gotchas | 220 and 60 lines |
+| `ARCHITECTURE.md`, `AA_MODEL_INFERENCE.md` | upstream code at the baseline, corrected in place, never prescriptive | |
+
+- **Decision bar.** A new entry only when Peter chooses between real alternatives and the choice
+  constrains later code, tests or method. Corrections, shortfalls, status, measurements and
+  settings go to their homes above. A wrong statement is fixed in its one home, with the fix
+  named in the commit message, never as a new record.
+- **Revisions.** A superseded decision is rewritten in place and its "Since" line updated; git
+  and `docs/agent/archive/` keep the old text. Numbers are never reused; the number map at the
+  end of `DECISIONS.md` keeps retired numbers resolvable.
+- **Line numbers** appear only in `CODE_PLAN.md` (section 5 collects them) and the reference
+  documents; `PLAN.md` and `DECISIONS.md` cite symbol names.
+- **Stable identifiers.** Code, fixtures and the frozen G0 manifest cite decision numbers,
+  `CODE_PLAN.md` section numbers, `PLAN.md` constraint 2 and risks 7, 12 and 22: keep them valid.
+- **Closing a slice,** in one pass and one commit: the gate record in its `CHANGELOG.md` entry;
+  `PLAN.md`'s current state and next step replaced, not appended to; the slice's list in
+  `CODE_PLAN.md` section 4 cut to one line and the next slice's written; `DECISIONS.md` changed
+  only where the slice changed a rule; `wc -l` against the budgets, consolidating anything over;
+  the `AI_DISCLOSURE.md` entry.

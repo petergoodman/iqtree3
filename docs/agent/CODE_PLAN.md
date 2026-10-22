@@ -20,7 +20,7 @@ Labels are those of PLAN.md. Source anchors refer to `63c330d9` and were verifie
 | `model/fixedeqchart.{h,cpp}` | S1 | Pure functions over Eigen types, with no IQ-TREE headers and no process exit (section 2.1) |
 | `model/modelnonrevfixedeq.{h,cpp}` | S2 to S4 | Class `ModelNonrevFixedEq : public ModelProtein`, public name "NQC" held in one constant (decision 002; section 2.2) |
 | `unittest/` | S1 | Standalone CMake project that compiles `model/fixedeqchart.cpp` directly, with IQ-TREE's clang Release flags and the `model` target's SSE flags (verified, `CMakeLists.txt:420`, `711-718`, `984`), and fetches googletest 1.12.1 at cmaple's pinned commit, checked by the archive's SHA-256 (verified, `cmaple/CMakeLists.txt:283-293`; decision 012); `fixtures/`, 27 chart cases and `targets.txt` in plain text at 17 significant digits with a provenance header (section 3.2); its own `.gitattributes` (decision 014) |
-| `test_scripts/fixedeq/` | S0 onward | `environment.yml` and its exported lock (decision 013); the `oracle/` package; `tests/`; `regression/` and `differential/` drivers; `design_rerun.py`, which reruns the design scripts (decision 019); `probes/`, the S0 runtime probes; `sanitizer/`, the decision 022 build and run driver; `manifest/`, the G0 manifest generator and its output; `explore/`, the exploratory measurements cited by decisions 026 and 027 and the S2 toy calibration (decision 030); `nqc/`, the S2 check driver; `make_fixtures.py`, which writes the S1 fixtures; `unittests/`, the S1 driver that builds and runs `unittest/` in the Release and sanitizer variants and writes the residual table with provenance; its own `.gitattributes`, and a `.gitignore` for Python caches |
+| `test_scripts/fixedeq/` | S0 onward | `environment.yml` and lock (decision 013); `oracle/`; `tests/`; drivers `regression/`, `differential/`, `probes/`, `sanitizer/`, `unittests/`, `nqc/` and `design_rerun.py`; `manifest/` (G0 manifest); `explore/` (exploratory measurements behind decisions 007 and 021); `make_fixtures.py`; `.gitattributes` and `.gitignore` |
 | `.github/workflows/fixedeq.yaml` | S1 | Fork-only workflow that builds and runs the unit tests and the oracle's tests on Linux, and from S2 a short NQC run |
 
 Run outputs never go into the working copy; they go under `~/iqtree3-runs/` in WSL. Fixtures and
@@ -32,16 +32,16 @@ headers, each produced by a kept script, and are never regenerated to make a tes
 | File and anchor (verified) | Slice | Change (proposed) | Why the file must change | How it stays opt-in or behaviour-preserving |
 |---|---|---|---|---|
 | `model/CMakeLists.txt` | S2, done | add `modelnonrevfixedeq` and `fixedeqchart` | the source list is explicit, with no glob | additive |
-| `model/modelmixture.cpp`, `createModel`, 3230-3257 | S2, done | at the top of the dispatch chain, before the PoMo branch, dispatch the NQC name to `new ModelNonrevFixedEq(..., models_block)`, stopping with a message for non-protein data (decisions 002, 034) | the dispatcher that holds a `ModelsBlock`; non-protein data never reach the protein branch | reached only by the NQC name |
-| `model/modelmixture.cpp`, `initMixture`, 3441-3445 and 3518 | S2, done | stop with an error when a component just created is an NQC model (decision 032) | `createModel` has no mixture flag, and `initMixture` writes component fields directly | fires only for NQC |
-| `model/modelprotein.{h,cpp}`, beside the constructor at 1079-1088 | S2, done | a protected constructor that builds `ModelMarkov(tree, true, false)`, stores the models block and reads no model (decision 031) | the public constructor's `init` unroots a rooted tree when it reads a named model | called only by NQC; `ModelProtein::init` is unchanged |
+| `model/modelmixture.cpp`, `createModel`, 3230-3257 | S2, done | at the top of the dispatch chain, before the PoMo branch, dispatch the NQC name to `new ModelNonrevFixedEq(..., models_block)`, stopping with a message for non-protein data (decision 002) | the dispatcher that holds a `ModelsBlock`; non-protein data never reach the protein branch | reached only by the NQC name |
+| `model/modelmixture.cpp`, `initMixture`, 3441-3445 and 3518 | S2, done | stop with an error when a component just created is an NQC model (decision 008) | `createModel` has no mixture flag, and `initMixture` writes component fields directly | fires only for NQC |
+| `model/modelprotein.{h,cpp}`, beside the constructor at 1079-1088 | S2, done | a protected constructor that builds `ModelMarkov(tree, true, false)`, stores the models block and reads no model (decision 002) | the public constructor's `init` unroots a rooted tree when it reads a named model | called only by NQC; `ModelProtein::init` is unchanged |
 | `utils/tools.{h,cpp}`, `parseArg` and `usage_iqtree` | S2 (domain, done); S3, if needed (step) | two parse-only options, read at the point of use through `Params` (decision 007); the domain option's provisional name is `--nqc-domain LO,HI`, in ratio units, default `1e-5,10` | domain expansion and step studies need run-time settings | unused unless NQC is used |
-| `model/partitionmodel.{h,cpp}`, `optimizeLinkedModel`, 753-840 | S3 | a `derivativeFunk` override that delegates to the linked model's hook interface when present and otherwise calls `Optimization::derivativeFunk`; a compatibility check before optimizing; a post-fit hook that reports after (decisions 005, 009, 029) | linked optimization runs `minimizeMultiDimen` on the `PartitionModel` object (786), which no model override reaches | legacy models call the unchanged base routine; `partitionmodel.h:160-165` already carries an orphan comment for such an override |
+| `model/partitionmodel.{h,cpp}`, `optimizeLinkedModel`, 753-840 | S3 | a `derivativeFunk` override that delegates to the linked model's hook interface when present and otherwise calls `Optimization::derivativeFunk`; a compatibility check before optimizing; a post-fit hook that reports after, if S3's plan keeps it (decisions 005, 009) | linked optimization runs `minimizeMultiDimen` on the `PartitionModel` object (786), which no model override reaches | legacy models call the unchanged base routine; `partitionmodel.h:160-165` already carries an orphan comment for such an override |
 | `main/phyloanalysis.cpp`, after final optimization near 3903-3907; citation block 164-179 | S4 | write the export files when an NQC model exists (decision 010); print the nQMaker citation for NQC | the report block prints 6 decimal places (633, in the fixed mode set at 1528-1529); the citation test matches only the substring "NONREV" | guarded by model type and name |
 | `main/phylotesting.cpp`, `mixRevNonrev` 448-489 | S6 | mixed-family guard and fixed learned candidates | Level 3 | deferred |
 
 Not touched in any slice: `model/modelmarkov.{h,cpp}` (decision 015),
-`utils/optimization.{h,cpp}` (decision 029), `ModelProtein::init`, the likelihood kernels, the `PartitionModel`
+`utils/optimization.{h,cpp}` (decision 009), `ModelProtein::init`, the likelihood kernels, the `PartitionModel`
 constructor's frequency-pooling block (NQC's
 `FREQ_USER_DEFINED` already skips it, verified `model/partitionmodel.cpp:118-119`), and every
 vendored directory.
@@ -85,28 +85,26 @@ function works for any n ≥ 3, so the unit tests run at n = 3 and 4 as well as 
   transfer of synthesis section 6.3 (`transferSeed`).
 - Diagnostics: ‖π*Q‖∞, scaled row residuals, |mean rate − 1|, minimum rate and flux, the
   residual of the ν solve, and the mismatch of the exit rates with ν_i / π*_i. They are reported
-  and never used to reject a proposal (decision 026).
+  and never used to reject a proposal (decision 021).
 - Finite-difference step (`scaledStep`): signed h₀ = η max(s, |x|), negative when x + h₀ would
   leave the upper bound (decision 005), returned as the probe's displacement (x + h₀) − x,
   IQ-TREE's own idiom (verified, `utils/optimization.cpp:930-931`). When |x| ≥ h₀ the
   subtraction is exact (Sterbenz), so the step is exactly the distance the probe moved; it can
   still differ from h₀ in the last bits, because x + h₀ rounds.
-- No other chart: no positive-ratio or T3 build is compiled (decision 028).
+- No other chart: no positive-ratio or T3 build is compiled (D01).
 
 ### 2.2 NQC model class
 
-Construction (decisions 002, 006, 011, 031):
+Construction (decisions 002, 006, 011):
 
 1. Construct the `ModelProtein` base through its protected constructor, which reads no model
-   (decision 031), because the public constructor's `init` unroots a rooted tree when it reads a
-   named model (verified, `model/modelprotein.cpp:1121`, `model/modelmarkov.cpp:1856`, `97-101`).
-   Then read the seed as the NONREV branch of `init` does (verified,
-   `model/modelprotein.cpp:1214-1231`): the `--init-model` name from the models block, or the
-   `--init-model` file, otherwise LG, each with tree adaptation off. Unlike the NONREV branch it does
-   not call `rescaleRates` (decision 035), which no header declares: a reversible seed is renormalized and a
-   non-reversible one keeps only its jump chain, so a common scale changes nothing beyond rounding.
-   The target never reaches `ModelMarkov::readStateFreq` (decision 026).
-2. Reject unsupported combinations (decisions 008, 032, 034).
+   (the public constructor's `init` unroots a rooted tree when it reads a named model; verified,
+   `model/modelprotein.cpp:1121`, `model/modelmarkov.cpp:1856`, `97-101`). Then read the seed as
+   the NONREV branch of `init` does (verified, `model/modelprotein.cpp:1214-1231`): the
+   `--init-model` name from the models block, or the `--init-model` file, otherwise LG, each with
+   tree adaptation off, and without `rescaleRates` (decision 002). The target never reaches
+   `ModelMarkov::readStateFreq` (decision 006).
+2. Reject unsupported combinations (decision 008).
 3. Parse and validate π* from `freq_params` with the pure module, under decision 006's rules,
    with the minimum max(`min_state_freq`, `ZERO_FREQ`), so that D07's check against both holds.
    Report both the raw and the normalized vector.
@@ -119,7 +117,7 @@ Construction (decisions 002, 006, 011, 031):
 5. Build LG at π* from the built-in models block and take the references from it, whatever the
    start (decision 011).
 6. Encode the start through the inverse chart. The start is not checked against the domain; as
-   for every IQ-TREE model, the line search clamps trial points into it (decision 027).
+   for every IQ-TREE model, the line search clamps trial points into it (decision 007).
 7. Set `freq_type = FREQ_USER_DEFINED`, `num_params = 360` and the name, then decompose.
 
 Optimizer interface: `getNDim` returns 0 when fixed and 360 otherwise; `getNDimFreq` returns 0;
@@ -136,15 +134,9 @@ they were and sets a flag tied to the trial array. The next `getVariables` call 
 coordinates rebuilds, and the flag clears once a build succeeds; the array is never reverted on
 failure, so a return to the last good point always compares as a change.
 
-Decomposition (decision 015): the `decomposeRateMatrixNonrev` override builds Q from the trial
-coordinates into per-object workspace, validates it, writes the 380 off-diagonal rates into
-`rates[]`, then calls the unchanged `ModelMarkov::decomposeRateMatrixNonrev`. With
-`FREQ_USER_DEFINED` and `-optfromgiven` rejected, the base unpacks `rates[]` into `rate_matrix`,
-skips the π reset and solve, rescales by a factor equal to 1 up to rounding, and eigendecomposes.
-After the call the override checks that `state_freq` is bitwise π* and stops with an error
-otherwise. The class never writes `state_freq` after construction. A failed build writes nothing
-and sets the flag that makes the class's `targetFunk` return 1e30. Every decomposition, from any
-caller, goes through this override, so every eigensystem is built from the coordinates.
+Decomposition (decision 015, which states the override's steps): the base then unpacks `rates[]`
+into `rate_matrix`, skips the π reset and solve, rescales by a factor equal to 1 up to rounding,
+and eigendecomposes. The class never writes `state_freq` after construction.
 
 `targetFunk` repeats the base routine's statements (verified, `model/modelmarkov.cpp:1091-1118`)
 and returns 1e30 when the flag is set. `optimizeParameters` repeats the base routine's statements
@@ -155,42 +147,40 @@ Derivatives (decision 005): a `derivativeFunk` override runs the scaled, bounds-
 difference on the model itself; the same loop runs on the `PartitionModel` object through the
 hook interface; a central stencil exists only for validation.
 
-Post-fit checks (decision 009): after each fit, in an `optimizeParameters` override and in the
-linked post-fit hook, re-evaluate the returned point, check the invariants, record bound
-activity, and report whether the score fell below the start, restoring nothing (decision 029).
-At export, compute a central-difference
-first-order diagnostic in log-ratio coordinates; the stop is labelled "unclassified" unless that
-diagnostic passes.
+Post-fit checks (decision 009, which states what they do): run in the `optimizeParameters`
+override and in the linked post-fit hook (S3), and at export.
 
 Guards: `getStateFrequency` returns π* unchanged, without the base's renormalization (decision
-034); `setStateFrequency` and `adaptStateFrequency` accept only a vector bitwise equal to π*;
-`setRateMatrix` and `setFullRateMatrix` stop with an error, since every caller is refused
-(decision 034).
+015); `setStateFrequency` and `adaptStateFrequency` accept only a vector bitwise equal to π*;
+`setRateMatrix` and `setFullRateMatrix` stop with an error rather than re-encode, until a
+reachable caller exists: their only callers (rate-linking in mixtures, site-specific
+frequencies) are refused.
 
-Refusals (decisions 008, 032, 034): non-protein data, in `createModel`; `+F`, `+FQ`, a bare `+FU`,
-no `+F`, and `NQC{...}`; `-optfromgiven`; `-jointopt`; `--model-joint` and `--link-model` until S3;
-`+T` tree mixtures and the HMM options; GHOST `+H`; site-specific frequencies (`-fs`, `-ft`);
-`--link-exchange-rates`; `--eigen`; ModelFinder (`-m` starting with TEST or MF); AliSim; and, in
+Refusals (decision 008; this is the full list): non-protein data, in `createModel`; `+F`,
+`+FQ`, a bare `+FU`, no `+F`, and `NQC{...}`; `-optfromgiven`; `-jointopt`; `--model-joint` and
+`--link-model` until S3; `+T` tree mixtures and the HMM options; GHOST `+H`; site-specific frequencies (`-fs`, `-ft`);
+`--link-exchange-rates`; `--eigen` (other matrix-exponential methods behave as for NONREV);
+ModelFinder (`-m` starting with TEST or MF; an empty `-m` is S3-1's); AliSim; and, in
 `initMixture`, any mixture component. IQ-TREE's parser rewrites `+FO{...}` and `+FU{...}` to
 `+F{...}` for every model (verified, `model/modelfactory.cpp:484-485`), so those spellings carry a
 target as `+F{...}` does.
 
-Checkpoint (decisions 003, 033; implemented in S2): chart identifier and version, target,
+Checkpoint (decision 003; implemented in S2): chart identifier and version, target,
 references, coordinates as 17-digit strings, domain, derivative policy, fixed or fitted status,
 and accepted score, under the class's own keys. The accepted score is the re-scored
 log-likelihood after the model's last accepted fit, under the rate parameters and branch lengths
-of that moment; in Level 2 the round's later updates leave the run's final score above it
-(PLAN.md, next step). Restore verifies the target, references, chart
-and domain against the constructed object, rejects any mismatch, then rebuilds, decomposes and
-clears partial likelihoods. A restore that finds none of the class's keys leaves the model
-unchanged, as IQ-TREE's own restores do: the +I+G path copies the checkpoint before any model
+of that moment, so in Level 2 it is not the run's final score: IQ-TREE's later updates in the
+round raise the final score above it (section 4, S3-1 and S4). Restore verifies the target,
+references, chart and domain against the constructed object, rejects any mismatch, then
+rebuilds, decomposes and clears partial likelihoods. A restore that finds none of the class's
+keys leaves the model unchanged, as IQ-TREE's own restores do: the +I+G path copies the checkpoint before any model
 state is saved (verified, `tree/iqtree.cpp:2365`, `2389`). If the class's restore chains to
 `ModelProtein::restoreCheckpoint`, that routine restores `rates[]` at 10 significant digits and
 decomposes (verified, `model/modelprotein.cpp:1265-1276`); the decomposition goes through the
 override and builds from the coordinates held at that moment, so the class decomposes again
 after restoring its own.
 
-Verbose output (decision 034): under `-v` the class prints the seed Q after the base routine's
+Verbose output (decision 021): under `-v` the class prints the seed Q after the base routine's
 rescaling at 17 significant digits; under `-vv` it prints the first gradient of its first fit
 with the steps taken. Neither appears in a normal run.
 
@@ -211,7 +201,7 @@ The package is `test_scripts/fixedeq/oracle/`, and its tests use the pass lines 
 
 - Charts (log-ratio, positive-ratio, T3 in the D04 gauge, and conversion from P-positive's star
   gauge), seeds, residuals, and κ of the augmented ν system (`chart.nu_condition`). The positive-ratio and T3 charts are test references only
-  (decision 028).
+  (D01).
 - Reproductions of the documented numbers: dimensions 360, 189 and 171; round trips; reversible
   reduction; the T3 triangle bound 20.72; the non-concavity curvature 0.01538 (P-log Appendix B;
   `verify_constrained_nq.py`).
@@ -246,12 +236,12 @@ from a clean tree (in S1, commit `c349e41a`, seed 20261019).
     default box and beyond it, and one logit near the exponential's underflow.
 - **Headers.** Each records the condition number κ of the case's augmented ν system
   (`chart.nu_condition`) and the oracle's own error against the pass line.
-- **Self-check.** The generator writes nothing if any case fails decision 026's lines in the
+- **Self-check.** The generator writes nothing if any case fails decision 021's lines in the
   oracle itself, and it refuses a non-empty output directory.
 - **`targets.txt`.** 25 target strings with the oracle's verdicts, and each accepted vector
   normalized as the compiled parser does it.
 
-Checks use decision 026's pass lines; everything else is compared exactly.
+Checks use decision 021's pass lines; everything else is compared exactly.
 - **Q.** Q built from each fixture's z, and Q built from the inverse of the fixture's Q, agree
   with the fixture within a relative max(1e-12, 1e-14 κ) per entry, the diagonal included. For a
   fixed reference set the build is injective, so the two checks pin the inverse without a line on
@@ -272,7 +262,7 @@ Checks use decision 026's pass lines; everything else is compared exactly.
   - The displacement identity holds bitwise.
   - The displacement is exact, checked by TwoSum, whenever |x| ≥ h₀.
   - The step is negative at and beyond the upper bound, and forward below the lower bound
-    (decision 027).
+    (decision 007).
 - **Diagnostics.** On a dyadic Q, before and after one perturbation, compared exactly.
 
 **Residual table.** Each fixture test records its errors and residuals with googletest's
@@ -292,8 +282,20 @@ is 1e-8 relative (decision 021). The comparison against the unmodified binary is
 `test_scripts/fixedeq/differential/differential.py`. The S2 seed runs add `-nparam 2`, which skips
 the fitting loop (verified, `utils/tools.cpp:2860-2867`, `model/modelfactory.cpp:1636`), since
 `--show-lh` alone does not stop a model with free parameters from being fitted; the class's Q is
-read from its `-v` output (decision 034). The S2 checks, with decision 030's further lines, are
-`test_scripts/fixedeq/nqc/nqcchecks.py`.
+read from its `-v` output (decision 021). The S2 checks, with decision 021's further lines, are
+`test_scripts/fixedeq/nqc/nqcchecks.py`, at these points (formerly decision 030):
+- **Gradient.** `example/aa_example.phy`, decision 023's target, `+G4{0.5}`, the rooted tree of
+  baseline run 2 with branch lengths fixed; at the LG seed, and at a start built by the oracle
+  from the seed's coordinates with one free coordinate per row set to 1e-9, written at 17
+  significant digits and passed by `--init-model`. The legacy step there is reported, not
+  asserted.
+- **Toy problem (decision 017).** 8 taxa, 3000 sites, no rate variation, simulated from NQ.pfam's
+  jump chain transferred to the target on a rooted tree with branch lengths uniform on
+  [0.05, 0.3], by the frozen binary's AliSim (or a seeded simulator in the oracle if AliSim
+  refuses the Q file), every seed recorded. IQ-TREE makes exactly one
+  Level 1 fit (`-te -blfix -nparam 3`); the oracle's port makes one `optimize_model` call with
+  the scaled step, the same bounds and gradient tolerance; both start at LG rebuilt at the
+  target. Asserted: the start scores, the first gradients and the final scores (decision 021).
 
 ### 3.4 Layer 4: regression baseline
 
@@ -351,35 +353,29 @@ later from the same frozen binary with run 8 rerun in each repeat to supply its 
 
 ### 3.6 Layer 6: sanitizers
 
-Build in a new directory for each slice (decision 035; S0's is `~/iqtree3-build-asan`, S2's
-`~/iqtree3-build-asan-s2`) with the `Mem` build type and the C, C++ and linker flags of
-decision 022, `-j 2`, and run with that decision's `ASAN_OPTIONS` and `UBSAN_OPTIONS`, through
-`test_scripts/fixedeq/sanitizer/sanitize.py`. The fallbacks are those of decision 022: without
-cmaple, then UndefinedBehaviorSanitizer alone.
-
-The build runs about 20 times slower than Release (measured 2026-10-05). In S0 it ran on the
-unmodified tree over:
-- baseline runs 2 and 4;
-- the 16 differential cases;
-- probe (a)'s five runs.
-
-That covers a single NONREV fit, fixed-matrix evaluation with +G and +I on fixed trees, linked
-fits under `-p` and `-S` on fixed trees, and the `--mdef` target route. At the end of S2 to S4 it
-runs short NQC runs at `-T 1`: in S2, the seed case, the refusals, and a Level 1 and a `+I+G4`
-Level 2 fit on a cut-down toy alignment, because a full `aa_example` fit would take hours at
-that speed. S2's run (2026-10-21) also repeated S0's list on the S2 binary; it took 4899 s.
-
-The unit tests are a standalone project that this build does not compile.
-`unittests.py run --variant asan-ubsan` therefore builds them with decision 022's flags at
-`-g -O1` (the flags of `Mem`, which only IQ-TREE's CMake defines), and runs them with that
-decision's `ASAN_OPTIONS` and `UBSAN_OPTIONS`. In S1, where no IQ-TREE source changed, that was
-the whole sanitizer run.
+`test_scripts/fixedeq/sanitizer/sanitize.py` builds and runs it (decision 022), in a new
+directory for each slice (S0's `~/iqtree3-build-asan`, S2's `~/iqtree3-build-asan-s2`).
+- **Build.** `-DCMAKE_BUILD_TYPE=Mem` (`-g -O1`) with clang 14;
+  `-fsanitize=address,undefined -fno-omit-frame-pointer` in both `CMAKE_C_FLAGS` and
+  `CMAKE_CXX_FLAGS`, and `-fsanitize=address,undefined` in `CMAKE_EXE_LINKER_FLAGS`; `-j 2`.
+  Fallbacks, in order: the same build with `-DUSE_CMAPLE=OFF` if the build or link runs out of
+  memory, then UndefinedBehaviorSanitizer alone.
+- **Run.** `ASAN_OPTIONS=detect_leaks=0:allow_user_segv_handler=0` and
+  `UBSAN_OPTIONS=print_stacktrace=1`.
+- **Coverage.** At the end of S2 to S4, the slice's own short NQC runs at `-T 1` (in S2: the seed
+  case, the refusals, and Level 1 and `+I+G4` Level 2 fits on a cut-down toy alignment), since
+  the build runs about 20 times slower than Release and a full `aa_example` fit would take hours.
+  S0 ran, on the unmodified tree, baseline runs 2 and 4, the 16 differential cases and probe
+  (a)'s five runs (a single NONREV fit, fixed-matrix evaluation with +G and +I, linked fits under
+  `-p` and `-S`, the `--mdef` target route); S2 repeated that list on its binary.
+- **Unit tests.** They are a standalone project this build does not compile, so
+  `unittests.py run --variant asan-ubsan` builds them with the same flags at `-g -O1` and runs
+  them with the same options.
 
 ### 3.7 Continuous integration
 
-Upstream's workflow gives portability checks only (PLAN.md, test strategy). The fork workflow
-runs layers 1 and 2 from S1, and a short NQC run from S2. Bitwise regression comparison stays
-local.
+Upstream's workflow gives portability checks only and never runs NQC. The fork workflow runs
+layers 1 and 2 from S1, and a short NQC run from S2. Bitwise regression comparison stays local.
 
 The fork workflow is `.github/workflows/fixedeq.yaml`:
 - **Trigger.** It runs on pushes to `nq-constrained-pi`, guarded by
@@ -387,18 +383,16 @@ The fork workflow is `.github/workflows/fixedeq.yaml`:
 - **Unit tests.** Both variants on `ubuntu-22.04`, with the flags of `unittests.py`. A
   sanitizer report fails the job.
 - **Oracle tests.** In the environment created by micromamba from `environment.lock.txt`.
-- **NQC run, from S2.** Builds IQ-TREE on Linux and runs the S2 seed case. GitHub disabled
-  Actions on the fork before its first run, so the workflow is unverified until Peter has it
-  re-enabled.
+- **NQC run, from S2.** Builds IQ-TREE on Linux and runs the S2 seed case.
 - **Upstream.** The file is left out of the upstream pull request.
 
 ## 4. Per-slice lists
 
-S0, with no IQ-TREE source:
+A closed slice keeps one line pointing to its gate record. S0 also keeps its runtime checks,
+which define the probes that decisions and records cite.
 
-- Files: `test_scripts/fixedeq/` with `environment.yml`, `oracle/`, `tests/`, `regression/`,
-  `differential/`, `probes/`, `sanitizer/`, `manifest/`, `design_rerun.py` and `.gitattributes`.
-- Tests first: oracle tests that reproduce the documented numbers, and the regression driver.
+S0 (done 2026-10-05, no IQ-TREE source; G0 manifest, `CHANGELOG.md` 2026-10-05):
+
 - Runtime checks: (a) whether `NONREV+F<name>` with an `--mdef` file defining
   `frequency <name> = ...;` (syntax verified, `model/modelmixture.cpp:724`) reaches the model
   under `-m` and `--model-joint`; (b) whether a number such as `1e+00` inside `+F{...}` breaks
@@ -411,49 +405,64 @@ S0, with no IQ-TREE source:
   matrix on `example/aa_example.phy` carries into a new run through each route that needs no
   source change (the `.iqtree` block at 6 decimal places, and the 10-digit checkpoint values written as a
   `-m FILE`), with the tree and rate parameters fixed, recording the log-likelihood difference.
-- Also: the unmodified sanitizer build, and the G0 run manifest (state order, reference rule,
-  chart, target provenance, domain, derivative policy, root policy (decision 016), tree and rate
-  policy, starts, source commit).
 
-S1:
+S1 (done 2026-10-19, gate at `6c8d3af4`; `CHANGELOG.md` 2026-10-19): the pure module, its unit
+tests and fixtures, and the fork workflow (sections 2.1, 3.2, 3.7).
 
-- Files: `model/fixedeqchart.{h,cpp}`, `unittest/`, `test_scripts/fixedeq/make_fixtures.py`,
-  fixtures, `test_scripts/fixedeq/unittests/unittests.py`, `.github/workflows/fixedeq.yaml`.
-- Tests first: layer 2.
-
-S2:
-
-- Files: `model/modelnonrevfixedeq.{h,cpp}` with the class checkpoint (decision 033),
-  `model/CMakeLists.txt`, `model/modelmixture.cpp` (`createModel` and `initMixture`),
-  `model/modelprotein.{h,cpp}` (decision 031), `utils/tools.{h,cpp}` (domain option);
-  `test_scripts/fixedeq/oracle/nqc.py`, `test_scripts/fixedeq/nqc/`, the toy calibration in
-  `test_scripts/fixedeq/explore/`, a step in `sanitizer/sanitize.py`, and a job in
-  `.github/workflows/fixedeq.yaml`.
-- Tests first, under decision 030's lines: the input root kept, or added at the midpoint, as for
-  NONREV (S0 probe (f) repeated for NQC); layer 3 at the seed; IQ-TREE's scaled gradient against
-  the oracle's, by the same rule and against the central reference, at the seed and at a start
-  near zero; the target wiring (both routes accepted, two refusals); attempts to overwrite the
-  target, meaning the refused routes plus π* bitwise after every fit and restore; the accepted
-  score against the oracle's re-evaluation of the checkpointed coordinates; Level 1 and Level 2
-  fits on `aa_example`, `+I+G4` included; the compiled optimizer against the oracle's port
-  (decision 017) on the toy problem; rejection of unsupported combinations; the full layer 4
-  comparison.
+S2 (done 2026-10-22, gate at `35d4a1bf`; gate record in `CHANGELOG.md`, S2 entry): the NQC class
+with its checkpoint, its hooks in shared files and the domain option; the oracle's NQC objective
+and toy problem; the check driver `test_scripts/fixedeq/nqc/nqcchecks.py`; the sanitizer step and
+the CI job. Its known shortfalls are S3-1.
 
 S3:
 
+- **S3-1, first change: the S2 build's shortfalls,** in `model/modelnonrevfixedeq.cpp` and
+  `test_scripts/fixedeq/nqc/nqcchecks.py`. S3's gate is not met until each is removed.
+  - Each fit's report printed once under `-v` on every path, partitions included, and a fall
+    below the start shown at every verbosity (decision 009). S2's class prints it only under
+    `-v`, where IQ-TREE's round loop prints it a second time; at default verbosity IQ-TREE prints
+    it once, for the last fit, and on the `+I+G` path not at all.
+  - The target vectors, bound activity and residuals visible in a default run of every supported
+    kind, `+I+G` included (decisions 006, 009), consistent with S4's report.
+  - Checkpoint keys for the accepted state's residuals, bound counts, and start and optimizer
+    log-likelihoods; the target key written from `state_freq` rather than the class's own copy;
+    and the driver reading these keys instead of the log, whose last record on the `+I+G` path
+    belongs to the last start, not the restored model, and checking π* after every fit, not only
+    in the final checkpoint (decision 021).
+  - ModelFinder run with an empty `-m`, which the class's TEST/MF prefix check probably misses,
+    refused and tested, and refusal tests for `-fs` and the HMM option (decision 008).
+  - Unlinked partitioned NQC (`-m NQC` with `-p`, `-q` or `-S`), accepted by S2 but untested,
+    either tested or refused.
+  - A checkpointed final score. `accepted_score` precedes the round's later rate and branch
+    updates, so in Level 2 it is below the run's final score (by 66.9 in the short `+I+G4` run
+    and 0.005 in the `aa_example` one; `fitrecords.py`). S3's plan chooses between a key for the
+    final score and running S4's re-import comparison at Level 1 only.
 - Files: `model/partitionmodel.{h,cpp}`, the class's linked hooks, removal of S2's refusal of
-  `--model-joint` and `--link-model` (decision 034), and `utils/tools.{h,cpp}` (step option, if
+  `--model-joint` and `--link-model` (decision 008), and `utils/tools.{h,cpp}` (step option, if
   needed).
+- Open for S3's plan: whether the `PartitionModel` post-fit hook is still needed now that it only
+  reports (decision 009), or the class reports at its own report and export.
 - Tests first: two partitions with intentionally different compositions under `-S` and `-p`
-  (one Q and one target in every object, fixed outside the shared update); `-T 1` against
-  `-T 4`; restart from the checkpoint written since S2, and rejection of an incompatible restart;
-  nesting; the linked gradient's step; layer 4 again.
+  (one Q and one target in every object, fixed outside the shared update); linked Level 1
+  (decision 024); 360 parameters counted once across linked partitions; π* through linking and
+  restart; permuted partition order; `-T 1` against `-T 4` (PLAN.md risk 19); restart from the
+  checkpoint written since S2, and rejection of an incompatible restart; nesting (decision 025,
+  PLAN.md risk 22); the linked gradient's step, by decision 021's gradient lines; layer 4 again.
+- Monitoring, reported for every S3 fit and not asserted:
+  - whether a linked round reaches IQ-TREE's `ASSERT` on a fall of more than 0.1 (formerly risk
+    7; decision 009);
+  - the number of "INFO: Switch to scaling-squaring" lines under `-v` (formerly risk 12): the
+    non-reversible transition matrix leaves the eigen path when P's row sums deviate by more
+    than 1e-4, and the decomposition flags a singular eigenvector matrix, both shared with NONREV
+    (anchors in section 5). S2: none in the 183 fits of its three `aa_example` runs.
 
 S4:
 
 - Files: `main/phyloanalysis.cpp` and the class export.
-- Tests first: export then `-m FILE` log-likelihood equality with fixed nuisances; no π-mismatch
-  warning on re-import; metadata completeness; the citation text; layer 4 again.
+- Tests first: export then `-m FILE` log-likelihood equality with fixed nuisances, against a
+  checkpointed score rather than the printed one (`accepted_score` serves only a Level 1 fit;
+  S3-1); the export-time stop classification (decision 009); no π-mismatch warning on re-import;
+  metadata completeness; the citation text; layer 4 again.
 
 S5 to S7: lists written when S4 is done.
 
@@ -514,3 +523,5 @@ branch differs from `63c330d9` in `model/CMakeLists.txt`, `model/modelmixture.cp
 | `tree/iqtree.cpp:2333, 2365, 2389` | +I+G path chosen by `opt_gammai`; the model restore before optimization and the first save after it (added 2026-10-20) |
 | `model/modelmixture.cpp:3230-3257, 3441-3448, 3518-3525, 4374-4391`; `main/phyloanalysis.cpp:190, 3568, 3586` | `createModel`'s dispatch chain; `initMixture`'s component creation and direct writes; the linked-GTR `setRateMatrix`; the `+H` test; the tree read before the model (added 2026-10-20) |
 | `utils/optimization.cpp:680-690, 832-855` | `lnsrch`'s failure path; `dfpmin` returns on zero displacement before its next gradient, and its scaled-gradient stop (added 2026-10-20) |
+| `utils/tools.cpp:7262`; `model/partitionmodel.cpp:132-133, 155-160` | `keep_zero_freq` true by default, so `convfreq` returns at once; missing sequences counted as unknown states except under `-S`; "Mean state frequencies" printed at precision 8 (moved from PLAN.md 2026-10-22) |
+| `model/modelmarkov.cpp:72, 76, 489-500, 1330-1336`; `main/phyloanalysis.cpp:3880, 3895-3899` | the constructor's `setReversible` call and the read of unset `is_reversible`; the switch to scaling and squaring on row sums off by more than 1e-4; `nondiagonalizable` on a singular eigenvector matrix; no final optimization on a fixed tree; the post-search save that writes the search state, not the model (moved from PLAN.md 2026-10-22) |

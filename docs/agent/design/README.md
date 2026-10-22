@@ -27,16 +27,18 @@ copies here match those fingerprints.
 The synthesis sets the order (its section 0): explicit later decisions by Peter come first, then
 the synthesis for the conflicts it resolves, then the two plans for detail compatible with it.
 The synthesis's ten decisions, D01 to D10, are recorded in `docs/agent/DECISIONS.md` as
-mathematical and methodological decisions. They are revisable, and a revision is recorded there
-as a new entry.
+mathematical and methodological decisions; they are revisable, and a revision is made in place
+there under the synthesis's change-control rule. Peter's two slide decks (below), which the
+maintainers accepted, are read before these documents and set the method's scope. Where these
+documents go further than the decks (the compiled T3 backend, for example), the decks and
+`DECISIONS.md` govern.
 
 ## What these documents are not
 
-They are not a code plan. The code plan, once written, lives in `docs/agent/PLAN.md`.
-Programming decisions made during development are numbered entries in
+They are not a code plan. The plan is `docs/agent/PLAN.md` with its companion
+`docs/agent/CODE_PLAN.md`. Programming decisions made during development are numbered entries in
 `docs/agent/DECISIONS.md`. The descriptions of IQ-TREE's current code live in
-`docs/agent/ARCHITECTURE.md`, `docs/agent/AA_MODEL_INFERENCE.md`, and
-`docs/agent/FILE_INDEX.md`, and where those differ from a statement here about current code, the
+`docs/agent/ARCHITECTURE.md` and `docs/agent/AA_MODEL_INFERENCE.md`, and where those differ from a statement here about current code, the
 source at the baseline commit decides.
 
 ## Scripts cited by these documents
@@ -66,8 +68,9 @@ inside `project2_iqtree3_technical_plan.md`.
 Running `verify_constrained_nq.py` or `check_builtin_matrices.py` writes a `*_results.json` file
 next to the script, so run a copy placed outside the repository rather than the file here.
 `check_builtin_matrices.py` takes the path to `model/modelprotein.cpp` as its first argument.
-None of the scripts has been rerun in this repository, so their numbers remain as reported in
-the documents until they are.
+The three scripts were rerun from copies on 2026-10-04 by `test_scripts/fixedeq/design_rerun.py`:
+109 of 133 documented values reproduced, and the other 24 stay "reported" (decisions 019 and
+020, `DECISIONS.md`, Tooling).
 
 Not included: `e6_n20_big.py` (synthesis section 10.1), which imports a module `e4_nonrev` that
 was never supplied and so cannot run, and the experiment drivers for E3 to E5, which were not
