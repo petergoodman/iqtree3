@@ -112,7 +112,34 @@ def compress(alignment, tree, sites=None):
     return patterns, np.array([counts[p] for p in patterns], dtype=float), columns
 
 
-def rate_categories(shape=None, ncat=4, p_invar=0.0):
+def free_rate_categories(params):
+    """Rates and weights of FreeRate categories given as weight, rate pairs, normalized as RateFree's
+    constructor does (model/ratefree.cpp:31-77): rates divided by sum(w r); when the weights' sum is
+    off 1 by more than 1e-5, weights multiplied by 1/sum (utils/tools.cpp:772-795) and rates divided
+    by sum(w r) again. The proportions-only form is not ported."""
+    w, r = [float(v) for v in params[0::2]], [float(v) for v in params[1::2]]
+    if not w or len(w) != len(r):
+        raise ValueError("FreeRate parameters must be weight, rate pairs")
+    total, sum_w = 0.0, 0.0
+    for a, b in zip(w, r):
+        total += a * b
+        sum_w += a
+    r = [b / total for b in r]
+    if abs(sum_w - 1.0) > 1e-5:
+        inv = 1 / sum_w
+        w = [a * inv for a in w]
+        total = 0.0
+        for a, b in zip(w, r):
+            total += a * b
+        r = [b / total for b in r]
+    return np.array(r), np.array(w)
+
+
+def rate_categories(shape=None, ncat=4, p_invar=0.0, free=None):
+    if free is not None:
+        if shape is not None or p_invar:
+            raise ValueError("FreeRate categories with +G or +I are not ported")
+        return free_rate_categories(free)
     if shape is not None:
         return category_rates(shape, ncat, p_invar)
     if p_invar:
@@ -120,10 +147,11 @@ def rate_categories(shape=None, ncat=4, p_invar=0.0):
     return np.array([1.0]), np.array([1.0])
 
 
-def alignment_log_likelihood(alignment, tree, Q, pi, shape=None, ncat=4, p_invar=0.0, sites=None):
-    """Total log-likelihood of an alignment (name -> sequence), summed over distinct columns."""
+def alignment_log_likelihood(alignment, tree, Q, pi, shape=None, ncat=4, p_invar=0.0, sites=None, free=None):
+    """Total log-likelihood of an alignment (name -> sequence), summed over distinct columns; free
+    gives FreeRate weight, rate pairs in place of shape."""
     patterns, counts, columns = compress(alignment, tree, sites)
-    rates, weights = rate_categories(shape, ncat, p_invar)
+    rates, weights = rate_categories(shape, ncat, p_invar, free)
     invariant = [invariant_term(col, pi, p_invar) for col in patterns] if p_invar else None
     site = site_log_likelihoods(tree, columns, Q, pi, rates, weights, invariant)
     return float(counts @ site)

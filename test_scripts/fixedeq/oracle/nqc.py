@@ -24,10 +24,10 @@ class Objective:
     """f(z) = -lnL of the Q built from z at pi, on a fixed tree with fixed rate parameters; 1e30
     when the build fails, as the class's targetFunk returns."""
 
-    def __init__(self, alignment, tree, pi, ref, shape=None, ncat=4, p_invar=0.0, build=chart.build):
+    def __init__(self, alignment, tree, pi, ref, shape=None, ncat=4, p_invar=0.0, build=chart.build, free=None):
         self.tree, self.pi, self.ref, self.build = tree, np.asarray(pi, dtype=float), ref, build
         patterns, self.counts, self.columns = likelihood.compress(alignment, tree)
-        self.rates, self.weights = likelihood.rate_categories(shape, ncat, p_invar)
+        self.rates, self.weights = likelihood.rate_categories(shape, ncat, p_invar, free)
         self.invariant = ([likelihood.invariant_term(c, self.pi, p_invar) for c in patterns]
                           if p_invar else None)
         self.evaluations = 0

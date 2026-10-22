@@ -129,6 +129,36 @@ def test_invariant_term_follows_the_constant_state_set():
     assert lk.invariant_term("AR", pi, 0.3) == 0.0
 
 
+def small_problem(seed):
+    rng = np.random.default_rng(seed)
+    pi = cases.random_target(20, rng)
+    Q = cases.generator_from_flux(cases.cycle_flux(20, rng), pi)
+    aln = {"A": "ARNDCK", "B": "ARNECK", "C": "KRNDWB"}
+    return aln, readers.parse_newick("((A:0.3,B:0.7):0.2,C:0.5);"), Q, pi
+
+
+def test_one_free_rate_category_at_rate_1_equals_no_rate_variation():
+    aln, tree, Q, pi = small_problem(15)
+    plain = lk.alignment_log_likelihood(aln, tree, Q, pi)
+    assert rel(lk.alignment_log_likelihood(aln, tree, Q, pi, free=(1.0, 1.0)), plain) <= 1e-12
+
+
+def test_equal_free_rates_equal_the_plain_likelihood():
+    aln, tree, Q, pi = small_problem(16)
+    plain = lk.alignment_log_likelihood(aln, tree, Q, pi)
+    assert rel(lk.alignment_log_likelihood(aln, tree, Q, pi, free=(0.25, 2.0) * 4), plain) <= 1e-12
+
+
+def test_free_rates_are_normalized_as_ratefree_normalizes_them():
+    rates, weights = lk.free_rate_categories((0.25, 0.125, 0.25, 0.625, 0.25, 1.125, 0.25, 2.125))
+    assert np.array_equal(rates, [0.125, 0.625, 1.125, 2.125]) and np.array_equal(weights, [0.25] * 4)
+    rates, weights = lk.free_rate_categories((0.5, 1.0, 0.5, 3.0))
+    assert np.array_equal(rates, [0.5, 1.5]) and np.array_equal(weights, [0.5, 0.5])
+    # weights summing to 2: renormalized, then the rates normalized a second time
+    rates, weights = lk.free_rate_categories((1.0, 1.0, 1.0, 3.0))
+    assert np.array_equal(rates, [0.5, 1.5]) and np.array_equal(weights, [0.5, 0.5])
+
+
 @pytest.mark.parametrize("shape", [0.05, 0.3, 1.0, 3.0, 20.0])
 def test_ported_gamma_rates_agree_with_scipy(shape):
     k = 4
