@@ -170,28 +170,31 @@ under the name NONREV.
 ### 003. The 360 coordinates are the model's state, checkpointed losslessly
 
 **Rule.** NQC's 360 log-ratio coordinates are its authoritative state; `rates[]` and
-`rate_matrix` are derived. Since S2 the class saves under its own keys the chart identifier and
-version, target, references, coordinates and target as 17-digit strings, domain, derivative
-policy, fixed or fitted status, and accepted score. Restore verifies target, references, chart
-and domain and rejects a mismatch; a restore that finds none of the keys leaves the model as is.
+`rate_matrix` are derived. The class saves under its own keys, at 17 digits: chart and version,
+target (from `state_freq` from S3a), references, coordinates, domain, derivative policy, fixed
+status, and the accepted fit's scores, bounds and residuals with fit and evaluation counts (S3a).
+Restore verifies target, references, chart and domain, rejects a mismatch, recomputes the derived
+bounds and residuals and keeps the larger count; with none of the keys it leaves the model as is.
 **Why.** The pinned quantity is a jump weight, not a rate (synthesis section 7.1). IQ-TREE writes
 checkpoint doubles at 10 digits, and the default +I+G path saves and restores the model during
 ordinary fits, so without these keys the restored Q would not match the restored nuisances.
 **Not chosen.** Coordinates inside `rates[]`; a global rise of `CKP_PRECISION`; waiting for S3.
-**Since** 2026-09-23; brought into S2 by 033 (2026-10-20).
+**Since** 2026-09-23; brought into S2 by 033 (2026-10-20); fit record 2026-10-22 (S3 plan).
 
 ### 005. Reach the scaled derivative step through both optimizer paths
 
 **Rule.** NQC overrides `derivativeFunk` for single-model fits, and `PartitionModel` gains a
-`derivativeFunk` override that delegates to a hook interface implemented by the linked model,
-falling back to `Optimization::derivativeFunk` for every other model (S3). The step is D02's,
+`derivativeFunk` override that delegates to `LinkedModelHooks` when the linked model implements
+it, falling back to `Optimization::derivativeFunk` for every other model (S3b). The step is D02's,
 taken backward when the forward probe would leave the domain; a central stencil exists for
-validation only. The same interface carries the linked-compatibility check and, if S3's plan
-keeps it, the post-fit report (009).
+validation only. From `optimizeLinkedModel` the interface also takes a start call, which checks
+linked compatibility, and an end call, which runs the post-fit check (009).
 **Why.** Linked optimization runs `minimizeMultiDimen` on the `PartitionModel` object, which no
-model override reaches; delegating leaves `utils/optimization.cpp` untouched.
-**Not chosen.** A step hook inside `Optimization::derivativeFunk`. `-jointopt` is refused (008).
-**Since** 2026-09-23.
+model override reaches; delegating leaves `utils/optimization.cpp` untouched. Only
+`optimizeLinkedModel` knows when a linked fit ends and what the optimizer returned.
+**Not chosen.** A step hook inside `Optimization::derivativeFunk` (`-jointopt` is refused, 008);
+reporting linked fits only at the class's report and export, which can see neither.
+**Since** 2026-09-23; end call kept 2026-10-22 (S3 plan).
 
 ### 006. Take the target through the existing `+F` routes and validate it strictly in the model
 
@@ -224,15 +227,16 @@ log-ratio chart is a required full decision, open (PLAN.md risk 22).
 
 **Rule.** NQC stops with a message for every input outside the first release; the full list is
 `CODE_PLAN.md` section 2.2, "Refusals". It covers non-protein data, untargeted `+F`,
-`-optfromgiven`, `-jointopt`, mixtures, tree mixtures and HMM, GHOST `+H`, site-specific
-frequencies, `--link-exchange-rates`, `--eigen` (other matrix-exponential methods behave as for
-NONREV), ModelFinder, AliSim (simulate from the exported matrix), and until S3 `--model-joint`
-and `--link-model`. Mixture components are refused where `ModelMixture::initMixture` makes them.
+`-optfromgiven`, `-jointopt`, mixtures, tree mixtures and HMM, GHOST `+H` (also in a partition's
+own model string, S3b), site-specific frequencies, `--link-exchange-rates`, `--eigen`, ModelFinder
+in any form (detected at run time from S3a), AliSim, unlinked partitioned use (S3a), and until S3b
+`--model-joint` and `--link-model`. Mixture components are refused where `initMixture` makes them.
 **Why.** Each path bypasses the invariants or is undesigned: `-optfromgiven` releases the
 equilibrium in the base decomposition (015), `-jointopt` clamps coordinates with rate bounds, and
-an `--mdef` mixture never shows "MIX" in the model string.
+an `--mdef` mixture never shows "MIX" in the model string. Unlinked partitions lie outside the
+first release, so Peter chose refusing them over testing them (2026-10-22).
 **Not chosen.** Allowing them silently; supporting them now; detecting mixtures from the string.
-**Since** 2026-09-23; revised 2026-10-20 (032; 034 items 2, 4, 5).
+**Since** 2026-09-23; revised 2026-10-20 (032; 034 items 2, 4, 5) and 2026-10-22 (S3 plan).
 
 ### 009. Check every fit afterwards, report a fall below the start, restore nothing
 
@@ -250,15 +254,18 @@ search (a maintainer question).
 
 ### 010. Export the fitted matrix at 17 digits in the `-m FILE` format
 
-**Rule.** After the final model optimization, a hook in `main/phyloanalysis.cpp`, active only when
-an NQC model exists, writes `<prefix>.NQC.qmat` (normalized Q and the π* row at 17 significant
-digits) and `<prefix>.NQC.info` (target, state order, chart and version, references, domain,
-derivative policy, residuals, bound activity, stop classification, seed, source commit).
-Re-import uses the existing `-m FILE` path; the `.iqtree` block is unchanged (S4).
-**Why.** The report prints Q at 6 digits, and re-import from it reproduced the log-likelihood
-only to 4e-4; the existing reader already loads a full non-reversible Q with its π as root.
-**Not chosen.** Raising the report's precision for every model; a NEXUS block.
-**Since** 2026-09-23.
+**Rule.** After the final model optimization, one call at the top of `reportPhyloAnalysis` in
+`main/phyloanalysis.cpp`, active only when an NQC model exists, prints NQC's end-of-run summary
+(S3a) and writes `<prefix>.NQC.qmat` (normalized Q and the π* row at 17 significant digits) and
+`<prefix>.NQC.info` (target, state order, chart and version, references, domain, derivative
+policy, residuals, bound activity, stop classification, seed, source commit) (S4). Re-import uses
+the existing `-m FILE` path, its equality tested at Level 1; the `.iqtree` block is unchanged.
+**Why.** The report prints Q at 6 digits, and re-import from it reproduced the log-likelihood only
+to 4e-4; the existing reader loads a full non-reversible Q with its π as root. No model prints its
+state on the `+I+G` path at default verbosity. At Level 1 `accepted_score` is the state's score.
+**Not chosen.** Raising the report's precision for every model; a NEXUS block; a line per fit at
+default verbosity; a final-score key (Peter, 2026-10-22).
+**Since** 2026-09-23; summary and test level 2026-10-22 (S3 plan).
 
 ### 011. Every NQC object recomputes its reference destinations
 

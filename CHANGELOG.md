@@ -8,6 +8,18 @@ gate record and may run to 25 lines. The next session starts from the top entry.
 This is a fork of `iqtree/iqtree3`. Entries here describe work on the fork, not upstream
 development.
 
+## 2026-10-22 (sixth session): S3 planned as three slices
+
+- **Done.** S3 planned and approved as S3a (one alignment), S3b (linked training), S3c
+  (profiling), each gated. Peter chose a `reportPhyloAnalysis` summary, Level 1 re-import tests
+  and refusing unlinked partitions. Recorded in PLAN.md, CODE_PLAN.md (1, 2.2, 3.5, 3.6, 4, 5),
+  DECISIONS.md (003, 005, 008, 010) and the frozen plan in `docs/agent/archive/`; risk 23 added.
+- **Vetting.** Three code surveys; two draft reviews (17 C++, 14 test findings), all folded in; a
+  fresh subagent's check of the records against the plan, whose 32 points were fixed.
+- **Failed.** The draft's summary site printed per bootstrap replicate, its nesting test read the
+  last fit's start, and its threads runs would have run at `-T 1`; all corrected.
+- **Next.** S3a, in a new session with the prompt in PLAN.md's next step.
+
 ## 2026-10-22 (fifth session): pre-S3 decisions
 
 - **Done.** Probes on the frozen binary and the oracle; Peter decided risks 19 and 22's tests:

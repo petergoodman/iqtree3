@@ -1,8 +1,8 @@
 # Plan: π-constrained non-reversible amino-acid models
 
-> **Status, 2026-10-22: S2 complete (gate G2); the NQC class is in IQ-TREE's build; S3 not
-> started, its pre-planning decisions recorded; approach accepted by the IQ-TREE maintainers
-> (reported by Peter, 2026-10-01).** Peter owns this document.
+> **Status, 2026-10-22: S2 complete (gate G2); the NQC class is in IQ-TREE's build; S3 planned
+> and approved as three slices, S3a to S3c, none started; approach accepted by the IQ-TREE
+> maintainers (reported by Peter, 2026-10-01).** Peter owns this document.
 
 This is the project's living core document: what we are building and why, the constraints the
 work must satisfy, where it stands, and the next step. It is read at the start of every task and
@@ -66,10 +66,10 @@ synthesis are met with this evidence:
 - 360 matrix parameters are counted once across linked partitions;
 - π* is bitwise unchanged through construction, linking, optimization, checkpoint, restart and
   export;
-- export followed by re-import reproduces the fitted likelihood;
+- export followed by re-import reproduces the fitted likelihood, tested at Level 1 (decision 010);
 - every legacy model in the regression baseline reproduces exactly;
 - a linked NQC fit takes time comparable to NONREV's on the same data and settings (thresholds:
-  `CODE_PLAN.md` section 4, S3's profiling).
+  `CODE_PLAN.md` section 4, S3c's profiling).
 
 Scientific success criterion (proposed placeholder). Frozen matrices are evaluated on the same
 held-out genes under one declared nuisance policy across the D08 arms, with uncertainty from
@@ -110,8 +110,8 @@ target.
 Deferred, still in the project: a small direct-flux reference in Python (D10; S5, gate G4 as
 reduced by D01); target-rebuilt guide candidates, fixed learned candidates in ModelFinder, the
 reversible/non-reversible mixing guard, an optional Level 3 outer driver, and simulation (S6,
-gate G5); domain sensitivity of the scientific fits (S3 reports it on test data for risk 22),
-multiple starts, mismatch simulations and held-out evaluation (S7, gate G6).
+gate G5); domain sensitivity of the scientific fits (S3a and S3b report it on test data for
+risk 22), multiple starts, mismatch simulations and held-out evaluation (S7, gate G6).
 
 Out of scope: EM (D10), exact boundary fitting, branch-specific targets, non-stationary roots,
 profile mixtures with distinct equilibria, analytic likelihood gradients, compiled positive-ratio
@@ -185,8 +185,10 @@ validation.
 | S0 | G0 | Evidence before any source edit | environment built from its file; design scripts rerun from copies and compared with their reported values; oracle likelihood matches the unmodified binary; baseline recorded twice with the binary's SHA-256; S0 runtime checks answered; unmodified sanitizer run recorded; G0 run manifest written | done 2026-10-05 (G0 manifest) |
 | S1 | G1 | Pure mathematical core | unit tests at n = 3, 4 and 20 against oracle fixtures pass in Release and sanitizer builds; residual maxima tabled | done 2026-10-19 (`6c8d3af4`) |
 | S2 | G2 | First compiled model, one alignment | root, seed, gradient, target and refusal checks and the toy comparison pass under decision 021's lines; Level 1 and Level 2 fits on `example/aa_example.phy`, `+I+G4` included; regression reproduces; sanitizers clean for new code | done 2026-10-22 (`35d4a1bf`); shortfalls in S3-1 |
-| S3 | G2, G3 | Linked training and lifecycle | S3-1 done; two partitions with different compositions under `-S` and `-p`; thread counts compared at a fixed point (decision 038); restart; GTR20-seeded nesting in the widened domain (decision 025); the linked gradient uses the scaled step; profiling against NONREV within its blocking threshold | not started |
-| S4 | G3 | Export, re-import and report | export then `-m FILE` reproduces the log-likelihood; metadata complete; first release candidate | not started |
+| S3a | G2 | One alignment complete | S3-1 done for one alignment (fit record once under `-v`, end-of-run summary at default verbosity, full checkpoint record and restore, ModelFinder and unlinked partitions refused); GTR20-seeded nesting in the widened domain (decision 025); the skewed-target fit (023) and aa_example's risk 22 runs reported; `+R4` seed against the oracle and a Level 2 fit; incompatible restarts refused; regression reproduces; sanitizers clean for new code | not started |
+| S3b | G3 | Linked training and lifecycle | two partitions with different compositions under `-S` and `-p`, one target and one Q in every object; each linked fit checked and reported once (S3-1's linked half); 360 counted once; the linked gradient uses the scaled step; thread counts compared at a fixed point (decision 038); permuted order; mid-run and `--undo` restarts, incompatible ones refused; turtle's risk 22 runs reported; regression reproduces; sanitizers clean for new code | not started |
+| S3c | G3 | Cost against NONREV | profiling against NONREV within its blocking threshold, or, above 3 per fit, fixed in NQC's code or accepted by Peter; any ratio above 1.25 per evaluation or 2 per fit explained (risks 5, 18); risk 22's evidence collected | not started |
+| S4 | G3 | Export, re-import and report | export then `-m FILE` reproduces the log-likelihood of a Level 1 fit; metadata complete; first release candidate | not started |
 | S5 | G4, as reduced by D01 | Independent reference | D10's direct balanced-flux fit in Python agrees with NQC fits on small problems; comparison report | not started |
 | S6 | G5 | Workflow | candidate-set and mixing-guard tests; G5 conditions | not started |
 | S7 | G6 | Science | the confirmatory plan's checks; G6 conditions | not started |
@@ -197,11 +199,12 @@ validation.
 
 | # | Item | Resolved by |
 |---|---|---|
-| 5 | Cost: 361 likelihood evaluations per one-sided gradient; realistic training runs (1000 or more alignments, up to about a million columns, on HPC with dozens of CPUs) may take hours | S3's profiling against NONREV (`CODE_PLAN.md` section 4); analytic gradients stay deferred |
+| 5 | Cost: 361 likelihood evaluations per one-sided gradient; realistic training runs (1000 or more alignments, up to about a million columns, on HPC with dozens of CPUs) may take hours | S3c's profiling against NONREV (`CODE_PLAN.md` section 4); analytic gradients stay deferred |
 | 9 | Real training data: a small real set for S5, and the full set with a written confirmatory plan for S7 | Peter |
 | 11 | Scientific success criterion and manuscript details (placeholder above) | Peter |
-| 18 | No fallback is chosen if S3 profiling shows training runs impractical while analytic gradients are out of scope | Peter, if S3's profiling crosses its blocking threshold; the candidate fallbacks are listed with it |
+| 18 | No fallback is chosen if S3c's profiling shows training runs impractical while analytic gradients are out of scope | Peter, if S3c's profiling crosses its blocking threshold; the candidate fallbacks are listed with it |
 | 22 | NQC's production coordinate domain, a required full decision (risk 8 merged here). Decision 007's box is the per-row log-ratio counterpart of IQ-TREE's rate bounds [1e-4, 100]. Upstream fits sit on that floor: NONREV leaves 189 of 380 rates at 1e-4 on `aa_example` and 230 on turtle (checkpoints from before the final model optimization), and the GTR20 incumbent 87 of 190 (`explore/thresholds.py`). Whether the chart needs a different default is open. S2's `aa_example` fits ended with 1 or 2 coordinates at the upper bound, and the jump chains of upstream's NONREV fits (baseline runs 2 and 8), re-expressed in the chart, put 6 and 7 coordinates above it; decision 025's GTR20 start has 146 of 360 outside (-15.94 to 11.65). LG at decision 023's target lies inside (smallest ratio 3.3e-4); raising that target to powers, the start first leaves the box between frequency ratios (largest to smallest) of 306 and 963, while 6.4% of very uneven random targets (median ratio 91) put a coordinate outside (`explore/skewed_targets.py`). The nesting test and the risk 22 evidence runs use a widened domain; every other test uses the default box | Peter, before S4 is planned, from S3's bound-activity and domain-sensitivity reports; any change stays in NQC's code, and no existing inference method changes (D06) |
+| 23 | Reported by the S3 plan's review, not verified: resuming an `-S` tree search with `+I+G` may restore stale top-level model keys, for every model, because per-partition refits during the search save to the top level (the model re-optimization in `IQTree::doNNISearch`) and the resumed process keeps `opt_gammai` on, so the `+I+G` starts restore from a copy of the checkpoint (`ModelFactory::optimizeParametersGammaInvar`; anchors in `CODE_PLAN.md` section 5). Outside S3's validation paths, which use `-te` | Checked before it becomes a question for the maintainers |
 
 Retired risk numbers: 2, 3, 4, 6, 10 and 13 to 17 were resolved by 2026-10-07 (archived
 decisions and `CHANGELOG.md`); on 2026-10-22, 7 (a linked-round `ASSERT`) and 12 (the switch to
@@ -241,12 +244,28 @@ S0 to S2 are complete. S2's gate ran from the clean tree at `35d4a1bf` on 2026-1
   the nesting test runs in a widened domain (025) and a skewed-target fit is reported (023);
   profiling against NONREV, `+R4` and the evidence for risk 22 join S3's list (`CODE_PLAN.md`
   section 4); the production domain stays open (risk 22).
+- **S3 plan, approved 2026-10-22:** three slices, each with its own gate: S3a finishes the single
+  alignment, S3b adds linked training, S3c profiles against NONREV. Peter's choices: the
+  end-of-run summary is printed from one call in `reportPhyloAnalysis`, brought forward from S4
+  (decision 010); S4's re-import equality runs at Level 1 only; unlinked partitioned NQC is
+  refused (008). The lists are `CODE_PLAN.md` section 4; the approved plan, with its survey and
+  review findings, is frozen in `docs/agent/archive/S3_plan_2026-10-22.md`.
 - **Continuous integration:** Actions is back on since 2026-10-22. Upstream's Build workflow is
   switched off on the fork's Actions page (`ci.yaml` unchanged), so the fork no longer checks the
   macOS, Windows or ARM builds. fixedeq's first run (39817703469, `76dd4301`) passed all jobs.
 
 ## Next step
 
-1. Plan S3 in plan mode from `CODE_PLAN.md` section 4, starting with S3-1, after reading the
-   decks, all of `DECISIONS.md` and the `PartitionModel` sections of `ARCHITECTURE.md`.
+1. Implement S3a in a new session, started in plan mode with this prompt (S3b and S3c likewise,
+   each after the previous slice's close):
+
+   > Implement S3a as recorded and approved on 2026-10-22. Read the start-of-session files, then
+   > `CODE_PLAN.md` sections 2.2, 3.5, 4 (its S3 introduction and S3a) and 5, and `DECISIONS.md`.
+   > Where a record is unclear, read `docs/agent/archive/S3_plan_2026-10-22.md`, and ask me before
+   > departing from it. Stop before any run longer than a few minutes to agree keep-awake.
+
+   The session's own plan lists commits and gate steps only; the working rules (commits, hand-off,
+   compute estimate and keep-awake before long runs, subagents) are in `CODE_PLAN.md` section 4,
+   "Implementation". S3c's session plans first: its per-evaluation measurement needs Peter's
+   approval, then the pilot runs.
 2. Peter's full decision on the production domain (risk 22), before S4 is planned.
