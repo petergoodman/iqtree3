@@ -14,12 +14,15 @@
 #ifndef MODELNONREVFIXEDEQ_H_
 #define MODELNONREVFIXEDEQ_H_
 
+#include <cstdint>
 #include <vector>
 
 #include <Eigen/Dense>
 
 #include "fixedeqchart.h"
 #include "modelprotein.h"
+
+class IQTree;
 
 class ModelNonrevFixedEq : public ModelProtein
 {
@@ -33,6 +36,9 @@ public:
     /** stop with an error if model is an NQC model; called where mixture components are created
         (decision 032) */
     static void refuseAsMixtureComponent(ModelSubst *model);
+
+    /** print the end-of-run summary of tree's NQC model, if it has one (decision 010) */
+    static void reportRun(IQTree &tree, ostream &out);
 
     /**
         constructor (decisions 002, 006, 011, 031)
@@ -74,8 +80,6 @@ public:
     virtual void saveCheckpoint();
     virtual void restoreCheckpoint();
 
-    virtual void writeInfo(ostream &out);
-
 protected:
     virtual void setVariables(double *variables);
     virtual bool getVariables(double *variables);
@@ -99,8 +103,10 @@ private:
     Eigen::MatrixXd Q;
     Eigen::VectorXd nu;
 
-    /** the post-fit record */
-    int fits;
+    /** the post-fit record: counters, the scores of the fit that produced the accepted state (NaN
+        when unknown), and the bound activity and residuals of the accepted state */
+    int fits, accepted_fit;
+    int64_t evaluations;
     bool fit_starting;
     bool gradient_printed;
     double start_lnl, optimizer_lnl, rescored_lnl;
@@ -110,6 +116,9 @@ private:
     void refuseUnsupported(const string &model_params, StateFreqType freq, const string &freq_params);
     void readSeed(Eigen::MatrixXd &seed);
     void checkFit(double optimizer_score);
+    void measureState();
+    void writeState(ostream &out);
+    void writeSummary(ostream &out);
     void printMatrix(ostream &out, const double *m);
 };
 

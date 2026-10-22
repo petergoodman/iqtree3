@@ -11,9 +11,11 @@
 #include <cctype>
 #include <cmath>
 #include <cstring>
+#include <limits>
 #include <sstream>
 
 #include "nclextra/modelsblock.h"
+#include "tree/iqtree.h"
 #include "tree/phylotree.h"
 #include "utils/eigendecomposition.h"
 
@@ -47,6 +49,11 @@ static string integers(const std::vector<int> &v) {
     return s;
 }
 
+/** a score, or "unknown" for NaN, which marks a score an older checkpoint did not hold */
+static string score17(double v) {
+    return std::isnan(v) ? "unknown" : number17(v);
+}
+
 bool ModelNonrevFixedEq::isName(const string &model_name) {
     string upper_name = model_name;
     transform(upper_name.begin(), upper_name.end(), upper_name.begin(), ::toupper);
@@ -66,10 +73,11 @@ ModelNonrevFixedEq::ModelNonrevFixedEq(string model_params, StateFreqType freq, 
     constructed = false;
     models = models_block;
     build_failed = false;
-    fits = 0;
+    fits = accepted_fit = 0;
+    evaluations = 0;
     fit_starting = false;
     gradient_printed = false;
-    start_lnl = optimizer_lnl = rescored_lnl = 0.0;
+    start_lnl = optimizer_lnl = rescored_lnl = std::numeric_limits<double>::quiet_NaN();
     at_lower = at_upper = outside = 0;
     residuals = fixedeq::Diagnostics();
     refuseUnsupported(model_params, freq, freq_params);
@@ -99,6 +107,7 @@ ModelNonrevFixedEq::ModelNonrevFixedEq(string model_params, StateFreqType freq, 
     decomposeRateMatrix();
     if (build_failed)
         outError("NQC: the starting coordinates do not give a valid rate matrix");
+    measureState();
     if (verbose_mode >= VB_MED) {
         cout << "NQC seed Q after rescaling (17 significant digits):" << endl;
         printMatrix(cout, rate_matrix);
@@ -109,7 +118,12 @@ void ModelNonrevFixedEq::refuseUnsupported(const string &model_params, StateFreq
                                            const string &freq_params) {
     Params &params = Params::getInstance();
     const char *why = nullptr;
-    if (!model_params.empty())
+    // runModelFinder sets dating_mf, although named for dating, before it builds any candidate,
+    // so it is the run-time sign that ModelFinder or MixtureFinder is testing NQC; checked first,
+    // because a candidate's string may lack the target
+    if (params.dating_mf)
+        why = "cannot be tested by ModelFinder; give it with -m";
+    else if (!model_params.empty())
         why = "takes no parameters in braces after its name; give its target as +F{...}";
     else if (freq != FREQ_USER_DEFINED || freq_params.empty())
         why = "needs its target stationary distribution, as +F{p1,...,p20} or as +F<name> defined in an "
@@ -130,10 +144,11 @@ void ModelNonrevFixedEq::refuseUnsupported(const string &model_params, StateFreq
         why = "is not supported with --link-exchange-rates";
     else if (params.matrix_exp_technique == MET_EIGEN_DECOMPOSITION)
         why = "is not supported with --eigen";
-    else if (params.model_name.substr(0, 4) == "TEST" || params.model_name.substr(0, 2) == "MF")
-        why = "cannot be tested by ModelFinder; give it with -m";
     else if (params.alisim_active)
         why = "cannot simulate alignments; simulate from its fitted matrix instead";
+    // after the AliSim check, because AliSim also sets partition_file
+    else if (params.partition_file && params.model_joint.empty() && !params.link_model)
+        why = "is not supported with unlinked partitions (-p, -q or -S without --model-joint or --link-model)";
     if (why)
         outError(string("NQC ") + why);
 }
@@ -218,6 +233,7 @@ void ModelNonrevFixedEq::setBounds(double *lower_bound, double *upper_bound, boo
 }
 
 double ModelNonrevFixedEq::targetFunk(double x[]) {
+    evaluations++;
     bool changed = getVariables(x);
     if (changed) {
         decomposeRateMatrix();
@@ -301,8 +317,14 @@ double ModelNonrevFixedEq::optimizeParameters(double gradient_epsilon) {
 }
 
 void ModelNonrevFixedEq::checkFit(double optimizer_score) {
-    // decisions 009 and 029: re-score the returned point and report; nothing is restored
+    // decision 009: re-score the returned point and report; nothing is restored. This runs only
+    // outside parallel regions, because unlinked partitions are refused (decision 008).
+    // Between fits IQ-TREE updates rates and branches without decomposing Q, so the decomposition's
+    // guard on pi* is repeated here.
+    if (memcmp(state_freq, target.data(), sizeof(double) * num_states) != 0)
+        outError("NQC: the stationary distribution was changed between fits");
     fits++;
+    accepted_fit = fits;
     optimizer_lnl = optimizer_score;
     decomposeRateMatrix();
     if (build_failed)
@@ -310,6 +332,19 @@ void ModelNonrevFixedEq::checkFit(double optimizer_score) {
                    "the last valid coordinates are kept");
     phylo_tree->clearAllPartialLH();
     rescored_lnl = phylo_tree->computeLikelihood();
+    measureState();
+    if (verbose_mode >= VB_MED) {
+        cout << "NQC fit " << fits << ": start lnL " << number17(start_lnl) << ", optimizer lnL "
+             << number17(optimizer_lnl) << ", re-scored lnL " << number17(rescored_lnl) << endl;
+        writeState(cout);
+    }
+    if (rescored_lnl < start_lnl)
+        outWarning("NQC fit " + convertIntToString(fits) + ": the re-scored lnL is below the start by " +
+                   number17(start_lnl - rescored_lnl) + " (reported, not restored)");
+}
+
+void ModelNonrevFixedEq::measureState() {
+    // derived from the accepted coordinates and Q, so recomputed rather than restored
     at_lower = at_upper = outside = 0;
     for (int i = 0; i < accepted.size(); i++) {
         at_lower += (accepted[i] == lower);
@@ -318,8 +353,14 @@ void ModelNonrevFixedEq::checkFit(double optimizer_score) {
     }
     Map<const Matrix<double, Dynamic, Dynamic, RowMajor> > q(rate_matrix, num_states, num_states);
     residuals = fixedeq::diagnostics(q, target, nu);
-    if (verbose_mode >= VB_MED)
-        writeInfo(cout);
+}
+
+void ModelNonrevFixedEq::writeState(ostream &out) {
+    out << "NQC coordinates at the lower bound " << at_lower << ", at the upper bound " << at_upper
+        << ", outside the domain " << outside << endl;
+    out << "NQC residuals: |pi*Q| " << number17(residuals.stationarity) << ", row sums "
+        << number17(residuals.row_sums) << ", |mean rate - 1| " << number17(residuals.mean_rate_error)
+        << ", nu " << number17(residuals.nu_residual) << ", minimum rate " << number17(residuals.min_rate) << endl;
 }
 
 void ModelNonrevFixedEq::decomposeRateMatrixNonrev() {
@@ -388,17 +429,28 @@ void ModelNonrevFixedEq::startCheckpoint() {
 void ModelNonrevFixedEq::saveCheckpoint() {
     // 17-digit strings rather than CKP_SAVE's 10 digits (decision 003)
     double domain[2] = {lower, upper};
+    // the seven diagnostics in fixedeq::Diagnostics order
+    double diagnostics[7] = {residuals.stationarity, residuals.row_sums, residuals.mean_rate_error,
+                             residuals.min_rate, residuals.min_flux, residuals.nu_residual,
+                             residuals.exit_rate_mismatch};
+    double scores[3] = {start_lnl, optimizer_lnl, rescored_lnl};
+    const char *score_keys[3] = {"start_score", "optimizer_score", "accepted_score"};
     startCheckpoint();
     checkpoint->put("chart", string(CHART));
     checkpoint->put("chart_version", CHART_VERSION);
-    checkpoint->put("target", numbers17(target.data(), num_states));
+    checkpoint->put("target", numbers17(state_freq, num_states));
     checkpoint->put("references", integers(ref));
     checkpoint->put("domain", numbers17(domain, 2));
     checkpoint->put("derivative", string(DERIVATIVE));
     checkpoint->put("coordinates", numbers17(accepted.data(), (int)accepted.size()));
     checkpoint->put("fits", fits);
-    if (fits > 0)
-        checkpoint->put("accepted_score", number17(rescored_lnl));
+    checkpoint->put("evaluations", evaluations);
+    checkpoint->put("accepted_fit", accepted_fit);
+    for (int i = 0; i < 3; i++)
+        if (std::isfinite(scores[i]))
+            checkpoint->put(score_keys[i], number17(scores[i]));
+    checkpoint->put("bounds", integers({at_lower, at_upper, outside}));
+    checkpoint->put("residuals", numbers17(diagnostics, 7));
     endCheckpoint();
     ModelProtein::saveCheckpoint();
 }
@@ -408,8 +460,11 @@ void ModelNonrevFixedEq::restoreCheckpoint() {
     // the saved ones. Absent keys leave the model as it is, as IQ-TREE's own restores do.
     ModelProtein::restoreCheckpoint();
     double domain[2] = {lower, upper};
+    double *scores[3] = {&start_lnl, &optimizer_lnl, &rescored_lnl};
+    const char *score_keys[3] = {"start_score", "optimizer_score", "accepted_score"};
     string coordinates, chart, saved_target, saved_ref, saved_domain;
-    int chart_version = 0;
+    int chart_version = 0, saved_fits = 0;
+    int64_t saved_evaluations = 0;
     startCheckpoint();
     bool found = checkpoint->getString("coordinates", coordinates);
     if (found) {
@@ -421,10 +476,19 @@ void ModelNonrevFixedEq::restoreCheckpoint() {
         if (chart != CHART || chart_version != CHART_VERSION || saved_target != numbers17(target.data(), num_states) ||
             saved_ref != integers(ref) || saved_domain != numbers17(domain, 2))
             outError("NQC: the checkpoint was written with a different target, references, chart or domain");
-        checkpoint->get("fits", fits);
-        string score;
-        if (checkpoint->getString("accepted_score", score))
-            rescored_lnl = convert_double(score.c_str());
+        // counters keep the larger count, so that neither the +I+G path's restore of its best start
+        // nor a resumed run winds them back
+        checkpoint->get("fits", saved_fits);
+        checkpoint->get("evaluations", saved_evaluations);
+        fits = max(fits, saved_fits);
+        evaluations = max(evaluations, saved_evaluations);
+        accepted_fit = 0;
+        checkpoint->get("accepted_fit", accepted_fit);
+        for (int i = 0; i < 3; i++) {
+            string score;
+            *scores[i] = checkpoint->getString(score_keys[i], score) ? convert_double(score.c_str())
+                                                                    : std::numeric_limits<double>::quiet_NaN();
+        }
     }
     endCheckpoint();
     if (!found)
@@ -436,6 +500,7 @@ void ModelNonrevFixedEq::restoreCheckpoint() {
     decomposeRateMatrix();
     if (build_failed)
         outError("NQC: the checkpointed coordinates do not give a valid rate matrix");
+    measureState();
     if (phylo_tree)
         phylo_tree->clearAllPartialLH();
 }
@@ -445,28 +510,25 @@ void ModelNonrevFixedEq::printMatrix(ostream &out, const double *m) {
         out << numbers17(m + i * num_states, num_states) << endl;
 }
 
-void ModelNonrevFixedEq::writeInfo(ostream &out) {
-    if (!constructed) {
-        ModelProtein::writeInfo(out);
-        return;
-    }
+void ModelNonrevFixedEq::reportRun(IQTree &tree, ostream &out) {
+    // one alignment; partitioned NQC is refused until linked models are supported (decision 008)
+    ModelNonrevFixedEq *model = dynamic_cast<ModelNonrevFixedEq*>(tree.getModel());
+    if (model)
+        model->writeSummary(out);
+}
+
+void ModelNonrevFixedEq::writeSummary(ostream &out) {
     string letters;
     for (int r : ref)
         letters += STATES[r];
+    out << endl << "NQC summary of the final model (17 significant digits):" << endl;
     out << "NQC target as given (sum " << number17(target_raw_sum) << "): " << target_text << endl;
-    out << "NQC target normalized: " << numbers17(target.data(), num_states) << endl;
+    out << "NQC target normalized: " << numbers17(state_freq, num_states) << endl;
     out << "NQC reference destinations: " << letters << endl;
     out << "NQC coordinate domain: [" << number17(lower) << ", " << number17(upper) << "]" << endl;
-    if (fits == 0)
-        return;
-    out << "NQC fit " << fits << ": start lnL " << number17(start_lnl) << ", optimizer lnL "
-        << number17(optimizer_lnl) << ", re-scored lnL " << number17(rescored_lnl) << endl;
-    if (rescored_lnl < start_lnl)
-        out << "NQC fit " << fits << ": the re-scored lnL is below the start by "
-            << number17(start_lnl - rescored_lnl) << " (reported, not restored)" << endl;
-    out << "NQC coordinates at the lower bound " << at_lower << ", at the upper bound " << at_upper
-        << ", outside the domain " << outside << endl;
-    out << "NQC residuals: |pi*Q| " << number17(residuals.stationarity) << ", row sums "
-        << number17(residuals.row_sums) << ", |mean rate - 1| " << number17(residuals.mean_rate_error)
-        << ", nu " << number17(residuals.nu_residual) << ", minimum rate " << number17(residuals.min_rate) << endl;
+    out << "NQC accepted fit " << (accepted_fit > 0 ? convertIntToString(accepted_fit) : string("unknown"))
+        << " of " << fits << ": start lnL " << score17(start_lnl) << ", optimizer lnL " << score17(optimizer_lnl)
+        << ", re-scored lnL " << score17(rescored_lnl) << endl;
+    writeState(out);
+    out << "NQC likelihood evaluations: " << evaluations << endl;
 }

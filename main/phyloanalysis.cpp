@@ -58,6 +58,7 @@
 #include "model/partitionmodel.h"
 #include "model/modelmixture.h"
 #include "model/modelfactory.h"
+#include "model/modelnonrevfixedeq.h"
 //#include "guidedbootstrap.h"
 #include "model/modelset.h"
 #include "utils/timeutil.h"
@@ -1410,6 +1411,8 @@ void reportPhyloAnalysis(Params &params, IQTree &tree, ModelCheckpoint &model_in
     if (!MPIHelper::getInstance().isMaster()) {
         return;
     }
+    // the NQC model's end-of-run summary; nothing for other models
+    ModelNonrevFixedEq::reportRun(tree, cout);
     if (params.suppress_output_flags & OUT_IQTREE) {
         printOutfilesInfo(params, tree);
         return;
