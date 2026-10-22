@@ -7,6 +7,21 @@ left to commit messages and the planning documents. The next session starts from
 This is a fork of `iqtree/iqtree3`. Entries here describe work on the fork, not upstream
 development.
 
+## 2026-10-22 (second session): S2 close-out checked, records corrected
+
+- **Done.** Checked the S2 close-out against the repository, the gate output, Windows' event log
+  and GitHub; every claim held.
+  - `test_scripts/fixedeq/nqc/fitrecords.py`, with 3 tests, reads the fit records of saved
+    `nqcchecks.py` runs (`fitrecords/` in the S2 gate directory). It reproduces PLAN.md's
+    corrected values, which had been computed by hand, and reads the restored `+I+G4` model from
+    its checkpoint.
+  - Decision 036 withdraws decision 030's claim about the legacy step; decision 037 records the S2
+    shortfalls left to S3-1. The index marks every entry that 035 to 037 qualify.
+- **Found.** In Level 2 the checkpoint's `accepted_score` precedes the round's rate and branch
+  updates (66.9 below the final score in the short `+I+G4` run). Recorded in PLAN.md's S3-1 list
+  and S4 step, CODE_PLAN.md section 2.2 and model/CLAUDE.md.
+- **Next.** Unchanged: Peter decides risks 19 and 22, then S3 is planned, starting with S3-1.
+
 ## 2026-10-20 to 2026-10-22: S2, the first compiled model (gate G2)
 
 - **Done.** S2 as planned and approved (decisions 030 to 034, `56259ab7`).

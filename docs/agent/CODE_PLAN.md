@@ -177,7 +177,10 @@ target as `+F{...}` does.
 
 Checkpoint (decisions 003, 033; implemented in S2): chart identifier and version, target,
 references, coordinates as 17-digit strings, domain, derivative policy, fixed or fitted status,
-and accepted score, under the class's own keys. Restore verifies the target, references, chart
+and accepted score, under the class's own keys. The accepted score is the re-scored
+log-likelihood after the model's last accepted fit, under the rate parameters and branch lengths
+of that moment; in Level 2 the round's later updates leave the run's final score above it
+(PLAN.md, next step). Restore verifies the target, references, chart
 and domain against the constructed object, rejects any mismatch, then rebuilds, decomposes and
 clears partial likelihoods. A restore that finds none of the class's keys leaves the model
 unchanged, as IQ-TREE's own restores do: the +I+G path copies the checkpoint before any model

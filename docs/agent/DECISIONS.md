@@ -14,10 +14,10 @@ Programming decisions:
 - 003 Store the 360 coordinates as authoritative state and checkpoint them losslessly
 - 004 Move the numerical half of `decomposeRateMatrixNonrev` into a protected helper (superseded by 015)
 - 005 Reach the scaled derivative step through a `PartitionModel::derivativeFunk` override
-- 006 Take the target through the existing `+F` routes and validate it strictly in the model
+- 006 Take the target through the existing `+F` routes and validate it strictly in the model (S2 build short of it until S3-1: 037)
 - 007 Hold domain and step settings as class defaults, with parse-only options (one sentence superseded by 027)
-- 008 Reject every model combination the first release does not support
-- 009 Surface failed line searches by post-fit checks first, and record status later (restore step and S5 recording superseded by 029)
+- 008 Reject every model combination the first release does not support (S2 build short of it until S3-1: 037)
+- 009 Surface failed line searches by post-fit checks first, and record status later (restore step and S5 recording superseded by 029; S2 build short of it until S3-1: 037)
 - 010 Export the fitted matrix at 17 digits in the `-m FILE` format, with a metadata file
 - 011 Recompute reference destinations deterministically in every model object
 - 012 Test the pure module with googletest in a standalone CMake project
@@ -30,20 +30,22 @@ Programming decisions:
 - 019 Rerun the design scripts with a kept driver and match documented values in four classes
 - 020 Accept the design-script rerun as the reproduced record and keep its 24 misses as reported
 - 021 Fix the oracle's test thresholds before its tests are written
-- 022 Build the sanitizer binary with IQ-TREE's `Mem` build type
+- 022 Build the sanitizer binary with IQ-TREE's `Mem` build type (build directory superseded by 035)
 - 023 Use the turtle pooled composition as the S1 to S4 test target
 - 024 Run Level 1 for the edge-proportional arrangement under `-q` with the partition rates fixed
 - 025 Carry the GTR20 incumbent from a fixed-tree fit's checkpoint, and test nesting against its re-evaluation
 - 026 Set the compiled code's pass lines before S1's tests are written (positive-ratio line unused under 028)
 - 027 Keep the benchmark box as the default and check no start against it
 - 028 Build only the log-ratio chart, with no compiled positive-ratio or T3 alternative
-- 029 Report a fall below the start and restore nothing
-- 030 Set the S2 pass lines and the toy problem before S2's tests are written
-- 031 Build NQC's base through a protected `ModelProtein` constructor that reads no model (supersedes part of 002 and 026)
+- 029 Report a fall below the start and restore nothing (S2 build short of it until S3-1: 037)
+- 030 Set the S2 pass lines and the toy problem before S2's tests are written (one reason withdrawn by 036; S2 checks short of it until S3-1: 037)
+- 031 Build NQC's base through a protected `ModelProtein` constructor that reads no model (supersedes part of 002 and 026; `rescaleRates` call superseded by 035)
 - 032 Refuse NQC as a mixture component where `initMixture` creates components
 - 033 Save and restore NQC's coordinates from S2
-- 034 Adopt seven refinements to NQC's specification from the S2 plan review
+- 034 Adopt seven refinements to NQC's specification from the S2 plan review (S2 checks short of item 7 until S3-1: 037)
 - 035 Record two departures found in the S2 close-out (supersedes part of 022 and 031)
+- 036 Withdraw decision 030's claim that the legacy step falls outside its line
+- 037 Close S2 on the gated code and leave its known shortfalls to S3-1
 
 Mathematical and methodological decisions:
 
@@ -1117,6 +1119,76 @@ Number programming entries sequentially from 001 and never reuse a number.
   S2 re-gate for a difference of rounding; a changelog note only, which leaves 031 describing code
   that does not exist; building over S0's sanitizer build.
 - **Affects:** `CODE_PLAN.md` sections 2.2 and 3.6; CLAUDE.md's sanitizer notes. No code changes.
+
+## 036. Withdraw decision 030's claim that the legacy step falls outside its line
+
+- **Date:** 2026-10-22
+- **Status:** accepted
+- **Decision:** This withdraws the last clause of decision 030's "Step size" reason, that at a
+  coordinate of 1e-9 the legacy step's rounding error lies "orders of magnitude outside the line".
+  Applied at any step, decision 030's step-size line allows more for rounding than the rounding it
+  bounds, so it cannot show that a small step fails. The measure of D02's point is the error
+  against the central reference g_ref divided by max(1, |g_ref|), which `nqcchecks.py` reports at
+  the near-zero start, and a later test that compares the scaled and legacy steps uses it.
+  Decision 030's rule, points and lines stand.
+- **Why:** Peter's choice on 2026-10-22.
+  - The line allows 2 × 2 × 1e-12 × |lnL| / |h| for rounding: 4000 times the rounding error
+    decision 030 estimates for the same step, about 1e-15 × |lnL| / |h|, at every h, the legacy
+    step's 1e-13 included.
+  - The S2 gate measured D02's point against the central reference: at the near-zero start the
+    largest error was 9.5 with the legacy step and 3.0e-4 with the scaled step
+    (`~/iqtree3-runs/s2-gate/20261021-35d4a1bf/nqc/results.md`). The driver used that measure for
+    this reason (`test_scripts/fixedeq/nqc/nqcchecks.py:274-275`); the line was not evaluated at
+    the legacy step.
+  - S3 must show that the linked gradient uses the scaled step (PLAN.md, S3's "Done when"), and
+    its test inherits decision 030's lines.
+- **Alternatives rejected:** the close-out's CHANGELOG note alone, which leaves 030's reason where
+  agents read it, as decision 035 found for 031; editing 030, which this file's append-only rule
+  forbids.
+- **Affects:** decision 030's "Step size" reason and its index line; S3's linked-gradient test.
+
+## 037. Close S2 on the gated code and leave its known shortfalls to S3-1
+
+- **Date:** 2026-10-22
+- **Status:** accepted
+- **Decision:** S2 stays closed on the code gated at `35d4a1bf`. Its build and check driver fall
+  short of decisions 006, 008, 009, 029, 030 and 034 in the three ways below, found at the
+  close-out. S3-1, the first change of S3, removes each shortfall, and S3's gate is not met until
+  it has. Until then they are known limits of the S2 build.
+  1. **Post-fit report (006, 009, 029).** The class prints its report (the target as given and
+     normalized, the start and re-scored scores, any fall below the start, bound counts and
+     residuals) only under `-v` (`model/modelnonrevfixedeq.cpp:321-322`), where IQ-TREE's round
+     loop prints it a second time (`model/modelfactory.cpp:1678-1680`). At default verbosity
+     IQ-TREE prints it once, for the last fit (`model/modelfactory.cpp:1747-1749`), and on the
+     `+I+G` path that call is skipped, because every start runs with `write_info` false
+     (`model/modelfactory.cpp:1557`). A fall below the start in a default run is not shown.
+  2. **What the checks read (030, 034 item 7).** The driver takes fit counts, residuals and bound
+     counts from the log, and asserts decision 026's residual line on the last printed record,
+     which on the `+I+G` path belongs to the last start, not the restored model. Its π* check
+     reads the final checkpoint only, and the key it reads is written from the class's own copy
+     of the target (`model/modelnonrevfixedeq.cpp:394`), not from `state_freq`, the vector the
+     likelihood uses as the root distribution. The guard on `state_freq` is the bitwise check
+     after every decomposition (line 346), which stops the run on a mismatch.
+  3. **Refusals (008).** By reading of the code, ModelFinder run without `-m` is not refused:
+     IQ-TREE treats an empty `-m` as ModelFinder (`main/phyloanalysis.cpp:215`), and the class
+     checks only for the `TEST` and `MF` prefixes (`model/modelnonrevfixedeq.cpp:132`); no run
+     has tested it. `-fs` and the HMM option are refused in the code but untested. Unlinked
+     partitioned NQC (`-m NQC` with `-p`, `-q` or `-S`), which the first release does not list,
+     is accepted and untested.
+- **Why:** Peter's choice on 2026-10-21, so that S2 closes on the code that was gated.
+  - None of the shortfalls affects a result the gate checked: they lie in what is printed, what
+    the driver reads, and which inputs are refused. Read from the gate's saved output by
+    `test_scripts/fixedeq/nqc/fitrecords.py`, the model each `aa_example` fit ended with, the
+    restored `+I+G4` model included, has residuals of at most 2.5e-16 as the oracle computes them
+    from its checkpointed coordinates, and no fit in those runs fell below its start.
+  - Removing them before the close-out would change gated code, so the gate, with its 4.2-hour
+    sanitizer build, would run again for changes that S3's linked post-fit hook and S4's report
+    build on.
+- **Alternatives rejected:** removing the shortfalls and repeating the S2 gate; recording them only
+  in PLAN.md's next step and the commit message, which leaves six decisions describing a build
+  that does not yet meet them, where S3's planning reads them.
+- **Affects:** PLAN.md's next step (S3-1); S3's plan and gate; `model/modelnonrevfixedeq.cpp`;
+  `test_scripts/fixedeq/nqc/nqcchecks.py`; the index lines of 006, 008, 009, 029, 030 and 034.
 
 ---
 

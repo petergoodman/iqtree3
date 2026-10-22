@@ -265,10 +265,10 @@ competing implementations, G5 native and outer workflow, G6 scientific validatio
 | 1 | Final public model and option names | Peter, with the maintainers |
 | 5 | Cost: 361 likelihood evaluations per one-sided gradient; realistic training runs may take hours | S3 profiling; analytic gradients stay deferred |
 | 7 | Active `ASSERT`s abort a linked round that lowers the log-likelihood by more than 0.1 (verified, `model/partitionmodel.cpp:938`, `model/partitionmodelplen.cpp:135`) | Accepted 2026-10-07 by decision 029: NQC meets these `ASSERT`s as NONREV does, with no restore; S2 and S3 tests record whether any fit reaches them. S2's fits, all on one alignment, cannot reach these linked-round `ASSERT`s, and printed none |
-| 8 | The default coordinate domain may not contain LG rebuilt at a skewed π* | No construction check (decision 027): coordinates outside the domain are clamped at the first line search, as for every IQ-TREE model, and bound activity is reported after the fit (decision 009); the domain option (decision 007) widens the domain. At decision 023's target the LG seed lies inside, 3.51 above the lower bound and 2.32 below the upper (G0 manifest). S2's `aa_example` fits at that target ended with 1 or 2 coordinates at the upper bound (0 to 5 during the fits) and none at the lower |
+| 8 | The default coordinate domain may not contain LG rebuilt at a skewed π* | No construction check (decision 027): coordinates outside the domain are clamped at the first line search, as for every IQ-TREE model, and bound activity is reported after the fit (decision 009); the domain option (decision 007) widens the domain. At decision 023's target the LG seed lies inside, 3.51 above the lower bound and 2.32 below the upper (G0 manifest). S2's `aa_example` fits at that target ended with 1 or 2 coordinates at the upper bound (0 to 5 during the fits) and none at the lower, read from each run's checkpoint by `fitrecords.py` |
 | 9 | Real training data: a small real set for S5, and the full set with a written confirmatory plan for S7 | Peter |
 | 11 | Scientific success criterion and manuscript details (placeholder above) | Peter |
-| 12 | A continuity source the chart does not remove: `computeTransMatrixNonrev` switches from the eigen path to scaling-and-squaring when P's row sums deviate by more than 1e-4 (verified, `model/modelmarkov.cpp:489-500`), and the decomposition sets `nondiagonalizable` on a singular eigenvector matrix (verified, `model/modelmarkov.cpp:1330-1336`); shared with `NONREV`, frequency unmeasured | count "INFO: Switch to scaling-squaring" lines (printed under `-v`) in S2 and S3 fits. S2: none in the 183 fits of its three `aa_example` runs |
+| 12 | A continuity source the chart does not remove: `computeTransMatrixNonrev` switches from the eigen path to scaling-and-squaring when P's row sums deviate by more than 1e-4 (verified, `model/modelmarkov.cpp:489-500`), and the decomposition sets `nondiagonalizable` on a singular eigenvector matrix (verified, `model/modelmarkov.cpp:1330-1336`); shared with `NONREV`, frequency unmeasured | count "INFO: Switch to scaling-squaring" lines (printed under `-v`) in S2 and S3 fits. S2: none in the 183 fits of its three `aa_example` runs (`fitrecords.py`) |
 | 18 | No fallback is recorded if S3 profiling shows training runs impractical while analytic gradients are out of scope | Peter, after S3 profiling |
 | 19 | Baseline run 11 (`--model-joint NONREV` under `-p` at `-T 4`) does not reproduce: five repeats of the unmodified binary ended at log-likelihoods from -4975.0215 to -4974.5963, none equal to the `-T 1` run's -4974.5432, with the same topology and 442 of the model section's 447 numbers varying (largest spread 0.046). Its tree drawing varies too, so the spread rule of `CODE_PLAN.md` section 3.4 cannot judge it, and S3's `-T 1` against `-T 4` test meets the same behaviour in legacy code | Partly resolved 2026-10-03: run 11's rule and the added run 12 are decision 018, implemented in the driver on 2026-10-04. Run 12 (run 10 at `-T 4`) gave identical reports in five repeats, identical to run 10's at `-T 1` in every compared item, so at the report's printed precision the variation arises in the joint fit, not in a fixed evaluation. The S3 thread test's definition: Peter, before S3 |
 | 20 | Upstream finding, sanitizer run of 2026-10-05: `ModelMarkov`'s constructor calls `setReversible` (`model/modelmarkov.cpp:72`), which reads `is_reversible` before anything sets it (line 76; UndefinedBehaviorSanitizer "load of value 190, which is not a valid value for type 'bool'"). It appears once in every run, so the IQ-TREE sanitizer runs of S2 to S4 will show it too (S1's sanitizer run covered only the unit tests; S2's showed it once in each of 55 runs, and nothing else); its effect on results was not investigated | Known before any edit; a question for the maintainers if Peter wishes to relay it |
@@ -301,11 +301,14 @@ The gate ran from the clean tree at `35d4a1bf` (`~/iqtree3-runs/s2-gate/20261021
   regression runs 2 and 4, the 16 differential cases, probe (a), and the NQC root, seed, target,
   refusal and short cases all passed, with risk 20's upstream report the only finding.
 
-Corrections to the check driver's `results.md`:
+Corrections to the check driver's `results.md` (decision 037), recomputed from the gate's saved
+output by `test_scripts/fixedeq/nqc/fitrecords.py` (`fitrecords/` in the gate directory):
 - It counts each fit twice under `-v`; the three fit runs made 6, 6 and 171 fits.
 - Its `+I+G4` residual and bound rows describe the last start, not the restored model. Over all
-  171 fit records printed in that run, which include the restored state, the largest residuals
-  are 2.8e-16 (‖π*Q‖∞), 6.7e-16 (row sums) and 4.4e-16 (mean rate).
+  171 fit records the largest residuals are 2.8e-16 (‖π*Q‖∞), 6.7e-16 (row sums) and 4.4e-16
+  (mean rate). The restored model, read from the checkpoint, has 1 coordinate at the upper bound
+  and none at the lower, and residuals of at most 2.5e-16 as the oracle computes them from its
+  coordinates.
 - Its π* check reads a checkpoint key written from the class's own copy of the target. The guard
   on the root distribution is the bitwise check of `state_freq` after every decomposition, and
   every run exited normally.
@@ -320,8 +323,9 @@ oracle, regression baseline, probes, frozen binaries and G0 manifest. Details ar
 
 1. Peter's decisions before S3: how the `-T 1` against `-T 4` test is defined (risk 19), and which
    domain the nesting test runs in (risk 22).
-2. Plan S3 (`CODE_PLAN.md` section 4). Its first change, S3-1, closes gaps found when S2 was
-   closed, in `model/modelnonrevfixedeq.cpp` and `test_scripts/fixedeq/nqc/nqcchecks.py`:
+2. Plan S3 (`CODE_PLAN.md` section 4). Its first change, S3-1, removes the shortfalls of the S2
+   build that decision 037 records, in `model/modelnonrevfixedeq.cpp` and
+   `test_scripts/fixedeq/nqc/nqcchecks.py`:
    - each fit's report printed once under `-v` on every path, partitions included, and a fall
      below the start shown at every verbosity (decision 029);
    - the target vectors, bound activity and residuals visible in a default run of every supported
@@ -332,11 +336,18 @@ oracle, regression baseline, probes, frozen binaries and G0 manifest. Details ar
    - ModelFinder run without `-m`, which S2's refusal probably misses, refused and tested
      (decision 008), and refusal tests for `-fs` and the HMM option;
    - unlinked partitioned NQC (`-m NQC` with `-p`, `-q` or `-S`), accepted by S2 but untested,
-     either tested or refused.
+     either tested or refused;
+   - a checkpointed final score. The `accepted_score` key is the re-scored log-likelihood after
+     the model's last accepted fit, under the rate parameters and branch lengths of that moment,
+     so in Level 2 it is not the run's final score: IQ-TREE's later updates in the round raise
+     the final score above it, by 66.9 in the short `+I+G4` run and by 0.005 in the `aa_example`
+     one (`fitrecords.py`). S3's plan chooses between a key for the final score and running item
+     3's comparison at Level 1 only.
    S3's tests also add: 360 parameters counted once across linked partitions, π* through linking
    and restart, linked Level 1 (decision 024), and permuted partition order.
 3. S4 adds the export-time stop classification (decision 009), and compares the re-imported
-   log-likelihood with the checkpoint's accepted score, not the printed one.
+   log-likelihood with a checkpointed score, not the printed one. `accepted_score` serves only a
+   Level 1 fit (item 2, last S3-1 entry).
 4. Peter asks GitHub Support to re-enable Actions, which GitHub disabled on the fork between
    2026-10-08 and 2026-10-19 (`CHANGELOG.md`, 2026-10-20). The agent then checks the fork workflow's first run: the
    micromamba route to the locked environment and the NQC job are unverified.
