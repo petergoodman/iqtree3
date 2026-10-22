@@ -236,13 +236,12 @@ S0 to S2 are complete. S2's gate ran from the clean tree at `35d4a1bf` on 2026-1
 - **S2 gate record:** `CHANGELOG.md`, the S2 entry, with the fit records corrected by
   `test_scripts/fixedeq/nqc/fitrecords.py`.
 - **Known shortfalls of the S2 build:** S3-1 in `CODE_PLAN.md` section 4.
-- **Continuous integration:** GitHub disabled Actions on the fork between 2026-10-08 and
-  2026-10-19, so the fork workflow has never run.
+- **Continuous integration:** Actions is back on since 2026-10-22. Upstream's Build workflow is
+  switched off on the fork's Actions page (`ci.yaml` unchanged), so the fork no longer checks the
+  macOS, Windows or ARM builds. fixedeq's first run (39817703469, `76dd4301`) passed all jobs.
 
 ## Next step
 
 1. Peter decides, before S3, how the `-T 1` against `-T 4` test is defined (risk 19) and which
    domain the nesting test runs in (risk 22).
 2. Plan S3 from `CODE_PLAN.md` section 4, starting with S3-1.
-3. Peter asks GitHub Support to re-enable Actions (`CHANGELOG.md`, 2026-10-20); the agent then
-   checks the fork workflow's first run, whose micromamba route and NQC job are unverified.

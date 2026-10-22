@@ -8,6 +8,18 @@ gate record and may run to 25 lines. The next session starts from the top entry.
 This is a fork of `iqtree/iqtree3`. Entries here describe work on the fork, not upstream
 development.
 
+## 2026-10-22 (fourth session): Actions back on, fixedeq's first run
+
+- **Done.** The fork's banner now read "Workflows on this fork have been disabled" (inherited
+  upstream workflows waste compute) and offered a re-enable, so no Support request was needed.
+  - Peter re-enabled Actions and switched off upstream's Build (7 jobs, three on macOS, on every
+    push) on the fork's Actions page; `ci.yaml` is unchanged. No decision entry, at his choice.
+  - Pushed `f7df75d0` and `76dd4301`. fixedeq run 39817703469 passed: unit tests 44 of 44 in both
+    variants; oracle 184 passed, 1 skipped (probe (g) record is local); NQC seed 11 of 11 checks.
+- **Found.** GitHub's trigger for the disable is not public; Build's load is the inferred cause.
+  `actions/checkout@v4` warns that Node.js 20 is deprecated and is forced onto Node 24.
+- **Next.** Unchanged: Peter decides risks 19 and 22, then S3 is planned, starting with S3-1.
+
 ## 2026-10-22 (third session): agent records restructured
 
 - **Done.** Reviewed the agent documents at Peter's request, then the restructure he approved:
