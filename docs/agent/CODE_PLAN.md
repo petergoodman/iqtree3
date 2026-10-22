@@ -20,7 +20,7 @@ Labels are those of PLAN.md. Source anchors refer to `63c330d9` and were verifie
 | `model/fixedeqchart.{h,cpp}` | S1 | Pure functions over Eigen types, with no IQ-TREE headers and no process exit (section 2.1) |
 | `model/modelnonrevfixedeq.{h,cpp}` | S2 to S4 | Class `ModelNonrevFixedEq : public ModelProtein`, public name "NQC" held in one constant (decision 002; section 2.2) |
 | `unittest/` | S1 | Standalone CMake project that compiles `model/fixedeqchart.cpp` directly, with IQ-TREE's clang Release flags and the `model` target's SSE flags (verified, `CMakeLists.txt:420`, `711-718`, `984`), and fetches googletest 1.12.1 at cmaple's pinned commit, checked by the archive's SHA-256 (verified, `cmaple/CMakeLists.txt:283-293`; decision 012); `fixtures/`, 27 chart cases and `targets.txt` in plain text at 17 significant digits with a provenance header (section 3.2); its own `.gitattributes` (decision 014) |
-| `test_scripts/fixedeq/` | S0 onward | `environment.yml` and lock (decision 013); `oracle/`; `tests/`; drivers `regression/`, `differential/`, `probes/`, `sanitizer/`, `unittests/`, `nqc/` and `design_rerun.py`; `manifest/` (G0 manifest); `explore/` (exploratory measurements behind decisions 007 and 021); `make_fixtures.py`; `.gitattributes` and `.gitignore` |
+| `test_scripts/fixedeq/` | S0 onward | `environment.yml` and lock (decision 013); `oracle/`; `tests/`; drivers `regression/`, `differential/`, `probes/`, `sanitizer/`, `unittests/`, `nqc/` and `design_rerun.py`; `manifest/` (G0 manifest); `explore/` (exploratory measurements behind decisions 007, 021, 023, 025 and 038); `make_fixtures.py`; `.gitattributes` and `.gitignore` |
 | `.github/workflows/fixedeq.yaml` | S1 | Fork-only workflow that builds and runs the unit tests and the oracle's tests on Linux, and from S2 a short NQC run |
 
 Run outputs never go into the working copy; they go under `~/iqtree3-runs/` in WSL. Fixtures and
@@ -340,14 +340,27 @@ later from the same frozen binary with run 8 rerun in each repeat to supply its 
   depend on the root, so NQC's first log-likelihood must equal the GTR20 fit's and its final one
   must not be lower. The fit, its transfer into the NQC run, the reference log-likelihood and
   the tolerance are those of decision 025: a fixed-tree fit carried from its checkpoint, compared
-  with a `--show-lh` evaluation of the carried values within 1e-8 × |lnL|.
+  with a `--show-lh` evaluation of the carried values within 1e-8 × |lnL|. The NQC fit runs with
+  `--nqc-domain LO,HI` computed by the driver from the carried start before the run: one decade
+  beyond the start's smallest and largest jump-weight ratios, rounded outward to powers of ten,
+  and never inside the default box (LO at most 1e-5, HI at least 10); for `aa_example`'s start,
+  ratios of about 1.2e-7 and 1.15e5 give 1e-8 and 1e7. This is a test setting; decision 007's
+  default, with no start margin, is unchanged. The same fit in the default box is reported, not
+  asserted.
 - Target immutability: π* compared bitwise after construction, linking, each linked update,
   checkpoint, restart and export.
 - Counting: 360 plus rate and branch parameters, with the matrix counted once for linked
   partitions.
-- Determinism: `-T 1` against `-T 4`, and permuted partition order. How the thread comparison
-  is defined is open (PLAN.md risk 19), because legacy joint fits already differ across thread
-  counts.
+- Determinism (decision 038), on turtle: the linked log-likelihood at the seed and the first
+  gradient at `-T 1` against `-p` at `-T 4` and `-S` at `-T 3`, 10 runs of each, within decision
+  021's lines, never bitwise. Under `-p`, `SuperAlignment(Params&)` caps the threads at the sum
+  over partitions of max(1, patterns × states / 4000), which on turtle is 3, one per partition,
+  and prints the change; other data can allow more threads per partition. Under `-S` with fewer
+  partitions than threads, `PhyloSuperTree::setNumThreads` gives each partition all the threads
+  and runs the partitions one at a time, so NQC's code never runs concurrently; `-S` at `-T 3`
+  giving one thread per partition is read in that function, not yet run, and the test confirms
+  it. Fits at more than one thread are reported beside NONREV's spread (decision 038). Permuted
+  partition order.
 - Export and re-import: log-likelihood equality with fixed nuisances.
 - An incompatible restart, with a different target, is rejected.
 
@@ -445,9 +458,12 @@ S3:
 - Tests first: two partitions with intentionally different compositions under `-S` and `-p`
   (one Q and one target in every object, fixed outside the shared update); linked Level 1
   (decision 024); 360 parameters counted once across linked partitions; π* through linking and
-  restart; permuted partition order; `-T 1` against `-T 4` (PLAN.md risk 19); restart from the
-  checkpoint written since S2, and rejection of an incompatible restart; nesting (decision 025,
-  PLAN.md risk 22); the linked gradient's step, by decision 021's gradient lines; layer 4 again.
+  restart; permuted partition order; thread counts at a fixed point (decision 038, section 3.5);
+  restart from the checkpoint written since S2, and rejection of an incompatible restart; nesting
+  in the widened domain (decision 025, section 3.5); the reported fit at decision 023's skewed
+  target; `+R4` beside `+G4` and `+I+G4` (`+R` is neither refused nor tested so far): the seed
+  against the oracle, which gains given FreeRate categories, and one linked Level 2 fit with the
+  invariant checks; the linked gradient's step, by decision 021's gradient lines; layer 4 again.
 - Monitoring, reported for every S3 fit and not asserted:
   - whether a linked round reaches IQ-TREE's `ASSERT` on a fall of more than 0.1 (formerly risk
     7; decision 009);
@@ -455,6 +471,26 @@ S3:
     non-reversible transition matrix leaves the eigen path when P's row sums deviate by more
     than 1e-4, and the decomposition flags a singular eigenvector matrix, both shared with NONREV
     (anchors in section 5). S2: none in the 183 fits of its three `aa_example` runs.
+- Profiling against NONREV (PLAN.md risks 5 and 18), with settings and thresholds Peter approved
+  on 2026-10-22, before any measurement:
+  - Runs: `--model-joint NONREV` and NQC on the same data, trees, rate model and threads. Data:
+    turtle, and AliSim sets from the frozen binary (NQ.pfam+G4 on random rooted trees, 20 taxa,
+    500 sites per alignment, seeds recorded) of 10, 30 and 100 alignments. `+G4`, `+I+G4` and
+    `+R4`; `-S` and `-p`; Levels 1 and 2. `-T 1` for the comparison, `-T 2` and `-T 4` for
+    scaling (on turtle, `-S` at `-T 4` ran slower than at `-T 1`, each small partition taking all
+    four threads). This laptop only.
+  - Measured: time per likelihood evaluation (printed with the initial log-likelihood under
+    `-v`), fit wall and CPU time, rounds, NQC's evaluation count, IQ-TREE's memory estimate; and,
+    labelled as an extrapolation, 1000 alignments and about a million columns on dozens of CPUs.
+  - Thresholds: an NQC-to-NONREV ratio above 1.25 per likelihood evaluation (a gradient costs 361
+    evaluations against NONREV's 380), or above 2 per fit, is investigated and explained in S3's
+    gate record; above 3 per fit it blocks the gate until fixed inside NQC's code or accepted by
+    Peter. No absolute time limit in S3.
+  - Fallbacks if real-scale training is impractical (risk 18): more cores; Level 1 with nuisances
+    from a cheaper reversible fit; `+G4` in place of `+I+G4`; subsampling alignments.
+- Evidence for PLAN.md risk 22, reported: bound activity in every S3 fit, and the turtle and
+  `aa_example` Level 1 and Level 2 fits repeated with `--nqc-domain 1e-8,1e7` (the nesting test's
+  `aa_example` domain), comparing final log-likelihoods and bound counts.
 
 S4:
 

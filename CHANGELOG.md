@@ -8,6 +8,18 @@ gate record and may run to 25 lines. The next session starts from the top entry.
 This is a fork of `iqtree/iqtree3`. Entries here describe work on the fork, not upstream
 development.
 
+## 2026-10-22 (fifth session): pre-S3 decisions
+
+- **Done.** Probes on the frozen binary and the oracle; Peter decided risks 19 and 22's tests:
+  - Decision 038: thread counts compared at a fixed point. Upstream evaluations there differ by
+    at most 1.3e-16 relative at `-T 4`, but none of 18 joint NONREV fits matched `-T 1`.
+  - Decisions 025 and 023: nesting in a widened domain; one reported skewed-target fit. Risk 22
+    is now the production domain, a required full decision before S4 is planned.
+  - S3's list gains profiling against NONREV (thresholds 1.25, 2, 3), `+R4` and risk 22 evidence.
+  - Scripts `explore/thread_counts.py` and `explore/skewed_targets.py`; file-length limits removed.
+- **Failed.** My first risk 19 advice (assert Level 1 fit equality) failed: Level 1 also varies.
+- **Next.** Plan S3 in plan mode, starting with S3-1; then Peter decides risk 22 before S4.
+
 ## 2026-10-22 (fourth session): Actions back on, fixedeq's first run
 
 - **Done.** The fork's banner now read "Workflows on this fork have been disabled" (inherited

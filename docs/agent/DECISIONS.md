@@ -217,7 +217,8 @@ compared with the box: it is evaluated as given, and the line search clamps late
 **Why.** D03 needs explicit, variable domains; the box reuses IQ-TREE's constants, and the chart
 is total on R^360, so a start outside the box still gives a valid Q (D06).
 **Not chosen.** Compiled constants; a domain per start; a start margin; [log 1e-5, log 1e5].
-**Since** 2026-09-23; start check removed by 027 (2026-10-05).
+**Since** 2026-09-23; start check removed by 027 (2026-10-05). Whether this default suits the
+log-ratio chart is a required full decision, open (PLAN.md risk 22).
 
 ### 008. Refuse every combination the first release does not support
 
@@ -310,16 +311,18 @@ with given rates every nuisance stayed fixed, on the same edge-proportional tree
 
 ### 025. Carry the GTR20 incumbent from a fixed-tree fit's checkpoint
 
-**Rule.** The `GTR20+F{π*}` incumbent is fitted on fixed trees (`-te`) and carried from that
-fit's checkpoint: 190 rates and gamma shape at 10 digits, written as a PAML-format `-m` file with
-`+F{π*}` given exactly. A fit that ran a tree search is never carried. The nesting test evaluates
-the carried model with `--show-lh` on the same trees and rates; NQC's first log-likelihood must
-equal it within 1e-8 × |lnL|, and its final one must not fall below it by more than that.
-**Why.** After a tree search the checkpoint holds the model from before the final optimization
-(S0 probe (g)); on a fixed tree it matches the report. The 10-digit carry moves the
-log-likelihood by about 3e-12 relative; a re-evaluation keeps transfer error out of the test.
-**Not chosen.** Carrying from the report; comparing with the printed log-likelihood.
-**Since** 2026-10-05. The domain the test runs in is open (PLAN.md risk 22).
+**Rule.** The `GTR20+F{π*}` incumbent is fitted on fixed trees (`-te`), never after a tree
+search, and carried from its checkpoint (190 rates and gamma shape at 10 digits) as a PAML-format
+`-m` file with `+F{π*}` exact. The test evaluates it with `--show-lh` on the same trees and rates
+and starts NQC from it with `--nqc-domain` widened to contain the start (`CODE_PLAN.md` section
+3.5): NQC's first log-likelihood equals the evaluation within 1e-8 × |lnL|, and its final one
+falls below it by no more than that. The domain is a test setting only (007 is unchanged); the
+same fit in the default box is reported.
+**Why.** A tree search leaves the checkpoint's model stale (S0 probe (g)). The 10-digit carry
+moves the log-likelihood by about 3e-12 relative, kept out by re-evaluation. In the default box
+the first line search clamps the start's 146 of 360 outside coordinates (`aa_example`).
+**Not chosen.** Carrying from the report; the printed log-likelihood; the default box alone.
+**Since** 2026-10-05; domain 2026-10-22 (Peter). The default box itself is open (PLAN.md risk 22).
 
 ## Tests
 
@@ -347,6 +350,7 @@ only because no file holds them.
 | Compiled Q against fixtures and the oracle; round trips | relative max(1e-12, 1e-14 κ) per entry, κ the 2-norm condition number of [1ᵀ; (K − I)ᵀ] | 026, 030 |
 | Gradient against the oracle's, same step rule | \|g_k − g_k^oracle\| ≤ 2 × 1e-12 × \|lnL\| / \|h_k\| | 030 |
 | Gradient against the central reference (steps 1e-2, 1e-3, 1e-4 × max(1, \|x_k\|); reference and curvature at 1e-3) | \|g_k − g_ref\| ≤ 2 [(\|h_k\|/2)\|f″_kk\| + 2 × 1e-12 × \|lnL\| / \|h_k\|] | 030 |
+| NQC at a fixed point, more threads against `-T 1` (`CODE_PLAN.md` 3.5): log-likelihood; gradient | ≤ 1e-8 × \|lnL\|; \|g_k − g_k(`-T 1`)\| ≤ 2 × 1e-12 × \|lnL\| / \|h_k\| | 038 |
 | Toy problem (`CODE_PLAN.md` 3.3): compiled final score against the oracle's port (017) | max(10 × spread, 1e-8 × \|lnL\|); spread is the largest final-score difference among oracle fits differing only by rounding (every start coordinate moved one unit in the last place; an LU solve for ν in place of the pivoted QR), measured by a kept script before the comparison runs | 030 |
 | Level 1 accepted score against the oracle's re-evaluation of the checkpointed coordinates | ≤ 1e-8 × \|lnL\| | 030 |
 | π* in the checkpoint after every fit | bitwise equal to the parsed, normalized vector | 030 |
@@ -360,7 +364,7 @@ derivation kept in the archive: 1e-10 is the synthesis's feasibility goal (secti
 κ-scaled Q line tracks the measured gap between two correct floating-point routes, and the
 gradient lines turn a likelihood difference into a gradient difference.
 **Since** 2026-10-04 (021), 2026-10-05 (026), 2026-10-20 (030, 034 item 7); a claim in 030's
-reasons withdrawn 2026-10-22 (036).
+reasons withdrawn 2026-10-22 (036); thread row 2026-10-22 (038).
 
 ### 012. Test the pure module with googletest in a standalone CMake project
 
@@ -398,17 +402,33 @@ likelihood.
 **Not chosen.** Holding run 11's numbers to their spread; dropping run 11.
 **Since** 2026-10-03.
 
+### 038. Compare thread counts at a fixed point, not after a fit
+
+**Rule.** NQC's linked log-likelihood at the seed and its first gradient are computed at `-T 1`
+and with more threads, under `-p` and `-S`, with at least as many partitions as threads so that
+partitions run concurrently (on turtle, `-p` at `-T 4`, which IQ-TREE caps there at one thread
+per partition, and `-S` at `-T 3`). Each multi-threaded case runs 10 times, held to 021's lines,
+not bitwise, with `-T 1` as reference. Fits at more than one thread are reported, not asserted.
+**Why.** On the unmodified binary (2026-10-22) evaluations at a fixed point were exact at `-T 1`
+and differed by at most 1.3e-16 relative at `-T 4`, while none of 18 joint NONREV fits at `-T 4`
+matched `-T 1` (spreads 0.27 to 0.66, Level 1 included): the optimizer amplifies the rounding. A
+thread-safety fault in NQC is expected to miss 021's lines by orders of magnitude.
+**Not chosen.** Fit equality; a tolerance from the fits' spread; no test; a ThreadSanitizer build,
+the fallback if this test fails.
+**Since** 2026-10-22, retiring PLAN.md risk 19 (measurements: `explore/thread_counts.py`).
+
 ### 023. Use the turtle pooled composition as the S1 to S4 test target
 
 **Rule.** The named test target of S1 to S4 is the pooled composition of
 `test_scripts/test_data/turtle_aa.fasta` over the charsets of `turtle_aa.nex`, computed by
 `oracle/target.py` under `-p` conventions and recorded at 17 digits in the G0 manifest. It serves
 the `aa_example` and turtle tests; random targets in the oracle's tests and fixtures are separate
-and recorded by seed.
+and recorded by seed. S3 adds one reported, not asserted, fit at this target cubed and
+renormalized, whose LG start has 1 of 360 coordinates below the default box.
 **Why.** The port reproduces IQ-TREE's printed pooled vector for this data, and a pooled
 composition is the kind of target the study uses (D07).
-**Not chosen.** `aa_example`'s own composition; a skewed target now (still open: PLAN.md risk 22).
-**Since** 2026-10-04.
+**Not chosen.** `aa_example`'s own composition; an asserted skewed-target test.
+**Since** 2026-10-04; skewed case 2026-10-22 (`explore/skewed_targets.py`).
 
 ## Tooling
 

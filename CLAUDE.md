@@ -193,13 +193,13 @@ Each kind of fact has one home. Other files cite it by section or number and do 
 
 | Home | Holds | Budget |
 |---|---|---|
-| `docs/agent/PLAN.md` | goal, scope, constraints, open risks, questions for the maintainers, current state, next step | 250 lines |
-| `docs/agent/CODE_PLAN.md` | change map, specification, test procedures, per-slice task lists with known shortfalls, source line anchors | 540 lines |
-| `docs/agent/DECISIONS.md` | the active rules, edited in place | 450 lines; 12 per entry, the pass-line table excepted |
+| `docs/agent/PLAN.md` | goal, scope, constraints, open risks, questions for the maintainers, current state, next step | |
+| `docs/agent/CODE_PLAN.md` | change map, specification, test procedures, per-slice task lists with known shortfalls, source line anchors | |
+| `docs/agent/DECISIONS.md` | the active rules, edited in place | 12 lines per entry, the pass-line table excepted |
 | `CHANGELOG.md` | what each session did, what failed, what is next; each slice's gate record | 10 lines per entry, 25 for a slice close |
 | commit messages | measurements, commands, detail | |
 | `AI_DISCLOSURE.md` | one entry per milestone | 15 lines per entry |
-| this file, `model/CLAUDE.md` | build, environment, commands, conventions, gotchas | 220 and 60 lines |
+| this file, `model/CLAUDE.md` | build, environment, commands, conventions, gotchas | `model/CLAUDE.md` 60 lines |
 | `ARCHITECTURE.md`, `AA_MODEL_INFERENCE.md` | upstream code at the baseline, corrected in place, never prescriptive | |
 
 - **Decision bar.** A new entry only when Peter chooses between real alternatives and the choice
@@ -216,5 +216,5 @@ Each kind of fact has one home. Other files cite it by section or number and do 
 - **Closing a slice,** in one pass and one commit: the gate record in its `CHANGELOG.md` entry;
   `PLAN.md`'s current state and next step replaced, not appended to; the slice's list in
   `CODE_PLAN.md` section 4 cut to one line and the next slice's written; `DECISIONS.md` changed
-  only where the slice changed a rule; `wc -l` against the budgets, consolidating anything over;
+  only where the slice changed a rule; the remaining budgets checked, consolidating anything over;
   the `AI_DISCLOSURE.md` entry.
