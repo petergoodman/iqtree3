@@ -1,8 +1,8 @@
 # Plan: π-constrained non-reversible amino-acid models
 
-> **Status, 2026-10-20: S1 complete (gate G1); S2 planned and approved (decisions 030 to 034);
-> no file the IQ-TREE binary compiles has changed yet; approach accepted by the IQ-TREE
-> maintainers (reported by Peter, 2026-10-01).** Peter owns this document. Its
+> **Status, 2026-10-22: S2 complete (gate G2); the NQC class is in IQ-TREE's build; S3 not
+> started; approach accepted by the IQ-TREE maintainers (reported by Peter, 2026-10-01).** Peter
+> owns this document. Its
 > companion, `docs/agent/CODE_PLAN.md`, holds the file-level change map, the NQC class
 > specification and the test specification, and is read after this file. Decisions are
 > recorded only in `docs/agent/DECISIONS.md` and are cited here by number.
@@ -21,9 +21,11 @@ It is read at the start of every task, and most tasks need nothing else from the
 documents. A task that implements or tests a slice also reads `CODE_PLAN.md`, after this file.
 Keep this file current and short enough to read in full, and put history in `CHANGELOG.md`.
 
-Labels: (verified) means read in source at `63c330d9`, which the branch matches in every IQ-TREE
-source file (checked at `9783ac6a` on 2026-10-07), or run on 2026-09-23; (reported) means taken from a document; (proposed) means a
-plan choice not yet executed.
+Labels: (verified) means read in source at `63c330d9`, or run on 2026-09-23; (reported) means
+taken from a document; (proposed) means a plan choice not yet executed. Since S2 (`cd4c6823`) the
+branch differs from `63c330d9` in `model/CMakeLists.txt`, `model/modelmixture.cpp`,
+`model/modelprotein.{h,cpp}` and `utils/tools.{h,cpp}`. Anchors in those files refer to
+`63c330d9`; at HEAD, lines after S2's insertions are offset by up to 15.
 
 ## Goal
 
@@ -205,22 +207,23 @@ The file-level change map, the NQC class specification and the test specificatio
 
 ### Change map
 
-New files in place since S1:
-- `model/fixedeqchart.{h,cpp}`: the pure module, Eigen and the standard library only, not yet in
-  IQ-TREE's build;
-- `unittest/`: the standalone googletest project;
-- `test_scripts/fixedeq/`: oracle, drivers, environment file, fixture generator;
-- `.github/workflows/fixedeq.yaml`: the fork-only workflow.
+New files in place:
+- `model/fixedeqchart.{h,cpp}`: the pure module, Eigen and the standard library only (S1; in
+  IQ-TREE's build since S2);
+- `model/modelnonrevfixedeq.{h,cpp}`: the NQC class (S2);
+- `unittest/`: the standalone googletest project (S1);
+- `test_scripts/fixedeq/`: oracle, drivers, environment file, fixture generator, and from S2 the
+  NQC check driver;
+- `.github/workflows/fixedeq.yaml`: the fork-only workflow, with an NQC job from S2.
 
-Proposed: `model/modelnonrevfixedeq.{h,cpp}`, the NQC class.
-
-Shared IQ-TREE files touched, each opt-in or behaviour-preserving (proposed): in S2,
+Shared IQ-TREE files touched, each opt-in or behaviour-preserving. Done in S2 (`cd4c6823`):
 `model/CMakeLists.txt`, one `createModel` branch and a mixture-component check in
-`model/modelmixture.cpp` (decisions 032, 034), and a protected constructor in
-`model/modelprotein.{h,cpp}` (decision 031); in S2 and S3,
-parse-only options in `utils/tools.{h,cpp}`; in S3, derivative delegation, a linked-compatibility
-check and a post-fit hook in `model/partitionmodel.{h,cpp}`; in S4, the export hook and citation
-block in `main/phyloanalysis.cpp`. Deferred: `main/phylotesting.cpp` (S6).
+`model/modelmixture.cpp` (decisions 032, 034), a protected constructor in
+`model/modelprotein.{h,cpp}` (decision 031), and the parse-only option `--nqc-domain` in
+`utils/tools.{h,cpp}`. Proposed: in S3, the step option in `utils/tools.{h,cpp}` if needed, and
+derivative delegation, a linked-compatibility check and a post-fit hook in
+`model/partitionmodel.{h,cpp}`; in S4, the export hook and citation block in
+`main/phyloanalysis.cpp`. Deferred: `main/phylotesting.cpp` (S6).
 `utils/optimization.{h,cpp}` is not touched in any slice (decision 029).
 
 ### Decisions the code plan rests on
@@ -232,8 +235,10 @@ Every programming decision and the mathematical decisions D01 to D10 are in
 
 Six layers, specified in `CODE_PLAN.md` section 3: the Python oracle, C++ unit tests, the
 differential likelihood test, the regression baseline, invariant and nesting checks, and
-sanitizer builds. Upstream's GitHub workflow gives portability checks only and never runs NQC;
-the fork workflow added in S1 runs the unit tests and the oracle's tests.
+sanitizer builds. Upstream's GitHub workflow gives portability checks only and never runs NQC.
+The fork workflow added in S1 runs the unit tests and the oracle's tests, and from S2 builds
+IQ-TREE and runs the NQC seed case; it has not yet run on GitHub, where Actions is disabled on
+the fork.
 
 ### Implementation slices
 
@@ -259,62 +264,82 @@ competing implementations, G5 native and outer workflow, G6 scientific validatio
 |---|---|---|
 | 1 | Final public model and option names | Peter, with the maintainers |
 | 5 | Cost: 361 likelihood evaluations per one-sided gradient; realistic training runs may take hours | S3 profiling; analytic gradients stay deferred |
-| 7 | Active `ASSERT`s abort a linked round that lowers the log-likelihood by more than 0.1 (verified, `model/partitionmodel.cpp:938`, `model/partitionmodelplen.cpp:135`) | Accepted 2026-10-07 by decision 029: NQC meets these `ASSERT`s as NONREV does, with no restore; S2 and S3 tests record whether any fit reaches them |
-| 8 | The default coordinate domain may not contain LG rebuilt at a skewed π* | No construction check (decision 027): coordinates outside the domain are clamped at the first line search, as for every IQ-TREE model, and bound activity is reported after the fit (decision 009); the domain option (decision 007) widens the domain. At decision 023's target the LG seed lies inside, 3.51 above the lower bound and 2.32 below the upper (G0 manifest) |
+| 7 | Active `ASSERT`s abort a linked round that lowers the log-likelihood by more than 0.1 (verified, `model/partitionmodel.cpp:938`, `model/partitionmodelplen.cpp:135`) | Accepted 2026-10-07 by decision 029: NQC meets these `ASSERT`s as NONREV does, with no restore; S2 and S3 tests record whether any fit reaches them. S2's fits, all on one alignment, cannot reach these linked-round `ASSERT`s, and printed none |
+| 8 | The default coordinate domain may not contain LG rebuilt at a skewed π* | No construction check (decision 027): coordinates outside the domain are clamped at the first line search, as for every IQ-TREE model, and bound activity is reported after the fit (decision 009); the domain option (decision 007) widens the domain. At decision 023's target the LG seed lies inside, 3.51 above the lower bound and 2.32 below the upper (G0 manifest). S2's `aa_example` fits at that target ended with 1 or 2 coordinates at the upper bound (0 to 5 during the fits) and none at the lower |
 | 9 | Real training data: a small real set for S5, and the full set with a written confirmatory plan for S7 | Peter |
 | 11 | Scientific success criterion and manuscript details (placeholder above) | Peter |
-| 12 | A continuity source the chart does not remove: `computeTransMatrixNonrev` switches from the eigen path to scaling-and-squaring when P's row sums deviate by more than 1e-4 (verified, `model/modelmarkov.cpp:489-500`), and the decomposition sets `nondiagonalizable` on a singular eigenvector matrix (verified, `model/modelmarkov.cpp:1330-1336`); shared with `NONREV`, frequency unmeasured | count "INFO: Switch to scaling-squaring" lines (printed under `-v`) in S2 and S3 fits |
+| 12 | A continuity source the chart does not remove: `computeTransMatrixNonrev` switches from the eigen path to scaling-and-squaring when P's row sums deviate by more than 1e-4 (verified, `model/modelmarkov.cpp:489-500`), and the decomposition sets `nondiagonalizable` on a singular eigenvector matrix (verified, `model/modelmarkov.cpp:1330-1336`); shared with `NONREV`, frequency unmeasured | count "INFO: Switch to scaling-squaring" lines (printed under `-v`) in S2 and S3 fits. S2: none in the 183 fits of its three `aa_example` runs |
 | 18 | No fallback is recorded if S3 profiling shows training runs impractical while analytic gradients are out of scope | Peter, after S3 profiling |
 | 19 | Baseline run 11 (`--model-joint NONREV` under `-p` at `-T 4`) does not reproduce: five repeats of the unmodified binary ended at log-likelihoods from -4975.0215 to -4974.5963, none equal to the `-T 1` run's -4974.5432, with the same topology and 442 of the model section's 447 numbers varying (largest spread 0.046). Its tree drawing varies too, so the spread rule of `CODE_PLAN.md` section 3.4 cannot judge it, and S3's `-T 1` against `-T 4` test meets the same behaviour in legacy code | Partly resolved 2026-10-03: run 11's rule and the added run 12 are decision 018, implemented in the driver on 2026-10-04. Run 12 (run 10 at `-T 4`) gave identical reports in five repeats, identical to run 10's at `-T 1` in every compared item, so at the report's printed precision the variation arises in the joint fit, not in a fixed evaluation. The S3 thread test's definition: Peter, before S3 |
-| 20 | Upstream finding, sanitizer run of 2026-10-05: `ModelMarkov`'s constructor calls `setReversible` (`model/modelmarkov.cpp:72`), which reads `is_reversible` before anything sets it (line 76; UndefinedBehaviorSanitizer "load of value 190, which is not a valid value for type 'bool'"). It appears once in every run, so the IQ-TREE sanitizer runs of S2 to S4 will show it too (S1's sanitizer run covered only the unit tests); its effect on results was not investigated | Known before any edit; a question for the maintainers if Peter wishes to relay it |
+| 20 | Upstream finding, sanitizer run of 2026-10-05: `ModelMarkov`'s constructor calls `setReversible` (`model/modelmarkov.cpp:72`), which reads `is_reversible` before anything sets it (line 76; UndefinedBehaviorSanitizer "load of value 190, which is not a valid value for type 'bool'"). It appears once in every run, so the IQ-TREE sanitizer runs of S2 to S4 will show it too (S1's sanitizer run covered only the unit tests; S2's showed it once in each of 55 runs, and nothing else); its effect on results was not investigated | Known before any edit; a question for the maintainers if Peter wishes to relay it |
 | 21 | Upstream observation, S0 probe (g): after a tree search, the checkpoint keeps the model from before the final model optimization (`main/phyloanalysis.cpp:3895-3899` saves the search state, not the model), and a restart from it prints "Final model parameters restored". The restart itself was not tested. S2 to S4 fits run under `-te`, where no final optimization runs, and decision 025 carries the incumbent from a fixed-tree fit | Avoided by decision 025; a question for the maintainers if Peter wishes to relay it |
-| 22 | Decision 025's nesting start, the fitted `GTR20+F{π*}` of probe (g) on `aa_example`, has 146 of its 360 coordinates outside the default domain (-15.94 to 11.65; `test_scripts/fixedeq/explore/thresholds.py`, 2026-10-05), because 87 of its 190 exchangeabilities sit at GTR20's own floor. Under decision 027 the start is evaluated exactly, so NQC's first log-likelihood still equals GTR20's, but the first line search clamps those coordinates, the fit then searches inside the domain only, and since decision 029 restores nothing, the final score can fall below the start | Peter, before S3: the nesting test in the default domain, in a domain widened by the domain option, or on data large enough for GTR20 to be well determined |
+| 22 | Decision 025's nesting start, the fitted `GTR20+F{π*}` of probe (g) on `aa_example`, has 146 of its 360 coordinates outside the default domain (-15.94 to 11.65; `test_scripts/fixedeq/explore/thresholds.py`, 2026-10-05), because 87 of its 190 exchangeabilities sit at GTR20's own floor. Under decision 027 the start is evaluated exactly, so NQC's first log-likelihood still equals GTR20's, but the first line search clamps those coordinates, the fit then searches inside the domain only, and since decision 029 restores nothing, the final score can fall below the start. In the default domain, S2's fits from the LG seed ended with 1 or 2 coordinates at the upper bound (risk 8) | Peter, before S3: the nesting test in the default domain, in a domain widened by the domain option, or on data large enough for GTR20 to be well determined |
 
 Resolved risks 2, 3, 4, 6, 10 and 13 to 17 were removed on 2026-10-07. Their resolutions are in
 `DECISIONS.md` and `CHANGELOG.md`.
 
 ## Current state
 
-S1 is complete (2026-10-19). No file that the IQ-TREE binary compiles has changed, because the
-new module is not yet in `model/CMakeLists.txt`.
+S2 is complete (gate G2, 2026-10-22). The NQC class is in IQ-TREE's build.
 
-Added in S1:
-- `model/fixedeqchart.{h,cpp}`: the log-ratio chart and its inverse, references, seeds,
-  diagnostics, the target parser and the scaled step.
-- `unittest/`: the module's standalone test project. Its 27 chart fixtures and 25 target cases
-  were written by `test_scripts/fixedeq/make_fixtures.py` (commit `c349e41a`).
-- `test_scripts/fixedeq/unittests/unittests.py`: builds and runs the tests in the Release and
-  sanitizer variants, and writes the residual table.
-- `.github/workflows/fixedeq.yaml`: the fork workflow, not yet run on GitHub.
+Added in S2 (decisions 030 to 035):
+- `model/modelnonrevfixedeq.{h,cpp}`: the NQC class with its 17-digit checkpoint, its hooks in
+  `model/modelmixture.cpp`, `model/modelprotein.{h,cpp}` and `model/CMakeLists.txt`, and the
+  `--nqc-domain` option (commit `cd4c6823`).
+- The oracle's NQC objective, the toy problem and its calibration (`3edf321b`).
+- `test_scripts/fixedeq/nqc/nqcchecks.py`, the sanitizer driver's NQC step and the CI NQC job
+  (`35d4a1bf`).
 
-The gate was run from the clean tree at `6c8d3af4`
-(`~/iqtree3-runs/unittest/20261019T180400Z-s1-gate/`):
-- 44 of 44 unit tests passed in both variants, with no sanitizer reports.
-- All 174 fixedeq Python tests passed.
-- The worst Q error was 2.2e-11, against its limit of 2.0e-9 (near-reducible case, κ 2.0e5).
-  Over all fixtures, no error exceeded 3.6e-2 of its limit.
-- The worst residual was 5.9e-16, against 1e-10.
+The gate ran from the clean tree at `35d4a1bf` (`~/iqtree3-runs/s2-gate/20261021-35d4a1bf/`):
+- Every asserted NQC check passed: root; seed, with IQ-TREE's first log-likelihood within
+  1.06e-15 relative of the oracle's in five setups; gradient at the seed and near zero; target;
+  21 refusals; Level 1, Level 2 `+G4` and `+I+G4` fits; and the toy fit against the oracle's port
+  (difference 1.9e-6 against a line of 3.9e-4).
+- Regression runs 1 to 12 passed against the baseline, the unit tests passed in both builds, and
+  all 182 Python tests passed.
+- Sanitizer (`sanitizer-rerun/`, rerun on 2026-10-21 after the first run was frozen by standby):
+  regression runs 2 and 4, the 16 differential cases, probe (a), and the NQC root, seed, target,
+  refusal and short cases all passed, with risk 20's upstream report the only finding.
 
-S0's records stay in place:
-- the conda environment `iqtree3-fixedeq`;
-- the Python oracle, whose likelihood matches the unmodified binary within 9.8e-16 relative;
-- the regression baseline, runs 1 to 12, from the frozen binary `~/iqtree3-baseline/iqtree3`;
-- the S0 probes;
-- the unmodified sanitizer run and its frozen binary;
-- the G0 manifest.
+Corrections to the check driver's `results.md`:
+- It counts each fit twice under `-v`; the three fit runs made 6, 6 and 171 fits.
+- Its `+I+G4` residual and bound rows describe the last start, not the restored model. Over all
+  171 fit records printed in that run, which include the restored state, the largest residuals
+  are 2.8e-16 (‖π*Q‖∞), 6.7e-16 (row sums) and 4.4e-16 (mean rate).
+- Its π* check reads a checkpoint key written from the class's own copy of the target. The guard
+  on the root distribution is the bitwise check of `state_freq` after every decomposition, and
+  every run exited normally.
+- The Level 1 score IQ-TREE prints is 0.006 below the accepted score: the round loop kept fit 6,
+  which gained 0.006, and printed the previous round's score, as decision 030 describes.
 
-Details are in `CHANGELOG.md`.
+Earlier records stay in place: S1's module, unit tests and fixtures; S0's conda environment,
+oracle, regression baseline, probes, frozen binaries and G0 manifest. Details are in
+`CHANGELOG.md`.
 
 ## Next step
 
-1. S2, as planned and approved on 2026-10-20 (decisions 030 to 034; `CODE_PLAN.md` section 4):
-   oracle additions and the toy calibration; the NQC class, its shared-file hooks and the domain
-   option; the check driver, the sanitizer step and the CI job; then the gate from a clean tree.
-2. Peter asks GitHub Support to re-enable Actions. GitHub disabled it on the fork between
-   2026-10-08 and 2026-10-19 (`CHANGELOG.md`, 2026-10-20); S1 is pushed. Not a blocker for S2,
-   whose gate is local.
-3. Once Actions is re-enabled, the agent checks the fork workflow's first run. The micromamba
-   route to the locked environment, and the S2 NQC job, are unverified.
+1. Peter's decisions before S3: how the `-T 1` against `-T 4` test is defined (risk 19), and which
+   domain the nesting test runs in (risk 22).
+2. Plan S3 (`CODE_PLAN.md` section 4). Its first change, S3-1, closes gaps found when S2 was
+   closed, in `model/modelnonrevfixedeq.cpp` and `test_scripts/fixedeq/nqc/nqcchecks.py`:
+   - each fit's report printed once under `-v` on every path, partitions included, and a fall
+     below the start shown at every verbosity (decision 029);
+   - the target vectors, bound activity and residuals visible in a default run of every supported
+     kind, `+I+G` included (decisions 006, 009), consistent with S4's report;
+   - checkpoint keys for the accepted state's residuals, bound counts and start and optimizer
+     log-likelihoods, the target key written from `state_freq`, and the driver reading these
+     keys instead of the log (decision 034);
+   - ModelFinder run without `-m`, which S2's refusal probably misses, refused and tested
+     (decision 008), and refusal tests for `-fs` and the HMM option;
+   - unlinked partitioned NQC (`-m NQC` with `-p`, `-q` or `-S`), accepted by S2 but untested,
+     either tested or refused.
+   S3's tests also add: 360 parameters counted once across linked partitions, π* through linking
+   and restart, linked Level 1 (decision 024), and permuted partition order.
+3. S4 adds the export-time stop classification (decision 009), and compares the re-imported
+   log-likelihood with the checkpoint's accepted score, not the printed one.
+4. Peter asks GitHub Support to re-enable Actions, which GitHub disabled on the fork between
+   2026-10-08 and 2026-10-19 (`CHANGELOG.md`, 2026-10-20). The agent then checks the fork workflow's first run: the
+   micromamba route to the locked environment and the NQC job are unverified.
 
 ## Checklists
 

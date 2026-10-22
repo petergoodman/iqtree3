@@ -7,6 +7,33 @@ left to commit messages and the planning documents. The next session starts from
 This is a fork of `iqtree/iqtree3`. Entries here describe work on the fork, not upstream
 development.
 
+## 2026-10-20 to 2026-10-22: S2, the first compiled model (gate G2)
+
+- **Done.** S2 as planned and approved (decisions 030 to 034, `56259ab7`).
+  - **Commits.** `3edf321b`: the oracle's NQC objective and toy calibration. `cd4c6823`: the NQC
+    class and its hooks. `35d4a1bf`: the check driver, sanitizer step and CI job. This commit
+    closes S2: decision 035, records, and a CMake flag for the CI job.
+  - **Gate** at `35d4a1bf` (`~/iqtree3-runs/s2-gate/20261021-35d4a1bf/`):
+    - every asserted NQC check passed;
+    - regression passed 12 of 12;
+    - the unit tests passed in both builds, and all 182 Python tests passed;
+    - the sanitizer rerun found only risk 20's upstream report.
+
+    The numbers are in PLAN.md's current state.
+- **Failed.** The first sanitizer run had no keep-awake. Modern Standby froze it 16 s into probe
+  a5, and a Windows restart ended it, so its NQC cases never ran. It was rerun on 2026-10-21 with
+  a keep-awake helper: 4899 s, with no standby.
+- **Corrected.**
+  - The check driver's `results.md` double-counts fits, reads the `+I+G4` residuals from the last
+    start, and checks π* from the class's own copy. The true values are in PLAN.md's current
+    state.
+  - Decision 030 says the legacy step near zero falls orders of magnitude outside the line. It
+    does not, because the line's rounding term grows as 1/h; the measured relative errors were
+    9.5 for the legacy step and 3.0e-4 for the scaled step. The control stays reported, not
+    asserted.
+  - Decision 035 records two departures, from decisions 031 and 022.
+- **Next.** Peter decides risks 19 and 22; then plan S3, starting with S3-1 (PLAN.md, next step).
+
 ## 2026-10-20 (eighth session): read-only GitHub access for agents
 
 - **Done.** Agents can now read the fork's Actions runs, logs and settings.

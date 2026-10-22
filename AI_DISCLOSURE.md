@@ -10,6 +10,41 @@ tool and model version, what it did, and which files or sections it touched.
 No AI-generated scientific claim, numerical result, or citation in this project has been accepted
 without human verification against source.
 
+## 2026-10-22: S2 milestone
+
+**Tool:** Claude Code (VS Code extension).
+**Model:** Claude Opus 5.5, 1M context, model id `claude-opus-5-5[1m]`.
+**Operator:** Peter Goodman.
+
+**What it did.**
+- **Plan.**
+  - It drafted the S2 plan. A review of the plan found the rooting defect behind decision 031,
+    and the operator approved the plan as decisions 030 to 034.
+  - After the gate, it checked the slice's records against the gate outputs and the code.
+  - It had a subagent review the close-out plan, and recorded the operator's choices as
+    decision 035.
+- **Code.** It wrote:
+  - the NQC class `model/modelnonrevfixedeq.{h,cpp}` and its hooks in shared IQ-TREE files;
+  - the oracle's NQC objective, the toy problem and its calibration;
+  - the S2 check driver, the sanitizer driver's NQC step and the CI NQC job.
+- **Validation.**
+  - It ran the gate from a clean tree.
+  - Standby froze the sanitizer step; it reran that step with a keep-awake helper.
+  - It recorded corrections to values its own check driver had reported.
+- **Records.** It updated the plan documents, the decisions, the changelog and both CLAUDE.md
+  files.
+
+**Files touched.**
+- New: `model/modelnonrevfixedeq.h` and `model/modelnonrevfixedeq.cpp`.
+- Changed shared IQ-TREE files: `model/CMakeLists.txt`, `model/modelmixture.cpp`,
+  `model/modelprotein.h`, `model/modelprotein.cpp`, `utils/tools.h` and `utils/tools.cpp`.
+- New in `test_scripts/fixedeq/`: `oracle/nqc.py`, `nqc/nqcchecks.py`, `nqc/toy.py`,
+  `explore/toy_calibration.py` and `tests/test_oracle_nqc.py`.
+- Changed: `test_scripts/fixedeq/oracle/likelihood.py`, `test_scripts/fixedeq/sanitizer/sanitize.py`,
+  `test_scripts/fixedeq/tests/test_sanitize.py` and `.github/workflows/fixedeq.yaml`.
+- `docs/agent/DECISIONS.md` (entries 030 to 035), `docs/agent/CODE_PLAN.md`, `docs/agent/PLAN.md`,
+  `CLAUDE.md`, `model/CLAUDE.md`, `CHANGELOG.md`, and this file.
+
 ## 2026-10-19 (seventh session): S1 milestone
 
 **Tool:** Claude Code (VS Code extension).

@@ -31,11 +31,11 @@ headers, each produced by a kept script, and are never regenerated to make a tes
 
 | File and anchor (verified) | Slice | Change (proposed) | Why the file must change | How it stays opt-in or behaviour-preserving |
 |---|---|---|---|---|
-| `model/CMakeLists.txt` | S2 | add `modelnonrevfixedeq` and `fixedeqchart` | the source list is explicit, with no glob | additive |
-| `model/modelmixture.cpp`, `createModel`, 3230-3257 | S2 | at the top of the dispatch chain, before the PoMo branch, dispatch the NQC name to `new ModelNonrevFixedEq(..., models_block)`, stopping with a message for non-protein data (decisions 002, 034) | the dispatcher that holds a `ModelsBlock`; non-protein data never reach the protein branch | reached only by the NQC name |
-| `model/modelmixture.cpp`, `initMixture`, 3441-3445 and 3518 | S2 | stop with an error when a component just created is an NQC model (decision 032) | `createModel` has no mixture flag, and `initMixture` writes component fields directly | fires only for NQC |
-| `model/modelprotein.{h,cpp}`, beside the constructor at 1079-1088 | S2 | a protected constructor that builds `ModelMarkov(tree, true, false)`, stores the models block and reads no model (decision 031) | the public constructor's `init` unroots a rooted tree when it reads a named model | called only by NQC; `ModelProtein::init` is unchanged |
-| `utils/tools.{h,cpp}`, `parseArg` and `usage_iqtree` | S2 (domain), S2 or S3 (step) | two parse-only options, read at the point of use through `Params` (decision 007); the domain option's provisional name is `--nqc-domain LO,HI`, in ratio units, default `1e-5,10` | domain expansion and step studies need run-time settings | unused unless NQC is used |
+| `model/CMakeLists.txt` | S2, done | add `modelnonrevfixedeq` and `fixedeqchart` | the source list is explicit, with no glob | additive |
+| `model/modelmixture.cpp`, `createModel`, 3230-3257 | S2, done | at the top of the dispatch chain, before the PoMo branch, dispatch the NQC name to `new ModelNonrevFixedEq(..., models_block)`, stopping with a message for non-protein data (decisions 002, 034) | the dispatcher that holds a `ModelsBlock`; non-protein data never reach the protein branch | reached only by the NQC name |
+| `model/modelmixture.cpp`, `initMixture`, 3441-3445 and 3518 | S2, done | stop with an error when a component just created is an NQC model (decision 032) | `createModel` has no mixture flag, and `initMixture` writes component fields directly | fires only for NQC |
+| `model/modelprotein.{h,cpp}`, beside the constructor at 1079-1088 | S2, done | a protected constructor that builds `ModelMarkov(tree, true, false)`, stores the models block and reads no model (decision 031) | the public constructor's `init` unroots a rooted tree when it reads a named model | called only by NQC; `ModelProtein::init` is unchanged |
+| `utils/tools.{h,cpp}`, `parseArg` and `usage_iqtree` | S2 (domain, done); S3, if needed (step) | two parse-only options, read at the point of use through `Params` (decision 007); the domain option's provisional name is `--nqc-domain LO,HI`, in ratio units, default `1e-5,10` | domain expansion and step studies need run-time settings | unused unless NQC is used |
 | `model/partitionmodel.{h,cpp}`, `optimizeLinkedModel`, 753-840 | S3 | a `derivativeFunk` override that delegates to the linked model's hook interface when present and otherwise calls `Optimization::derivativeFunk`; a compatibility check before optimizing; a post-fit hook that reports after (decisions 005, 009, 029) | linked optimization runs `minimizeMultiDimen` on the `PartitionModel` object (786), which no model override reaches | legacy models call the unchanged base routine; `partitionmodel.h:160-165` already carries an orphan comment for such an override |
 | `main/phyloanalysis.cpp`, after final optimization near 3903-3907; citation block 164-179 | S4 | write the export files when an NQC model exists (decision 010); print the nQMaker citation for NQC | the report block prints 6 decimal places (633, in the fixed mode set at 1528-1529); the citation test matches only the substring "NONREV" | guarded by model type and name |
 | `main/phylotesting.cpp`, `mixRevNonrev` 448-489 | S6 | mixed-family guard and fixed learned candidates | Level 3 | deferred |
@@ -103,7 +103,7 @@ Construction (decisions 002, 006, 011, 031):
    Then read the seed as the NONREV branch of `init` does (verified,
    `model/modelprotein.cpp:1214-1231`): the `--init-model` name from the models block, or the
    `--init-model` file, otherwise LG, each with tree adaptation off. Unlike the NONREV branch it does
-   not call `rescaleRates`, which no header declares: a reversible seed is renormalized and a
+   not call `rescaleRates` (decision 035), which no header declares: a reversible seed is renormalized and a
    non-reversible one keeps only its jump chain, so a common scale changes nothing beyond rounding.
    The target never reaches `ModelMarkov::readStateFreq` (decision 026).
 2. Reject unsupported combinations (decisions 008, 032, 034).
@@ -348,7 +348,8 @@ later from the same frozen binary with run 8 rerun in each repeat to supply its 
 
 ### 3.6 Layer 6: sanitizers
 
-Build in `~/iqtree3-build-asan` with the `Mem` build type and the C, C++ and linker flags of
+Build in a new directory for each slice (decision 035; S0's is `~/iqtree3-build-asan`, S2's
+`~/iqtree3-build-asan-s2`) with the `Mem` build type and the C, C++ and linker flags of
 decision 022, `-j 2`, and run with that decision's `ASAN_OPTIONS` and `UBSAN_OPTIONS`, through
 `test_scripts/fixedeq/sanitizer/sanitize.py`. The fallbacks are those of decision 022: without
 cmaple, then UndefinedBehaviorSanitizer alone.
@@ -363,7 +364,7 @@ That covers a single NONREV fit, fixed-matrix evaluation with +G and +I on fixed
 fits under `-p` and `-S` on fixed trees, and the `--mdef` target route. At the end of S2 to S4 it
 runs short NQC runs at `-T 1`: in S2, the seed case, the refusals, and a Level 1 and a `+I+G4`
 Level 2 fit on a cut-down toy alignment, because a full `aa_example` fit would take hours at
-that speed.
+that speed. S2's run (2026-10-21) also repeated S0's list on the S2 binary; it took 4899 s.
 
 The unit tests are a standalone project that this build does not compile.
 `unittests.py run --variant asan-ubsan` therefore builds them with decision 022's flags at
@@ -455,8 +456,11 @@ S5 to S7: lists written when S4 is done.
 
 ## 5. Source anchors
 
-Verified at `63c330d9` on 2026-09-23; HEAD `4c5f061f` matches it outside documentation. Anchors
-marked as added 2026-10-03 were read at HEAD `4c5f061f` that day.
+Verified at `63c330d9` on 2026-09-23; HEAD `4c5f061f` matched it outside documentation. Anchors
+marked as added 2026-10-03 were read at HEAD `4c5f061f` that day. Since S2 (`cd4c6823`) the
+branch differs from `63c330d9` in `model/CMakeLists.txt`, `model/modelmixture.cpp`,
+`model/modelprotein.{h,cpp}` and `utils/tools.{h,cpp}`; anchors in those files still refer to
+`63c330d9`, and at HEAD the lines after S2's insertions are offset by up to 15.
 
 | Anchor | Fact |
 |---|---|

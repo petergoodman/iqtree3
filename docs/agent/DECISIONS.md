@@ -43,6 +43,7 @@ Programming decisions:
 - 032 Refuse NQC as a mixture component where `initMixture` creates components
 - 033 Save and restore NQC's coordinates from S2
 - 034 Adopt seven refinements to NQC's specification from the S2 plan review
+- 035 Record two departures found in the S2 close-out (supersedes part of 022 and 031)
 
 Mathematical and methodological decisions:
 
@@ -1093,6 +1094,29 @@ Number programming entries sequentially from 001 and never reuse a number.
   from the log.
 - **Affects:** `model/modelnonrevfixedeq.{h,cpp}`, `model/modelmixture.cpp`; `CODE_PLAN.md`
   sections 1.2 and 2.2; S2's refusal tests and check driver.
+
+## 035. Record two departures found in the S2 close-out
+
+- **Date:** 2026-10-22
+- **Status:** accepted
+- **Decision:**
+  1. **Seed scale.** NQC reads its seed without calling `rescaleRates`. This supersedes the words
+     "then `rescaleRates`" in decision 031; the rest of 031 stands.
+  2. **Sanitizer build directory.** Each slice's sanitizer build goes into a new directory of its
+     own; S2's is `~/iqtree3-build-asan-s2`. This supersedes the directory named in decision 022;
+     its build type, flags, `-j 2`, fallbacks and run options stand.
+- **Why:** Peter's choice on 2026-10-21, after S2's records were checked against its code and gate.
+  1. No header declares `rescaleRates`, so calling it would need a further edit to a shared file.
+     A reversible seed is renormalized to unit mean rate and a non-reversible one keeps only its
+     jump chain, so a common scale of the seed changes nothing beyond rounding. The code
+     (`cd4c6823`) and `CODE_PLAN.md` section 2.2 already did this; no decision recorded it.
+  2. `sanitize.py build` refuses an existing directory
+     (`test_scripts/fixedeq/sanitizer/sanitize.py:55-56`), and `~/iqtree3-build-asan` holds S0's
+     build.
+- **Alternatives rejected:** declaring and calling `rescaleRates`, a shared-file edit and a full
+  S2 re-gate for a difference of rounding; a changelog note only, which leaves 031 describing code
+  that does not exist; building over S0's sanitizer build.
+- **Affects:** `CODE_PLAN.md` sections 2.2 and 3.6; CLAUDE.md's sanitizer notes. No code changes.
 
 ---
 

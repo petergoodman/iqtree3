@@ -102,12 +102,15 @@ cmake --build ~/iqtree3-build -j 4
   `--allow-dirty` for checks during development. Commit first only for a gate run whose result is
   recorded (the end-of-slice regression comparison), and do not create or edit repository files
   while it runs.
-- **Sanitizer build** (decision 022):
-  - `test_scripts/fixedeq/sanitizer/sanitize.py build --build-dir ~/iqtree3-build-asan --git
-    git.exe` builds it, in about 30 minutes of compute.
-  - `sanitize.py run --binary ~/iqtree3-build-asan/iqtree3 --build-dir ~/iqtree3-build-asan
-    --out DIR --git git.exe` runs it. `--regression-runs`, `--probes` and `--no-differential`
-    choose what runs, and `sanitize.py scan DIR` groups the reports.
+- **Sanitizer build** (decisions 022, 035):
+  - `test_scripts/fixedeq/sanitizer/sanitize.py build --build-dir DIR --git git.exe` builds it
+    into a new directory, one per slice: S0's is `~/iqtree3-build-asan`, S2's
+    `~/iqtree3-build-asan-s2`. S0's build took about 30 minutes of compute; S2's took 4.2 hours
+    of wall time with the S2 checks running beside it.
+  - `sanitize.py run --binary DIR/iqtree3 --build-dir DIR --out OUT --git git.exe` runs it.
+    `--regression-runs`, `--probes` and `--no-differential` choose what runs, `--nqc-cases` adds
+    NQC cases (`--alisim` with the frozen binary for `short`), and `sanitize.py scan OUT` groups
+    the reports.
   - The build runs about 20 times slower than Release. Every run so far shows one known upstream
     finding at `model/modelmarkov.cpp:76` (PLAN.md risk 20).
   - The unmodified sanitizer binary is frozen at `~/iqtree3-baseline-asan/iqtree3` (SHA-256 in

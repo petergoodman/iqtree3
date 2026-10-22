@@ -93,7 +93,9 @@ jobs:
       # outside the checkout, so that the driver finds a clean tree
       - name: Build IQ-TREE
         run: |
-          cmake -S . -B "$RUNNER_TEMP/build" -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++
+          # as upstream's Linux job does, in case the runner's CMake is 4.x
+          cmake -S . -B "$RUNNER_TEMP/build" -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ \
+                -DCMAKE_POLICY_VERSION_MINIMUM=3.5
           cmake --build "$RUNNER_TEMP/build" -j 4
 
       - name: Create the environment
