@@ -119,10 +119,13 @@ void ModelNonrevFixedEq::refuseUnsupported(const string &model_params, StateFreq
     Params &params = Params::getInstance();
     const char *why = nullptr;
     // runModelFinder sets dating_mf, although named for dating, before it builds any candidate,
-    // so it is the run-time sign that ModelFinder or MixtureFinder is testing NQC; checked first,
-    // because a candidate's string may lack the target
+    // so it is the run-time sign that ModelFinder or MixtureFinder is testing NQC. It and the
+    // site-specific frequency check come first, because a candidate's string, and the string
+    // the site-specific path builds each model from, lack the target.
     if (params.dating_mf)
         why = "cannot be tested by ModelFinder; give it with -m";
+    else if (params.site_freq_file || params.tree_freq_file)
+        why = "is not supported with site-specific frequency models";
     else if (!model_params.empty())
         why = "takes no parameters in braces after its name; give its target as +F{...}";
     else if (freq != FREQ_USER_DEFINED || freq_params.empty())
@@ -138,8 +141,6 @@ void ModelNonrevFixedEq::refuseUnsupported(const string &model_params, StateFreq
         why = "is not supported in tree mixtures or HMM models";
     else if (params.model_name.find("+H") != string::npos)
         why = "is not supported with heterotachy (+H) models";
-    else if (params.site_freq_file || params.tree_freq_file)
-        why = "is not supported with site-specific frequency models";
     else if (params.optimize_linked_gtr)
         why = "is not supported with --link-exchange-rates";
     else if (params.matrix_exp_technique == MET_EIGEN_DECOMPOSITION)
