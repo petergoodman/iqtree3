@@ -1,25 +1,34 @@
 #!/usr/bin/env python3
-"""S2 checks of the compiled NQC model (docs/agent/CODE_PLAN.md section 4; decision 030).
+"""S2 and S3a checks of the compiled NQC model (docs/agent/CODE_PLAN.md section 4; decision 021).
 
   python nqcchecks.py --binary ~/iqtree3-build/iqtree3 --alisim ~/iqtree3-baseline/iqtree3 \
-      --calibration CALIBRATION/results.json --out DIR [--cases root,seed,...] [--git git.exe]
+      --calibration CALIBRATION/results.json --older-run S2_GATE/nqc/fit-level1 --out DIR \
+      [--cases root,seed,...] [--git git.exe]
 
 Cases:
   root      a rooted input tree keeps its root and an unrooted one is rooted at the midpoint
-  seed      the seed Q and the first log-likelihood against the oracle (decisions 021, 026)
+  seed      the seed Q and the first log-likelihood against the oracle (decision 021), +R4 included
   gradient  the first gradient against the oracle, by the same rule and against a central
-            reference, at the LG seed and at a start near zero (decision 030)
+            reference, at the LG seed and at a start near zero (decision 021)
   target    targets refused for their sum and for an entry below the minimum
-  refusals  every combination decisions 008, 032 and 034 refuse
-  fits      Level 1 and Level 2 fits on aa_example, +I+G4 included, and the domain option
-  toy       the compiled optimizer against the oracle's port (decisions 017, 030), using the
+  refusals  every combination decision 008 refuses
+  fits      Level 1 and Level 2 fits on aa_example, +I+G4 and free +R4 included, and the domain
+            option
+  nesting   NQC seeded at a fitted GTR20+F{pi*}+G4 in a widened domain (decision 025)
+  skewed    a Level 1 fit at the test target cubed and renormalized, reported (decision 023)
+  restart   --undo with another target or domain refused, with the same command accepted, and
+            from S2's checkpoint (needs --older-run)
+  risk22    Level 1 and Level 2 +G4 at --nqc-domain 1e-8,1e7 beside the default box (PLAN.md
+            risk 22), reported
+  toy       the compiled optimizer against the oracle's port (decisions 017, 021), using the
             line measured by explore/toy_calibration.py (needs --alisim and --calibration)
   short     a Level 1 and a +I+G4 Level 2 fit on 300 sites of the toy data, one round each, for
             the sanitizer build (CODE_PLAN.md section 3.6; needs --alisim)
 
 Every run has its own directory under DIR and uses -seed 1 -T 1. Final states are read from the
-class's checkpoint; the seed Q and the first gradient from its verbose output (decision 034).
-Exit status 1 if an asserted check fails; checks marked "report" are not asserted.
+class's checkpoint keys; the seed Q and the first gradient from its verbose output (decision 021).
+How often something is printed is reported, not asserted. Exit status 1 if an asserted check
+fails; checks marked "report" are not asserted.
 """
 import argparse
 import datetime
@@ -38,8 +47,8 @@ sys.path.insert(0, str(HERE.parent))
 sys.path.insert(0, str(HERE.parent / "probes"))
 sys.path.insert(0, str(HERE.parent / "differential"))
 from oracle import chart, likelihood as lk, nqc, optimize, readers, target  # noqa: E402
-from probes import (AA, NEX, TURTLE, Runner, baseline_runs, first_taxa, mdef, read_checkpoint,  # noqa: E402
-                    tree_comparison, tree_text, turtle_target, unrooted_text)
+from probes import (AA, NEX, PREFIX, TURTLE, Runner, baseline_runs, first_taxa, fitted_gtr20, mdef,  # noqa: E402
+                    paml_rows, read_checkpoint, tree_comparison, tree_text, turtle_target, unrooted_text)
 from differential import datasets, significant_digits, write_matrix  # noqa: E402
 from regress import REPO, SCALARS, capture, read, sha256, write  # noqa: E402
 import toy  # noqa: E402
@@ -54,6 +63,10 @@ ALPHA, PINV = 0.5, 0.2
 NEAR_ZERO = 1e-9
 BRANCHES_AA = 34        # free branch lengths of the rooted aa_example tree (baseline runs 2 and 4)
 NAMED = "NQCTARGET"
+# dyadic FreeRate values with sum(w) = 1 and sum(w r) = 1, so RateFree's normalization is the identity
+R4_GIVEN = (0.25, 0.125, 0.25, 0.625, 0.25, 1.125, 0.25, 2.125)
+R4 = "+R4{" + ",".join(f"{v:g}" for v in R4_GIVEN) + "}"
+WIDE = "1e-8,1e7"       # the nesting test's aa_example domain, reused for risk 22 (CODE_PLAN.md section 4)
 
 INITIAL = re.compile(r"^1\. Initial log-likelihood: (\S+)", re.M)
 SEED_Q = "NQC seed Q after rescaling (17 significant digits):"
@@ -65,6 +78,9 @@ RESIDUALS = re.compile(r"NQC residuals: \|pi\*Q\| (\S+), row sums (\S+), \|mean 
 BOUNDS = re.compile(r"NQC coordinates at the lower bound (\d+), at the upper bound (\d+), outside the domain (\d+)$",
                     re.M)
 SWITCH = "INFO: Switch to scaling-squaring"
+FALL = re.compile(r"WARNING: NQC fit (\d+): the re-scored lnL is below the start by (\S+)", re.M)
+BUG_ABORT = "BUG: Tree logl gets worse after model optimization"
+SUMMARY = "NQC summary of the final model (17 significant digits):"
 
 
 # ---------------------------------------------------------------- pass lines (decisions 026 and 030)
@@ -99,18 +115,38 @@ def first_gradient(text):
 
 
 def nqc_checkpoint(run):
-    """The class's checkpoint keys, without their struct prefix."""
-    return {k.split("ModelNonrevFixedEq!", 1)[1]: v for k, v in run.checkpoint().items()
-            if "ModelNonrevFixedEq!" in k}
+    """The class's checkpoint keys, one dict per ModelNonrevFixedEq struct, keyed by the prefix
+    before the struct's name ("" for one alignment)."""
+    structs = {}
+    for k, v in run.checkpoint().items():
+        if "ModelNonrevFixedEq!" in k:
+            prefix, key = k.split("ModelNonrevFixedEq!", 1)
+            structs.setdefault(prefix, {})[key] = v
+    return structs
+
+
+def single_checkpoint(run):
+    """The keys of a single-alignment run's one NQC struct, or None if it has not exactly one."""
+    structs = nqc_checkpoint(run)
+    return next(iter(structs.values())) if len(structs) == 1 else None
+
+
+def summary(text):
+    """The end-of-run summary's lines, or None if it was not printed."""
+    lines = text.splitlines()
+    i = next((k for k, line in enumerate(lines) if line == SUMMARY), None)
+    if i is None:
+        return None
+    block = []
+    for line in lines[i + 1:]:
+        if not line.startswith("NQC "):
+            break
+        block.append(line)
+    return block
 
 
 def floats(text):
     return np.array([float(v) for v in text.split(",")])
-
-
-def last(regex, text):
-    found = regex.findall(text)
-    return found[-1] if found else None
 
 
 def check(name, passed, **values):
@@ -203,12 +239,14 @@ def case_root(r, c):
 
 def case_seed(r, c):
     out, printed = [], {}
-    cases = [("aa-none", "aa_example", "", None, 0.0), ("aa-G4", "aa_example", f"+G4{{{ALPHA}}}", ALPHA, 0.0),
-             ("aa-I", "aa_example", f"+I{{{PINV}}}", None, PINV),
-             ("aa-IG4", "aa_example", f"+I{{{PINV}}}+G4{{{ALPHA}}}", ALPHA, PINV),
-             ("turtle1-G4", "turtle_part1", f"+G4{{{ALPHA}}}", ALPHA, 0.0)]
+    cases = [("aa-none", "aa_example", "", None, 0.0, None),
+             ("aa-G4", "aa_example", f"+G4{{{ALPHA}}}", ALPHA, 0.0, None),
+             ("aa-I", "aa_example", f"+I{{{PINV}}}", None, PINV, None),
+             ("aa-IG4", "aa_example", f"+I{{{PINV}}}+G4{{{ALPHA}}}", ALPHA, PINV, None),
+             ("aa-R4", "aa_example", R4, None, 0.0, R4_GIVEN),
+             ("turtle1-G4", "turtle_part1", f"+G4{{{ALPHA}}}", ALPHA, 0.0, None)]
     Q_or = chart.build(c.z, c.pi, c.ref)[0]
-    for name, dname, suffix, shape, p_invar in cases:
+    for name, dname, suffix, shape, p_invar, free in cases:
         aln_path, tree_path = c.data[dname]
         run = r.run(f"seed-{name}", ["-s", aln_path, "-m", c.model + suffix, "-te", tree_path, "--show-lh",
                                      "-nparam", "2"])
@@ -219,7 +257,7 @@ def case_seed(r, c):
         printed[name] = m.group(1)
         aln = readers.read_phylip(aln_path) if aln_path.suffix == ".phy" else readers.read_fasta(aln_path)
         oracle = lk.alignment_log_likelihood(aln, readers.read_newick(tree_path), Q_or, c.pi, shape=shape,
-                                             p_invar=p_invar)
+                                             p_invar=p_invar, free=free)
         iq = float(m.group(1))
         out.append(check(f"{name}: first log-likelihood against the oracle (decision 021)",
                          significant_digits(m.group(1)) >= 10 and abs(iq - oracle) <= TOL_LNL * abs(iq),
@@ -240,12 +278,25 @@ def case_seed(r, c):
     return out
 
 
+def level1_args(model):
+    return ["-s", AA, "-m", model + f"+G4{{{ALPHA}}}", "-te", "input.tree", "-blfix", "-vv"]
+
+
+def level2_args(model, suffix):
+    return ["-s", AA, "-m", model + suffix, "-te", "input.tree", "-v"]
+
+
+def level1(r, c, ctx):
+    """The Level 1 fit that the gradient, fits, restart and risk22 cases share."""
+    if "level1" not in ctx:
+        ctx["level1"] = r.run("fit-level1", level1_args(c.model), {"input.tree": c.t02})
+    return ctx["level1"]
+
+
 def case_gradient(r, c, ctx):
     out = []
     objective = nqc.Objective(c.aa, c.tree02, c.pi, c.ref, shape=ALPHA)
-    run = ctx.get("level1") or r.run("fit-level1", ["-s", AA, "-m", c.model + f"+G4{{{ALPHA}}}", "-te", "input.tree",
-                                                     "-blfix", "-vv"], {"input.tree": c.t02})
-    ctx["level1"] = run
+    run = level1(r, c, ctx)
     if run.code != 0:
         return failed_run(run)
     checks, x, *_ = gradient_checks("seed", run, objective)
@@ -329,18 +380,32 @@ def case_refusals(r, c):
         ("eigen", aa + ["-m", c.model, "--eigen"], tree),
         ("modelfinder", ["-s", AA, "-m", "MFP", "-mset", f"NQC+F{NAMED}", "--mdef", "target.nex", "-te", "input.tree"],
          {**named, **tree}),
+        # S3a: ModelFinder with no -m at all, which S2's test of the -m string missed
+        ("modelfinder-no-m", ["-s", AA, "-mset", f"NQC+F{NAMED}", "--mdef", "target.nex", "-te", "input.tree"],
+         {**named, **tree}),
+        # IQ-TREE reads the site file before it builds the model, so the file must be valid
+        ("site-freq-fs", aa + ["-m", c.model, "-fs", "site.freq"], {**tree, "site.freq": f"1 {t.replace(',', ' ')}\n"}),
+        ("hmm", ["-s", AA, "-m", c.model + "+T", "-te", "two.trees", "-hmmster", "-nparam", "2"], {"two.trees": two}),
         ("alisim", ["--alisim", "sim", "-m", c.model, "-t", "input.tree", "--seqtype", "AA"], tree),
         ("mix", aa + ["-m", f"MIX{{NQC+F{NAMED},LG}}", "--mdef", "target.nex"], {**named, **tree}),
         ("fmix", aa + ["-m", f"NQC+FMIX{{{NAMED},{NAMED}2}}", "--mdef", "target.nex"], {**fmix, **tree}),
         ("mdef-mix", aa + ["-m", "NQCMIX", "--mdef", "target.nex"], {**mixdef, **tree}),
+        ("unlinked-p", ["-s", TURTLE, "-p", NEX, "-m", c.model, "-nparam", "2"], {}),
+        ("unlinked-q", ["-s", TURTLE, "-q", NEX, "-m", c.model, "-nparam", "2"], {}),
+        ("unlinked-S", ["-s", TURTLE, "-S", NEX, "-m", c.model, "-nparam", "2"], {}),
     ]
     out = []
     for name, args, files in runs:
         run = r.run(f"refuse-{name}", args, files)
-        message = next((l for l in run.stdout().splitlines() if "NQC" in l and "ERROR" in l), None)
+        message = nqc_error(run)
         out.append(check(f"refused: {name}", run.code not in (0, "timeout") and message is not None,
                          exit_code=run.code, message=message))
     return out
+
+
+def nqc_error(run):
+    """The first error line that names NQC, or None."""
+    return next((l for l in run.stdout().splitlines() if "NQC" in l and "ERROR" in l), None)
 
 
 START_LNL = re.compile(r"Init pinv, alpha: \S+ \S+ / Estimate: \S+ \S+ / LogL: (\S+)")
@@ -356,19 +421,55 @@ def restore_check(label, text):
                  best_start=max(starts) if starts else None, final=best.group(1) if best else None)
 
 
-def fit_checks(label, run, c, expected_parameters, level, start=None):
+KEYS = ("target", "residuals", "coordinates", "domain", "bounds")
+RECORD_KEYS = ("fits", "accepted_fit", "evaluations", "start_score", "optimizer_score", "accepted_score", "bounds")
+
+
+def key_checks(label, ck, pi):
+    """Asserted on the class's checkpoint keys (decisions 003, 021): pi* bitwise, the three residuals
+    of decision 021's line, and the bound counts against a recount from the coordinates and domain.
+    pi* after every earlier fit is the class's own guard, observed as exit 0."""
+    missing = [k for k in KEYS if ck is None or k not in ck]
+    if missing:
+        return [check(f"{label}: one NQC struct in the checkpoint, with its keys", False, missing=missing)]
+    res = floats(ck["residuals"])  # fixedeq::Diagnostics order
+    z, (lo, hi) = floats(ck["coordinates"]), floats(ck["domain"])
+    recount = [int(np.sum(z == lo)), int(np.sum(z == hi)), int(np.sum((z < lo) | (z > hi)))]
+    keys = [int(v) for v in ck["bounds"].split(",")]
+    return [
+        check(f"{label}: target key bitwise equal to the parsed target", bool(np.array_equal(floats(ck["target"]), pi))),
+        check(f"{label}: residual keys at most {RESIDUAL:g} (decision 021)", bool(np.all(res[:3] <= RESIDUAL)),
+              stationarity_row_sums_mean_rate=res[:3].tolist(), minimum_rate=res[3], minimum_flux=res[4], nu=res[5],
+              exit_rate_mismatch=res[6]),
+        check(f"{label}: bound keys equal a recount from the key coordinates", keys == recount, keys=keys,
+              recount=recount),
+    ]
+
+
+def monitoring(label, run, ck):
+    """CODE_PLAN.md section 4's monitoring, reported: the fit record, falls below the start, the
+    optimizer's score against the re-scored one, IQ-TREE's hard stops and scaling-squaring."""
+    text = run.stdout()
+    fits = FIT.findall(text)  # printed under -v only
+    gaps = [abs(float(f[2]) - float(f[3])) for f in fits]
+    return [
+        check(f"{label}: fit record keys (report)", None, **{k: (ck or {}).get(k) for k in RECORD_KEYS}),
+        check(f"{label}: fits ending below their start (report; decision 009)", None, records_printed=len(fits),
+              falls=FALL.findall(text)),
+        check(f"{label}: optimizer score against the re-scored point, largest gap over printed records (report)",
+              None, largest=max(gaps) if gaps else None),
+        check(f"{label}: summary printed (report)", None, lines=summary(text)),
+        check(f"{label}: scaling-squaring switches (report)", None, count=text.count(SWITCH)),
+        check(f"{label}: IQ-TREE's ASSERT or 'Tree logl gets worse' abort (report)", None,
+              assertion="Assertion" in text or "ASSERT" in text, bug_abort=BUG_ABORT in text, exit_code=run.code),
+    ]
+
+
+def fit_checks(label, run, c, expected_parameters, level):
     if run.code != 0:
-        return failed_run(run)
-    text, ck = run.stdout(), nqc_checkpoint(run)
-    out = []
-    pi_ck = floats(ck["target"]) if "target" in ck else None
-    out.append(check(f"{label}: target in the checkpoint bitwise equal to the parsed target",
-                     pi_ck is not None and np.array_equal(pi_ck, c.pi)))
-    res = last(RESIDUALS, text)
-    worst = max(float(v) for v in res[:3]) if res else None
-    out.append(check(f"{label}: residuals at most {RESIDUAL:g} (decision 026)", worst is not None and worst <= RESIDUAL,
-                     stationarity_row_sums_mean_rate=res[:3] if res else None, nu=res[3] if res else None,
-                     minimum_rate=res[4] if res else None))
+        return failed_run(run) + monitoring(label, run, None)
+    text, ck = run.stdout(), single_checkpoint(run)
+    out = key_checks(label, ck, c.pi)
     m = re.search(SCALARS["free_parameters"], run.report(), re.M)
     out.append(check(f"{label}: free parameters", bool(m) and int(m.group(1)) == expected_parameters,
                      reported=m.group(1) if m else None, expected=expected_parameters))
@@ -376,31 +477,21 @@ def fit_checks(label, run, c, expected_parameters, level, start=None):
     out.append(check(f"{label}: root split unchanged", bool(comp and comp["root_split_kept"])))
     if level == 1:
         out.append(check(f"{label}: root-adjacent lengths unchanged", bool(comp and comp["root_lengths_kept"])))
-    fits = FIT.findall(text)
-    falls = [f for f in fits if float(f[3]) < float(f[1])]
-    out.append(check(f"{label}: fits ending below their start (report; decision 029)", None,
-                     fits=len(fits), below_start=falls))
-    gaps = [abs(float(f[2]) - float(f[3])) for f in fits]
-    out.append(check(f"{label}: optimizer score against the re-scored point, largest gap (report)", None,
-                     largest=max(gaps) if gaps else None))
-    bounds = last(BOUNDS, text)
-    out.append(check(f"{label}: coordinates at the bounds (report)", None,
-                     lower_upper_outside=bounds))
     if "+I+G" in label:
         out.append(restore_check(label, text))
-    out.append(check(f"{label}: scaling-squaring switches (report; risk 12)", None, count=text.count(SWITCH)))
-    out.append(check(f"{label}: ASSERT reached (report; risk 7)", None, found="Assertion" in text or "ASSERT" in text))
-    return out
+    return out + monitoring(label, run, ck)
+
+
+def slug(label):
+    return label.lower().replace(" ", "-").replace("+", "")
 
 
 def case_fits(r, c, ctx):
     out = []
-    level1 = ctx.get("level1") or r.run("fit-level1", ["-s", AA, "-m", c.model + f"+G4{{{ALPHA}}}", "-te", "input.tree",
-                                                        "-blfix", "-vv"], {"input.tree": c.t02})
-    ctx["level1"] = level1
-    out += fit_checks("Level 1", level1, c, 360, 1)
-    if level1.code == 0:
-        ck = nqc_checkpoint(level1)
+    run1 = level1(r, c, ctx)
+    out += fit_checks("Level 1", run1, c, 360, 1)
+    ck = single_checkpoint(run1) if run1.code == 0 else None
+    if ck and "accepted_score" in ck:
         z = floats(ck["coordinates"])
         ref_ok = [int(v) for v in ck["references"].split(",")] == [int(v) for v in c.ref]
         out.append(check("Level 1: references in the checkpoint equal the oracle's", ref_ok))
@@ -408,23 +499,155 @@ def case_fits(r, c, ctx):
         accepted = float(ck["accepted_score"])
         out.append(check("Level 1: accepted score against the oracle's re-evaluation (decisions 021, 030)",
                          abs(accepted - oracle) <= TOL_LNL * abs(oracle), accepted=accepted, oracle=oracle))
-        printed = re.search(SCALARS["log_likelihood"], level1.report(), re.M)
+        printed = re.search(SCALARS["log_likelihood"], run1.report(), re.M)
         out.append(check("Level 1: printed final score against the accepted score (report)", None,
                          printed=printed.group(1) if printed else None,
                          gap=abs(float(printed.group(1)) - accepted) if printed else None))
-    for label, suffix, extra in (("Level 2 +G4", "+G4", 1), ("Level 2 +I+G4", "+I+G4", 2)):
-        run = r.run("fit-" + label.lower().replace(" ", "-").replace("+", ""),
-                    ["-s", AA, "-m", c.model + suffix, "-te", "input.tree", "-v"], {"input.tree": c.t02})
+    # free rate parameters: +G4 1, +I+G4 2, +R4 6 (CODE_PLAN.md section 3.5)
+    for label, suffix, extra in (("Level 2 +G4", "+G4", 1), ("Level 2 +I+G4", "+I+G4", 2), ("Level 2 +R4", "+R4", 6)):
+        run = r.run("fit-" + slug(label), level2_args(c.model, suffix), {"input.tree": c.t02})
+        ctx[label] = run
         out += fit_checks(label, run, c, 360 + extra + BRANCHES_AA, 2)
     run = r.run("fit-domain", ["-s", AA, "-m", c.model + f"+G4{{{ALPHA}}}", "-te", "input.tree", "-blfix",
                                "-nparam", "3", "--nqc-domain", "1e-6,100"], {"input.tree": c.t02})
     if run.code != 0:
         out += failed_run(run)
     else:
-        domain = floats(nqc_checkpoint(run).get("domain", "nan,nan"))
+        domain = floats((single_checkpoint(run) or {}).get("domain", "nan,nan"))
         want = np.array([math.log(1e-6), math.log(100.0)])
         out.append(check("--nqc-domain 1e-6,100 sets the domain in the checkpoint", bool(np.array_equal(domain, want)),
                          domain=domain.tolist()))
+    return out
+
+
+def widened_domain(z):
+    """CODE_PLAN.md section 3.5: one decade beyond the start's smallest and largest jump-weight
+    ratios, rounded outward to powers of ten, and never inside the default box."""
+    ratios = np.exp(z)
+    lo = min(10.0 ** math.floor(math.log10(ratios.min() / 10)), 1e-5)
+    hi = max(10.0 ** math.ceil(math.log10(ratios.max() * 10)), 10.0)
+    return f"{lo:g},{hi:g}", float(ratios.min()), float(ratios.max())
+
+
+def case_nesting(r, c):
+    """Decision 025: NQC seeded at a fixed-tree GTR20+F{pi*}+G4 fit, carried from its checkpoint,
+    starts at that fit's --show-lh evaluation and ends no lower, in a domain widened to hold the
+    start; the same NQC fit in the default box is reported."""
+    pif = f"+F{{{c.target_text}}}"
+    gtr = r.run("nesting-gtr20", ["-s", AA, "-m", "GTR20" + pif + "+G4", "-te", "input.tree"], {"input.tree": c.u02})
+    fit = fitted_gtr20(gtr)
+    if fit is None:
+        return failed_run(gtr)
+    files = {"gtr.treefile": "\n".join(gtr.trees()) + "\n",
+             "start.paml": "\n".join(" ".join(row) for row in paml_rows(fit["rates"])) + "\n"
+                           + c.target_text.replace(",", " ") + "\n"}
+    g4 = "+G4{" + fit["alpha"] + "}"
+    ev = r.run("nesting-evaluation", ["-s", AA, "-m", "start.paml" + pif + g4, "-te", "gtr.treefile", "--show-lh"],
+               files)
+    m = INITIAL.search(ev.stdout())
+    if ev.code != 0 or not m:
+        return failed_run(ev)
+    reference = float(m.group(1))
+    R = np.zeros((20, 20))
+    R[np.triu_indices(20, 1)] = [float(v) for v in fit["rates"]]  # IQ-TREE's pair order
+    z = chart.inverse(chart.reversible_seed(R + R.T, c.pi), c.ref)
+    domain, ratio_min, ratio_max = widened_domain(z)
+    line = TOL_LNL * abs(reference)
+    out = [check("carried start: jump-weight ratios and the widened domain (report)", None, ratio_min=ratio_min,
+                 ratio_max=ratio_max, domain=domain, outside_default_box=int(np.sum((z < nqc.LOWER) | (z > nqc.UPPER))),
+                 reference=m.group(1), alpha=fit["alpha"])]
+    for label, extra in (("widened domain", ["--nqc-domain", domain]), ("default box", [])):
+        run = r.run("nesting-nqc-" + label.replace(" ", "-"),
+                    ["-s", AA, "-m", c.model + g4, "-te", "gtr.treefile", "-blfix", "-vv", "--init-model", "start.paml",
+                     *extra], files)
+        got = first_gradient(run.stdout()) if run.code == 0 else None
+        ck = single_checkpoint(run) if run.code == 0 else None
+        first = -got[0] if got else None
+        final = float(ck["accepted_score"]) if ck and "accepted_score" in ck else None
+        values = {"exit_code": run.code, "first_minus_reference": None if first is None else first - reference,
+                  "final_minus_reference": None if final is None else final - reference, "line": line,
+                  "bounds": (ck or {}).get("bounds"), "fits": (ck or {}).get("fits"), "falls": FALL.findall(run.stdout())}
+        if label == "default box":
+            out.append(check(f"{label}: first and final log-likelihood against the GTR20 evaluation (report)", None,
+                             **values))
+            continue
+        out.append(check(f"{label}: first log-likelihood equals the GTR20 evaluation within 1e-8 |lnL|",
+                         first is not None and abs(first - reference) <= line, **values))
+        out.append(check(f"{label}: final log-likelihood not below the GTR20 evaluation by more than 1e-8 |lnL|",
+                         final is not None and final >= reference - line))
+    return out
+
+
+def skewed_target(c):
+    """Decision 023's reported case: the test target cubed and renormalized, at 17 digits."""
+    p = c.pi ** 3
+    return ",".join(f"{v:.17g}" for v in p / p.sum())
+
+
+def case_skewed(r, c):
+    text = skewed_target(c)
+    pi = target.parse_target(text)[0]
+    z = chart.inverse(*nqc.lg_seed(pi))
+    run = r.run("skewed", level1_args(f"NQC+F{{{text}}}")[:-1] + ["-v"], {"input.tree": c.t02})
+    ck = single_checkpoint(run) if run.code == 0 else None
+    fits = FIT.findall(run.stdout())
+    res = floats(ck["residuals"]).tolist() if ck and "residuals" in ck else None
+    return [check("target cubed and renormalized, aa_example Level 1, default box (report; decision 023)", None,
+                  exit_code=run.code, target_min=float(pi.min()), start_outside_default_box=int(
+                      np.sum((z < nqc.LOWER) | (z > nqc.UPPER))), first_start=fits[0][1] if fits else None,
+                  accepted_score=(ck or {}).get("accepted_score"), bounds=(ck or {}).get("bounds"), residuals=res,
+                  fits=(ck or {}).get("fits"), falls=FALL.findall(run.stdout()), error=nqc_error(run))]
+
+
+def staged(rundir):
+    """A finished run's inputs and checkpoint, to rerun in a new directory."""
+    return {"input.tree": read(rundir / "input.tree"), f"{PREFIX}.ckp.gz": (rundir / f"{PREFIX}.ckp.gz").read_bytes()}
+
+
+def case_restart(r, c, ctx, older):
+    """CODE_PLAN.md section 4, S3a: NQC's restore refuses a checkpoint written with another target or
+    domain, accepts the same command (exit 0 is all the keys can show, since IQ-TREE re-saves no
+    model after this restore), and reads S2's checkpoint, which lacks S3a's keys."""
+    base = level1(r, c, ctx)
+    if base.code != 0:
+        return failed_run(base)
+    args = level1_args(c.model)
+    out = []
+    for name, a in (("target", level1_args(f"NQC+F{{{skewed_target(c)}}}")),
+                    ("domain", args + ["--nqc-domain", "1e-6,100"])):
+        run = r.run(f"restart-other-{name}", a + ["--undo"], staged(base.dir))
+        message = nqc_error(run)
+        out.append(check(f"--undo with another {name}: refused", run.code not in (0, "timeout") and message is not None,
+                         exit_code=run.code, message=message))
+    run = r.run("restart-undo", args + ["--undo"], staged(base.dir))
+    out.append(check("--undo with the same command: exit 0", run.code == 0, exit_code=run.code))
+    out.append(check("--undo: summary against the original's (report)", None,
+                     equal=summary(run.stdout()) == summary(base.stdout()), undo=summary(run.stdout())))
+    run = r.run("restart-older", args + ["--undo"], staged(older))
+    out.append(check("S2's checkpoint, --undo with this binary (report)", None, exit_code=run.code,
+                     summary=summary(run.stdout()), error=nqc_error(run)))
+    return out
+
+
+def fit_state(run):
+    ck = single_checkpoint(run) if run.code == 0 else None
+    printed = re.search(SCALARS["log_likelihood"], run.report(), re.M)
+    return {"exit_code": run.code, "accepted_score": (ck or {}).get("accepted_score"),
+            "printed_final": printed.group(1) if printed else None, "bounds": (ck or {}).get("bounds"),
+            "fits": (ck or {}).get("fits"), "falls": len(FALL.findall(run.stdout()))}
+
+
+def case_risk22(r, c, ctx):
+    """PLAN.md risk 22's evidence on aa_example, reported: the default box against 1e-8,1e7."""
+    tree = {"input.tree": c.t02}
+    if "Level 2 +G4" not in ctx:
+        ctx["Level 2 +G4"] = r.run("fit-level-2-g4", level2_args(c.model, "+G4"), tree)
+    out = []
+    for label, default, args in (("Level 1", level1(r, c, ctx), level1_args(c.model)),
+                                 ("Level 2 +G4", ctx["Level 2 +G4"], level2_args(c.model, "+G4"))):
+        wide = r.run("risk22-" + slug(label), args + ["--nqc-domain", WIDE], tree)
+        out.append(check(f"{label}: default box against --nqc-domain {WIDE} (report)", None,
+                         default=fit_state(default), widened=fit_state(wide)))
     return out
 
 
@@ -454,7 +677,7 @@ def case_toy(r, c, calibration_path, alisim):
         ratio = np.abs(g - g_or) / same_rule_bound(-f_or, h)
         out.append(check("first gradient, same rule, |g - g_oracle| / line", bool(np.all(ratio <= 1)),
                          worst=float(ratio.max())))
-    ck = nqc_checkpoint(run)
+    ck = single_checkpoint(run)
     accepted = float(ck["accepted_score"])
     out.append(check("final score against the oracle's port (decision 030's calibrated line)",
                      abs(accepted - plain["final_lnl"]) <= cal["line"], iqtree=accepted, oracle=plain["final_lnl"],
@@ -485,13 +708,7 @@ def case_short(r, c, alisim):
             continue
         if suffix:
             out.append(restore_check(label, run.stdout()))
-        ck = nqc_checkpoint(run)
-        out.append(check(f"{label}: target in the checkpoint bitwise equal to the parsed target",
-                         "target" in ck and np.array_equal(floats(ck["target"]), c.pi)))
-        res = last(RESIDUALS, run.stdout())
-        worst = max(float(v) for v in res[:3]) if res else None
-        out.append(check(f"{label}: residuals at most {RESIDUAL:g} (decision 026)",
-                         worst is not None and worst <= RESIDUAL, worst=worst))
+        out += key_checks(label, single_checkpoint(run), c.pi)
     return out
 
 
@@ -508,12 +725,12 @@ def provenance(a, binary, out):
         "out": str(out), "python": sys.version, "numpy": np.__version__, "scipy": scipy.__version__,
         "platform": platform.platform(),
         "settings": {"tol_lnl": TOL_LNL, "residual": RESIDUAL, "tau": TAU, "central_steps": CENTRAL_STEPS,
-                     "alpha": ALPHA, "p_invar": PINV, "near_zero": NEAR_ZERO},
+                     "alpha": ALPHA, "p_invar": PINV, "near_zero": NEAR_ZERO, "r4_given": R4_GIVEN, "wide": WIDE},
     }
 
 
 def markdown(prov, results):
-    lines = ["# S2 checks of the compiled NQC model", "",
+    lines = ["# S2 and S3a checks of the compiled NQC model", "",
              f"Generated by `{SCRIPT}` on {prov['started_utc']} at commit `{prov['git_commit']}` "
              f"(clean: {prov['git_clean']}); binary SHA-256 `{prov['binary']['sha256']}`.", ""]
     for case, rows in results.items():
@@ -526,7 +743,8 @@ def markdown(prov, results):
     return "\n".join(lines) + "\n"
 
 
-CASES = ("root", "seed", "gradient", "target", "refusals", "fits", "toy", "short")
+CASES = ("root", "seed", "gradient", "target", "refusals", "fits", "nesting", "skewed", "restart", "risk22", "toy",
+         "short")
 
 
 def main():
@@ -534,6 +752,7 @@ def main():
     ap.add_argument("--binary", required=True)
     ap.add_argument("--alisim", help="the frozen unmodified binary, which simulates the toy data")
     ap.add_argument("--calibration", help="results.json of explore/toy_calibration.py")
+    ap.add_argument("--older-run", help="S2's gate run fit-level1, whose checkpoint lacks S3a's keys")
     ap.add_argument("--out", required=True, help="new directory outside the repository")
     ap.add_argument("--cases", help="comma-separated, from " + ",".join(CASES) + " (default: all but short)")
     ap.add_argument("--git", default="git", help="git executable (git.exe under WSL)")
@@ -552,11 +771,16 @@ def main():
         sys.exit(f"unknown cases: {sorted(set(keys) - set(CASES))}")
     if {"toy", "short"} & set(keys) and not a.alisim or "toy" in keys and not a.calibration:
         sys.exit("the toy case needs --alisim and --calibration, and the short case --alisim")
+    older = Path(a.older_run).expanduser().resolve() if a.older_run else None
+    if "restart" in keys and not (older and (older / f"{PREFIX}.ckp.gz").exists()):
+        sys.exit(f"the restart case needs --older-run, a run directory holding {PREFIX}.ckp.gz")
     out.mkdir(parents=True)
     alisim = Path(a.alisim).expanduser().resolve() if a.alisim else None
     calibration = Path(a.calibration).expanduser().resolve() if a.calibration else None
     if calibration:
         prov["calibration"] = {"path": str(calibration), "sha256": sha256(calibration)}
+    if older:
+        prov["older_run"] = {"path": str(older), "checkpoint_sha256": sha256(older / f"{PREFIX}.ckp.gz")}
     r = Runner(binary, out, a.timeout)
     c = Context(out)
     ctx, results = {}, {}
@@ -575,6 +799,14 @@ def main():
                 results[key] = case_refusals(r, c)
             elif key == "fits":
                 results[key] = case_fits(r, c, ctx)
+            elif key == "nesting":
+                results[key] = case_nesting(r, c)
+            elif key == "skewed":
+                results[key] = case_skewed(r, c)
+            elif key == "restart":
+                results[key] = case_restart(r, c, ctx, older)
+            elif key == "risk22":
+                results[key] = case_risk22(r, c, ctx)
             elif key == "toy":
                 results[key] = case_toy(r, c, calibration, alisim)
             elif key == "short":

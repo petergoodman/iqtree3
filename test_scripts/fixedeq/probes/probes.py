@@ -277,8 +277,11 @@ class Runner:
     def run(self, name, args, files=None):
         rundir = self.out / name
         rundir.mkdir()
-        for fname, text in (files or {}).items():
-            write(rundir / fname, text)
+        for fname, content in (files or {}).items():
+            if isinstance(content, bytes):  # a copied checkpoint
+                (rundir / fname).write_bytes(content)
+            else:
+                write(rundir / fname, content)
         argv = [str(self.binary), *[str(a) for a in args], "-seed", "1", "-T", "1", "--prefix", PREFIX]
         t0 = time.perf_counter()
         with open(rundir / "stdout.txt", "w", encoding="utf-8") as fh:

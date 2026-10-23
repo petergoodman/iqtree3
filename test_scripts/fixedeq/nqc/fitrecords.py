@@ -49,7 +49,7 @@ def bound_counts(z, lower, upper):
 
 
 def summarize(run, inputs):
-    text, ck = run.stdout(), nc.nqc_checkpoint(run)
+    text, ck = run.stdout(), nc.single_checkpoint(run)
     for p in (run.dir / "stdout.txt", run.file(".ckp.gz"), run.file(".iqtree")):
         inputs[str(p)] = sha256(p)
     lnl, bounds, res = (np.array(a) for a in records(text))
