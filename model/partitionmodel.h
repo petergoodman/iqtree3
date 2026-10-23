@@ -163,6 +163,7 @@ public:
      @param dfx the derivative at x
      @return the function value at x
      */
+    virtual double derivativeFunk(double x[], double dfx[]);
     
     /** optimize linked model parameter of over all partitions */
     double optimizeLinkedModel(bool write_info, double gradient_epsilon);

@@ -15,6 +15,7 @@
 #include <sstream>
 
 #include "nclextra/modelsblock.h"
+#include "partitionmodel.h"
 #include "tree/iqtree.h"
 #include "tree/phylotree.h"
 #include "utils/eigendecomposition.h"
@@ -135,11 +136,11 @@ void ModelNonrevFixedEq::refuseUnsupported(const string &model_params, StateFreq
         why = "is not supported with -optfromgiven";
     else if (params.optimize_model_rate_joint)
         why = "is not supported with -jointopt";
-    else if (!params.model_joint.empty() || params.link_model)
-        why = "does not support --model-joint or --link-model yet";
     else if (params.model_name.find("+T") != string::npos || params.optimize_params_use_hmm)
         why = "is not supported in tree mixtures or HMM models";
-    else if (params.model_name.find("+H") != string::npos)
+    // a partition's own model string, as a charset gives it, never reaches params.model_name
+    else if (params.model_name.find("+H") != string::npos ||
+             (phylo_tree && phylo_tree->aln && phylo_tree->aln->model_name.find("+H") != string::npos))
         why = "is not supported with heterotachy (+H) models";
     else if (params.optimize_linked_gtr)
         why = "is not supported with --link-exchange-rates";
@@ -249,14 +250,23 @@ double ModelNonrevFixedEq::targetFunk(double x[]) {
 }
 
 double ModelNonrevFixedEq::derivativeFunk(double x[], double dfx[]) {
+    return scaledDerivative(*this, x, dfx);
+}
+
+double ModelNonrevFixedEq::linkedDerivative(Optimization &objective, double x[], double dfx[]) {
+    return scaledDerivative(objective, x, dfx);
+}
+
+double ModelNonrevFixedEq::scaledDerivative(Optimization &objective, double x[], double dfx[]) {
+    // the objective is this model in a single-model fit and the PartitionModel in a linked one
     int ndim = getNDim();
     double *h = new double[ndim + 1];
-    double fx = targetFunk(x);
+    double fx = objective.targetFunk(x);
     for (int dim = 1; dim <= ndim; dim++) {
         double temp = x[dim];
         x[dim] = temp + fixedeq::scaledStep(temp, upper);
         h[dim] = x[dim] - temp;
-        dfx[dim] = targetFunk(x);
+        dfx[dim] = objective.targetFunk(x);
         x[dim] = temp;
     }
     for (int dim = 1; dim <= ndim; dim++)
@@ -317,23 +327,89 @@ double ModelNonrevFixedEq::optimizeParameters(double gradient_epsilon) {
     return score;
 }
 
+static const char *const BUILD_FAILED_AFTER_FIT =
+    "NQC: the optimizer returned coordinates that do not give a valid rate matrix; the last valid coordinates are kept";
+
+static bool sameBits(const double *a, const double *b, size_t n) {
+    return memcmp(a, b, sizeof(double) * n) == 0;
+}
+
 void ModelNonrevFixedEq::checkFit(double optimizer_score) {
     // decision 009: re-score the returned point and report; nothing is restored. This runs only
     // outside parallel regions, because unlinked partitions are refused (decision 008).
+    double lnl = rescore();
+    if (build_failed)
+        outWarning(BUILD_FAILED_AFTER_FIT);
+    recordFit(start_lnl, optimizer_score, lnl);
+    reportFit();
+}
+
+void ModelNonrevFixedEq::startLinkedFit(const std::vector<ModelSubst*> &linked) {
+    // Checked before every linked fit, so the first check follows round 1's per-partition updates
+    // and precedes any move of the shared matrix; those updates compute nothing wrong, since each
+    // partition uses its own target (CODE_PLAN.md section 2.2). Chart, version and derivative
+    // policy are constants of this class, so every NQC object shares them.
+    double domain[2] = {lower, upper};
+    for (ModelSubst *m : linked) {
+        ModelNonrevFixedEq *other = dynamic_cast<ModelNonrevFixedEq*>(m);
+        const char *why = nullptr;
+        if (!other) {
+            why = "a model that is not NQC";
+        } else {
+            double other_domain[2] = {other->lower, other->upper};
+            if (!sameBits(target.data(), other->target.data(), num_states) ||
+                !sameBits(state_freq, other->state_freq, num_states))
+                why = "a different target";
+            else if (other->ref != ref)
+                why = "different reference destinations";
+            else if (!sameBits(domain, other_domain, 2))
+                why = "a different coordinate domain";
+            else if (!sameBits(accepted.data(), other->accepted.data(), accepted.size()))
+                why = "different coordinates";
+        }
+        if (why)
+            outError(string("NQC: linked partitions must share one model, but partition ") +
+                     (other ? other->phylo_tree->aln->name : string("?")) + " has " + why);
+    }
+    fit_starting = true;
+}
+
+void ModelNonrevFixedEq::endLinkedFit(const std::vector<ModelSubst*> &linked, double optimizer_score) {
+    // decision 009 for a linked fit, outside targetFunk's parallel region. The re-score sums each
+    // partition's lnL in the list's order, bitwise the sum PartitionModel::targetFunk forms, and
+    // counts no evaluation; through targetFunk a failed build would score K x 1e30. Every object
+    // records the fit, so all partition checkpoint structs agree, and this one, the representative,
+    // reports it once, before the round's ASSERT.
+    double lnl = 0.0;
+    for (ModelSubst *m : linked)
+        lnl += static_cast<ModelNonrevFixedEq*>(m)->rescore();
+    if (build_failed)
+        outWarning(BUILD_FAILED_AFTER_FIT);
+    for (ModelSubst *m : linked)
+        static_cast<ModelNonrevFixedEq*>(m)->recordFit(start_lnl, optimizer_score, lnl);
+    reportFit();
+}
+
+double ModelNonrevFixedEq::rescore() {
     // Between fits IQ-TREE updates rates and branches without decomposing Q, so the decomposition's
-    // guard on pi* is repeated here.
+    // guard on pi* is repeated here. A failed build keeps the last valid state, which is scored.
     if (memcmp(state_freq, target.data(), sizeof(double) * num_states) != 0)
         outError("NQC: the stationary distribution was changed between fits");
+    decomposeRateMatrix();
+    phylo_tree->clearAllPartialLH();
+    return phylo_tree->computeLikelihood();
+}
+
+void ModelNonrevFixedEq::recordFit(double start, double optimizer_score, double rescored) {
     fits++;
     accepted_fit = fits;
+    start_lnl = start;
     optimizer_lnl = optimizer_score;
-    decomposeRateMatrix();
-    if (build_failed)
-        outWarning("NQC: the optimizer returned coordinates that do not give a valid rate matrix; "
-                   "the last valid coordinates are kept");
-    phylo_tree->clearAllPartialLH();
-    rescored_lnl = phylo_tree->computeLikelihood();
+    rescored_lnl = rescored;
     measureState();
+}
+
+void ModelNonrevFixedEq::reportFit() {
     if (verbose_mode >= VB_MED) {
         cout << "NQC fit " << fits << ": start lnL " << number17(start_lnl) << ", optimizer lnL "
              << number17(optimizer_lnl) << ", re-scored lnL " << number17(rescored_lnl) << endl;
@@ -373,8 +449,13 @@ void ModelNonrevFixedEq::decomposeRateMatrixNonrev() {
     if (status != fixedeq::Status::ok) {
         // rates[], the eigensystem and the accepted coordinates stay as they were
         build_failed = true;
-        if (verbose_mode >= VB_DEBUG)
+        if (verbose_mode >= VB_DEBUG) {
+            // in a linked fit this runs inside PartitionModel::targetFunk's parallel loop
+#ifdef _OPENMP
+#pragma omp critical
+#endif
             cout << "NQC: proposal rejected: " << fixedeq::statusText(status) << endl;
+        }
         return;
     }
     build_failed = false;
@@ -513,17 +594,36 @@ void ModelNonrevFixedEq::printMatrix(ostream &out, const double *m) {
 }
 
 void ModelNonrevFixedEq::reportRun(IQTree &tree, ostream &out) {
-    // one alignment; partitioned NQC is refused until linked models are supported (decision 008)
-    ModelNonrevFixedEq *model = dynamic_cast<ModelNonrevFixedEq*>(tree.getModel());
-    if (model)
-        model->writeSummary(out);
+    // Partitioned NQC is always linked, since unlinked partitions are refused (decision 008), so a
+    // partitioned run gets one block per linked model, from its representative.
+    if (!tree.isSuperTree()) {
+        ModelNonrevFixedEq *model = dynamic_cast<ModelNonrevFixedEq*>(tree.getModel());
+        if (model)
+            model->writeSummary(out, 0);
+        return;
+    }
+    PartitionModel *partition_model = dynamic_cast<PartitionModel*>(tree.getModelFactory());
+    if (!partition_model)
+        return;
+    PhyloSuperTree &super_tree = (PhyloSuperTree&)tree;
+    for (auto &linked : partition_model->linked_models) {
+        ModelNonrevFixedEq *model = dynamic_cast<ModelNonrevFixedEq*>(linked.second);
+        if (!model)
+            continue;
+        int partitions = 0;
+        for (PhyloTree *part_tree : super_tree)
+            partitions += (part_tree->getModel()->getName() == linked.first);
+        model->writeSummary(out, partitions);
+    }
 }
 
-void ModelNonrevFixedEq::writeSummary(ostream &out) {
+void ModelNonrevFixedEq::writeSummary(ostream &out, int linked_partitions) {
     string letters;
     for (int r : ref)
         letters += STATES[r];
     out << endl << "NQC summary of the final model (17 significant digits):" << endl;
+    if (linked_partitions > 0)
+        out << "NQC linked across " << linked_partitions << " partitions" << endl;
     out << "NQC target as given (sum " << number17(target_raw_sum) << "): " << target_text << endl;
     out << "NQC target normalized: " << numbers17(state_freq, num_states) << endl;
     out << "NQC reference destinations: " << letters << endl;

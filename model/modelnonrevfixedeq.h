@@ -20,11 +20,12 @@
 #include <Eigen/Dense>
 
 #include "fixedeqchart.h"
+#include "linkedmodelhooks.h"
 #include "modelprotein.h"
 
 class IQTree;
 
-class ModelNonrevFixedEq : public ModelProtein
+class ModelNonrevFixedEq : public ModelProtein, public LinkedModelHooks
 {
 public:
     /** the public model name, provisional (decision 002) */
@@ -37,7 +38,8 @@ public:
         (decision 032) */
     static void refuseAsMixtureComponent(ModelSubst *model);
 
-    /** print the end-of-run summary of tree's NQC model, if it has one (decision 010) */
+    /** print the end-of-run summary of tree's NQC model, or of each linked NQC model of a
+        partitioned tree (decision 010) */
     static void reportRun(IQTree &tree, ostream &out);
 
     /**
@@ -54,7 +56,7 @@ public:
     /** -lnL at x, or 1e30 when the coordinates do not build a valid Q (PLAN.md constraint 2) */
     virtual double targetFunk(double x[]);
 
-    /** forward differences with the scaled step of decision 005 */
+    /** forward differences with the scaled step of decision 005, for single-model fits */
     virtual double derivativeFunk(double x[], double dfx[]);
 
     virtual void setBounds(double *lower_bound, double *upper_bound, bool *bound_check);
@@ -79,6 +81,16 @@ public:
     virtual void startCheckpoint();
     virtual void saveCheckpoint();
     virtual void restoreCheckpoint();
+
+    /** stops with an error unless every linked object shares this one's target, references, domain
+        and coordinates (CODE_PLAN.md section 2.2, "Linked-compatibility signature") */
+    virtual void startLinkedFit(const std::vector<ModelSubst*> &linked);
+
+    /** the scaled forward differences of decision 005 on the linked objective */
+    virtual double linkedDerivative(Optimization &objective, double x[], double dfx[]);
+
+    /** the post-fit checks of decision 009 for a linked fit, recorded in every linked object */
+    virtual void endLinkedFit(const std::vector<ModelSubst*> &linked, double optimizer_lnl);
 
 protected:
     virtual void setVariables(double *variables);
@@ -115,10 +127,14 @@ private:
 
     void refuseUnsupported(const string &model_params, StateFreqType freq, const string &freq_params);
     void readSeed(Eigen::MatrixXd &seed);
+    double scaledDerivative(Optimization &objective, double x[], double dfx[]);
     void checkFit(double optimizer_score);
+    double rescore();
+    void recordFit(double start, double optimizer_score, double rescored);
+    void reportFit();
     void measureState();
     void writeState(ostream &out);
-    void writeSummary(ostream &out);
+    void writeSummary(ostream &out, int linked_partitions);
     void printMatrix(ostream &out, const double *m);
 };
 

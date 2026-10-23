@@ -23,6 +23,7 @@
 #include "alignment/alignmentpairwise.h"
 #include "model/rategamma.h"
 #include "model/modelmarkov.h"
+#include "linkedmodelhooks.h"
 
 PartitionModel::PartitionModel()
         : ModelFactory()
@@ -750,6 +751,14 @@ void PartitionModel::scaleStateFreq(bool sum_one) {
             ((ModelMarkov*)(*it)->getModel())->scaleStateFreq(sum_one);
 }
 
+double PartitionModel::derivativeFunk(double x[], double dfx[]) {
+    // a linked model with its own derivative rule (LinkedModelHooks); every other model is unchanged
+    LinkedModelHooks *hooks = dynamic_cast<LinkedModelHooks*>(model);
+    if (hooks)
+        return hooks->linkedDerivative(*this, x, dfx);
+    return Optimization::derivativeFunk(x, dfx);
+}
+
 double PartitionModel::optimizeLinkedModel(bool write_info, double gradient_epsilon) {
     int ndim = getNDim();
     
@@ -782,10 +791,26 @@ double PartitionModel::optimizeLinkedModel(bool write_info, double gradient_epsi
 //        upper_bound[i] = MAX_RATE*2.0;
 //    }
 
+    // a linked model that checks and records its own fits gets the partition models it links, in
+    // the order targetFunk sums them
+    LinkedModelHooks *hooks = dynamic_cast<LinkedModelHooks*>(model);
+    vector<ModelSubst*> linked;
+    if (hooks) {
+        PhyloSuperTree *tree = (PhyloSuperTree*)site_rate->getTree();
+        if (tree->part_order.empty()) tree->computePartitionOrder();
+        for (int j = 0; j < tree->size(); j++) {
+            ModelSubst *part_model = tree->at(tree->part_order[j])->getModel();
+            if (part_model->getName() == model->getName())
+                linked.push_back(part_model);
+        }
+        hooks->startLinkedFit(linked);
+    }
+
 //    if (Params::getInstance().optimize_alg.find("BFGS-B") == string::npos)
         score = -minimizeMultiDimen(variables, ndim, lower_bound, upper_bound, bound_check, max(gradient_epsilon, TOL_RATE));
 //    else
 //        score = -L_BFGS_B(ndim, variables+1, lower_bound+1, upper_bound+1, max(gradient_epsilon, TOL_RATE));
+    double optimizer_score = score;
 
     bool changed = getVariables(variables);
 
@@ -823,6 +848,8 @@ double PartitionModel::optimizeLinkedModel(bool write_info, double gradient_epsi
         site_rate->phylo_tree->clearAllPartialLH();
         score = site_rate->phylo_tree->computeLikelihood();
     }
+    if (hooks)
+        hooks->endLinkedFit(linked, optimizer_score);
     
     delete [] bound_check;
     delete [] lower_bound;

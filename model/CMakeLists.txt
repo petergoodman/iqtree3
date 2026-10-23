@@ -35,6 +35,7 @@ modelhmmtm.cpp modelhmmtm.h
 modelcodonmixture.cpp modelcodonmixture.h
 fixedeqchart.cpp fixedeqchart.h
 modelnonrevfixedeq.cpp modelnonrevfixedeq.h
+linkedmodelhooks.h
 )
 
 target_link_libraries(model utils)
