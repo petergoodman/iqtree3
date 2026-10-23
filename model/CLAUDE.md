@@ -48,3 +48,10 @@ One boolean, `is_reversible`, separates the two. For non-reversible models `rate
 complex, and `state_freq` is an output derived from Q on every evaluation rather than an input.
 The exception is NQC (`modelnonrevfixedeq.*`), whose `state_freq` is the fixed target π*, never
 derived from Q.
+
+## NQC output
+
+NQC has no `writeInfo` override, so IQ-TREE's own model prints show nothing for it, as for NONREV.
+Its `-v` record of each fit comes from `checkFit`, and its end-of-run summary from the static
+`reportRun`, called once from `reportPhyloAnalysis`. Asserted checks read its checkpoint keys;
+the record and summary are read only by reported checks.

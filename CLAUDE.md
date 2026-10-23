@@ -94,8 +94,9 @@ cmake --build ~/iqtree3-build -j 4
   rebuilt or overwritten. After a source change, `run` the new build into a new directory, then
   `compare --baseline baseline/baseline.json --baseline baseline/run12/baseline.json`.
 - **Sanitizer build** (decision 022; flags and coverage in `CODE_PLAN.md` section 3.6):
-  `sanitize.py build --build-dir DIR --git git.exe` into a new directory per slice (about 30
-  minutes of compute alone, 4.2 hours of wall time beside other checks);
+  `sanitize.py build --build-dir DIR --git git.exe` into a new directory per slice (S2: about 30
+  minutes of compute alone, 4.2 hours of wall time beside other checks; S3a: 15 minutes beside
+  the gate's other checks);
   `sanitize.py run --binary DIR/iqtree3 --build-dir DIR --out OUT --git git.exe`, with
   `--regression-runs`, `--probes`, `--no-differential` and `--nqc-cases` (`--alisim` with the
   frozen binary for `short`); `sanitize.py scan OUT` groups the reports. Every run so far shows

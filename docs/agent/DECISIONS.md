@@ -464,5 +464,5 @@ Retired and merged numbers, so that every citation in code, tests and records st
 | 034 | item 1 in 015; items 2, 4, 5 in 008; item 3 (matrix setters stop with an error) in `CODE_PLAN.md` section 2.2; item 6 in 002; item 7 in 021 |
 | 035 | item 1 in 002; item 2 in 022 |
 | 036 | 021 (the withdrawn claim is gone; its measure is kept) |
-| 037 | not a rule: S2's shortfalls are listed in `CODE_PLAN.md` section 4, S3-1 |
+| 037 | not a rule: S2's shortfalls, S3-1, listed in full in `CODE_PLAN.md` section 4 at `4749f222` and closed for one alignment in S3a (section 4 now; the linked half is S3b's) |
 | D04 | dropped by 028; see D01. The T3 gauge the oracle's test reference uses ("the D04 gauge") is a_{19,20} = 0 and h_{i,20} = 0 for i < 20 (189 strength and 171 tilt coordinates, 19 balancing potentials by damped Newton), synthesis section 6.1 |

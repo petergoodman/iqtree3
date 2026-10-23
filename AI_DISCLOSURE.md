@@ -11,6 +11,25 @@ lines: tool and model, operator, up to five "what it did" bullets, files touched
 No AI-generated scientific claim, numerical result, or citation in this project has been accepted
 without human verification against source.
 
+## 2026-10-22: S3a milestone
+
+**Tool:** Claude Code (VS Code extension). **Model:** Claude Opus 5.5, 1M context, model id
+`claude-opus-5-5[1m]`. **Operator:** Peter Goodman.
+
+**What it did.**
+- **Plan.** It wrote the session's commit and gate plan from the approved S3 records, and asked
+  the operator before each long run (keep-awake helper).
+- **Code.** It wrote the S3a C++ in the NQC class and one call in `main/phyloanalysis.cpp`, the
+  oracle's FreeRate port, and the check driver's S3a cases.
+- **Validation.** A subagent reviewed the code before the gate; it fixed the findings, ran the
+  gate from a clean tree. Two of its commit messages miscount development checks (corrected in
+  `17737325` and the changelog).
+- **Records.** It updated the plan documents, the changelog and both CLAUDE.md files.
+
+**Files touched.** `model/modelnonrevfixedeq.{h,cpp}`, `main/phyloanalysis.cpp`;
+`test_scripts/fixedeq/`: `oracle/likelihood.py`, `oracle/nqc.py`, `nqc/nqcchecks.py`,
+`nqc/fitrecords.py`, `probes/probes.py`, `tests/test_oracle_likelihood.py`.
+
 ## 2026-10-22: S2 milestone
 
 **Tool:** Claude Code (VS Code extension).

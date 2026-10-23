@@ -1,8 +1,8 @@
 # Plan: π-constrained non-reversible amino-acid models
 
-> **Status, 2026-10-22: S2 complete (gate G2); the NQC class is in IQ-TREE's build; S3 planned
-> and approved as three slices, S3a to S3c, none started; approach accepted by the IQ-TREE
-> maintainers (reported by Peter, 2026-10-01).** Peter owns this document.
+> **Status, 2026-10-22: S3a complete (gate G2's remainder): NQC fits one alignment with its full
+> record and report; S3b and S3c not started; approach accepted by the IQ-TREE maintainers
+> (reported by Peter, 2026-10-01).** Peter owns this document.
 
 This is the project's living core document: what we are building and why, the constraints the
 work must satisfy, where it stands, and the next step. It is read at the start of every task and
@@ -185,7 +185,7 @@ validation.
 | S0 | G0 | Evidence before any source edit | environment built from its file; design scripts rerun from copies and compared with their reported values; oracle likelihood matches the unmodified binary; baseline recorded twice with the binary's SHA-256; S0 runtime checks answered; unmodified sanitizer run recorded; G0 run manifest written | done 2026-10-05 (G0 manifest) |
 | S1 | G1 | Pure mathematical core | unit tests at n = 3, 4 and 20 against oracle fixtures pass in Release and sanitizer builds; residual maxima tabled | done 2026-10-19 (`6c8d3af4`) |
 | S2 | G2 | First compiled model, one alignment | root, seed, gradient, target and refusal checks and the toy comparison pass under decision 021's lines; Level 1 and Level 2 fits on `example/aa_example.phy`, `+I+G4` included; regression reproduces; sanitizers clean for new code | done 2026-10-22 (`35d4a1bf`); shortfalls in S3-1 |
-| S3a | G2 | One alignment complete | S3-1 done for one alignment (fit record once under `-v`, end-of-run summary at default verbosity, full checkpoint record and restore, ModelFinder and unlinked partitions refused); GTR20-seeded nesting in the widened domain (decision 025); the skewed-target fit (023) and aa_example's risk 22 runs reported; `+R4` seed against the oracle and a Level 2 fit; incompatible restarts refused; regression reproduces; sanitizers clean for new code | not started |
+| S3a | G2 | One alignment complete | S3-1 done for one alignment (fit record once under `-v`, end-of-run summary at default verbosity, full checkpoint record and restore, ModelFinder and unlinked partitions refused); GTR20-seeded nesting in the widened domain (decision 025); the skewed-target fit (023) and aa_example's risk 22 runs reported; `+R4` seed against the oracle and a Level 2 fit; incompatible restarts refused; regression reproduces; sanitizers clean for new code | done 2026-10-22 (`4749f222`) |
 | S3b | G3 | Linked training and lifecycle | two partitions with different compositions under `-S` and `-p`, one target and one Q in every object; each linked fit checked and reported once (S3-1's linked half); 360 counted once; the linked gradient uses the scaled step; thread counts compared at a fixed point (decision 038); permuted order; mid-run and `--undo` restarts, incompatible ones refused; turtle's risk 22 runs reported; regression reproduces; sanitizers clean for new code | not started |
 | S3c | G3 | Cost against NONREV | profiling against NONREV within its blocking threshold, or, above 3 per fit, fixed in NQC's code or accepted by Peter; any ratio above 1.25 per evaluation or 2 per fit explained (risks 5, 18); risk 22's evidence collected | not started |
 | S4 | G3 | Export, re-import and report | export then `-m FILE` reproduces the log-likelihood of a Level 1 fit; metadata complete; first release candidate | not started |
@@ -230,42 +230,39 @@ Peter relays these if and when he chooses; no agent contacts the maintainers (`C
 
 ## Current state
 
-S0 to S2 are complete. S2's gate ran from the clean tree at `35d4a1bf` on 2026-10-21
-(`~/iqtree3-runs/s2-gate/20261021-35d4a1bf/`).
+S0 to S2 and S3a are complete. S3a's gate ran from the clean tree at `4749f222` on 2026-10-22
+(`~/iqtree3-runs/s3a-gate/20261022-4749f222/`); its record is the S3a entry of `CHANGELOG.md`.
 
 - **In the repository:** the NQC class `model/modelnonrevfixedeq.{h,cpp}`, with its 17-digit
-  checkpoint and its hooks in shared files (`cd4c6823`); the pure module `model/fixedeqchart.*`
+  checkpoint record, its fit records and end-of-run summary (called once from
+  `reportPhyloAnalysis`), and its hooks in shared files; the pure module `model/fixedeqchart.*`
   and its unit tests (S1); the oracle, drivers, regression baseline, probes, frozen binaries and
   G0 manifest (S0).
-- **S2 gate record:** `CHANGELOG.md`, the S2 entry, with the fit records corrected by
-  `test_scripts/fixedeq/nqc/fitrecords.py`.
-- **Known shortfalls of the S2 build:** S3-1 in `CODE_PLAN.md` section 4.
-- **Pre-S3 decisions, 2026-10-22:** thread counts are compared at a fixed point (decision 038);
-  the nesting test runs in a widened domain (025) and a skewed-target fit is reported (023);
-  profiling against NONREV, `+R4` and the evidence for risk 22 join S3's list (`CODE_PLAN.md`
-  section 4); the production domain stays open (risk 22).
-- **S3 plan, approved 2026-10-22:** three slices, each with its own gate: S3a finishes the single
-  alignment, S3b adds linked training, S3c profiles against NONREV. Peter's choices: the
-  end-of-run summary is printed from one call in `reportPhyloAnalysis`, brought forward from S4
-  (decision 010); S4's re-import equality runs at Level 1 only; unlinked partitioned NQC is
-  refused (008). The lists are `CODE_PLAN.md` section 4; the approved plan, with its survey and
-  review findings, is frozen in `docs/agent/archive/S3_plan_2026-10-22.md`.
+- **One alignment is complete:** S3-1 is done for a single alignment. Its linked half, each
+  linked fit checked and reported once, is S3b's (`CODE_PLAN.md` section 4).
+- **S3 plan, approved 2026-10-22:** three slices, each with its own gate: S3a finished the single
+  alignment, S3b adds linked training, S3c profiles against NONREV. The lists are `CODE_PLAN.md`
+  section 4; the approved plan, with its survey and review findings, is frozen in
+  `docs/agent/archive/S3_plan_2026-10-22.md`.
+- **Risk 22 evidence so far:** S3a's `aa_example` fits in the default box and at 1e-8,1e7
+  (`CHANGELOG.md`, S3a entry); S3b adds turtle's.
 - **Continuous integration:** Actions is back on since 2026-10-22. Upstream's Build workflow is
   switched off on the fork's Actions page (`ci.yaml` unchanged), so the fork no longer checks the
   macOS, Windows or ARM builds. fixedeq's first run (39817703469, `76dd4301`) passed all jobs.
 
 ## Next step
 
-1. Implement S3a in a new session, started in plan mode with this prompt (S3b and S3c likewise,
-   each after the previous slice's close):
+1. Implement S3b in a new session, started in plan mode with this prompt (S3c likewise, after
+   S3b's close):
 
-   > Implement S3a as recorded and approved on 2026-10-22. Read the start-of-session files, then
-   > `CODE_PLAN.md` sections 2.2, 3.5, 4 (its S3 introduction and S3a) and 5, and `DECISIONS.md`.
+   > Implement S3b as recorded and approved on 2026-10-22. Read the start-of-session files, then
+   > `CODE_PLAN.md` sections 2.2, 3.5, 4 (its S3 introduction and S3b) and 5, and `DECISIONS.md`.
    > Where a record is unclear, read `docs/agent/archive/S3_plan_2026-10-22.md`, and ask me before
    > departing from it. Stop before any run longer than a few minutes to agree keep-awake.
 
-   The session's own plan lists commits and gate steps only; the working rules (commits, hand-off,
-   compute estimate and keep-awake before long runs, subagents) are in `CODE_PLAN.md` section 4,
-   "Implementation". S3c's session plans first: its per-evaluation measurement needs Peter's
-   approval, then the pilot runs.
+   The session first checks the fork workflow's run on the push of S3a's close. Its own plan
+   lists commits and gate steps only; the working rules (commits, hand-off, compute estimate and
+   keep-awake before long runs, subagents) are in `CODE_PLAN.md` section 4, "Implementation".
+   S3c's session plans first: its per-evaluation measurement needs Peter's approval, then the
+   pilot runs.
 2. Peter's full decision on the production domain (risk 22), before S4 is planned.

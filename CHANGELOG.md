@@ -8,6 +8,32 @@ gate record and may run to 25 lines. The next session starts from the top entry.
 This is a fork of `iqtree/iqtree3`. Entries here describe work on the fork, not upstream
 development.
 
+## 2026-10-22 (seventh session): S3a, one alignment complete (gate G2)
+
+- **Done.** S3a as recorded. `f321532c`: the oracle's FreeRate categories. `bb89e2d9`, `17737325`:
+  the C++ (one record per fit, the `reportRun` summary, the full checkpoint record, ModelFinder
+  and unlinked refusals). `39c367c5`: the driver's S3a cases. `4749f222`: the review's fixes, with
+  decision 003's `fixed` key. This commit closes S3a.
+- **Gate** at `4749f222` (`~/iqtree3-runs/s3a-gate/20261022-4749f222/`), keep-awake helper on:
+  `nqcchecks.py`, 12 cases, 95 asserted checks passed, none failed, 80 reported (1553 s);
+  regression 12 of 12 (512 s); unit tests 44 of 44 in both variants; 188 Python tests; sanitizer
+  build 927 s, run 5137 s with its 53 asserted NQC checks passed, scan showing only maintainer
+  question 4's upstream report (62 times). The fork workflow follows the push.
+- **Asserted, new:** the `+R4` seed against the oracle; free `+R4` Level 2 (400 parameters);
+  nesting, first lnL 2.4e-11 above the GTR20 evaluation (−7004.378971513472; line 7.0e-5), final
+  60.46 above; restarts with another target or domain refused by the restore; six refusals.
+- **Reported:** `--undo` repeats the summary; S2's checkpoint restores with start and optimizer
+  scores unknown and its accepted score kept. Skewed target: 98 fits, −7963.37 to −7269.02,
+  bounds 3, 3, 0. Risk 22, box against 1e-8,1e7: Level 1 −6962.944 and −6960.608; Level 2 `+G4`
+  −6938.229 and −6938.523; nesting +61.37 (127 at the lower bound) and +60.46. The wider domain
+  ended lower twice: local stops (D09 item 3). No fall, scaling-squaring, ASSERT or abort.
+- **Failed.** The new `-fs` test found the refusal naming the wrong cause; the review found five
+  driver gaps, one an oracle check skipped silently; all fixed before the gate. Commit messages
+  miscount development checks: 37, not 39 (`bb89e2d9`); 15, not 20 (`4749f222`).
+- **Found.** The sanitizer build took 15 min, not 4 h. With `-b 1` a summary follows each of
+  IQ-TREE's two reports; left as it is.
+- **Next.** S3b in a new session, with the prompt in PLAN.md's next step.
+
 ## 2026-10-22 (sixth session): S3 planned as three slices
 
 - **Done.** S3 planned and approved as S3a (one alignment), S3b (linked training), S3c
