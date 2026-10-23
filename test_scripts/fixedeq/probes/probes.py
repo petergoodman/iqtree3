@@ -242,8 +242,9 @@ def turtle_target():
 # ---------------------------------------------------------------- running
 
 class Run:
-    def __init__(self, rundir, name, args, code, wall):
+    def __init__(self, rundir, name, args, code, wall, threads=1):
         self.dir, self.name, self.args, self.code, self.wall = rundir, name, args, code, wall
+        self.threads = threads
 
     def file(self, suffix):
         return self.dir / f"{PREFIX}{suffix}"
@@ -267,14 +268,16 @@ class Run:
         return extract_run(self.dir, PREFIX, self.code)
 
     def record(self):
-        return {"name": self.name, "args": self.args, "exit_code": self.code, "wall_s": self.wall}
+        return {"name": self.name, "args": self.args, "threads": self.threads, "exit_code": self.code,
+                "wall_s": self.wall}
 
 
 class Runner:
     def __init__(self, binary, out, timeout):
         self.binary, self.out, self.timeout, self.runs = binary, out, timeout, []
 
-    def run(self, name, args, files=None):
+    def run(self, name, args, files=None, threads=1):
+        """Run the binary in a new directory; the -T it appends comes last and so wins."""
         rundir = self.out / name
         rundir.mkdir()
         for fname, content in (files or {}).items():
@@ -282,7 +285,7 @@ class Runner:
                 (rundir / fname).write_bytes(content)
             else:
                 write(rundir / fname, content)
-        argv = [str(self.binary), *[str(a) for a in args], "-seed", "1", "-T", "1", "--prefix", PREFIX]
+        argv = [str(self.binary), *[str(a) for a in args], "-seed", "1", "-T", str(threads), "--prefix", PREFIX]
         t0 = time.perf_counter()
         with open(rundir / "stdout.txt", "w", encoding="utf-8") as fh:
             try:
@@ -290,7 +293,7 @@ class Runner:
                                       timeout=self.timeout).returncode
             except subprocess.TimeoutExpired:
                 code = "timeout"
-        r = Run(rundir, name, [str(a) for a in args], code, round(time.perf_counter() - t0, 1))
+        r = Run(rundir, name, [str(a) for a in args], code, round(time.perf_counter() - t0, 1), threads)
         self.runs.append(r.record())
         print(f"  {name}: exit {code}, {r.wall} s", flush=True)
         return r

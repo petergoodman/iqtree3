@@ -31,10 +31,11 @@ def cubed(pi):
     return p / p.sum()
 
 
-def nexus(order=CHARSETS):
-    """The charsets, in the given order, over the concatenated alignment."""
-    start = {"partA": 1, "partB": SITES + 1}
-    lines = [f"charset {name} = {start[name]}-{start[name] + SITES - 1};" for name in order]
+def nexus(order=CHARSETS, sites=SITES):
+    """The charsets, in the given order, over the concatenated alignment of two partitions of the
+    given length."""
+    start = {"partA": 1, "partB": sites + 1}
+    lines = [f"charset {name} = {start[name]}-{start[name] + sites - 1};" for name in order]
     return "#nexus\nbegin sets;\n" + "\n".join(lines) + "\nend;\n"
 
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""S2 and S3a checks of the compiled NQC model (docs/agent/CODE_PLAN.md section 4; decision 021).
+"""S2, S3a and S3b checks of the compiled NQC model (docs/agent/CODE_PLAN.md section 4; decision 021).
 
   python nqcchecks.py --binary ~/iqtree3-build/iqtree3 --alisim ~/iqtree3-baseline/iqtree3 \
       --calibration CALIBRATION/results.json --older-run S2_GATE/nqc/fit-level1 --out DIR \
@@ -25,10 +25,34 @@ Cases:
   short     a Level 1 and a +I+G4 Level 2 fit on 300 sites of the toy data, one round each, for
             the sanitizer build (CODE_PLAN.md section 3.6; needs --alisim)
 
-Every run has its own directory under DIR and uses -seed 1 -T 1. Final states are read from the
-class's checkpoint keys; the seed Q and the first gradient from its verbose output (decision 021).
-How often something is printed is reported, not asserted. Exit status 1 if an asserted check
-fails; checks marked "report" are not asserted.
+S3b's linked cases (CODE_PLAN.md sections 3.5 and 4, S3b), on nqc/twopart.py's data (needs
+--alisim) unless they name turtle:
+  linked-seed      -lnL at the first linked gradient against the oracle's linked objective, under -S
+                   and -p with +G4{0.5} and the given +R4; the printed steps against decision 005's
+                   rule, bitwise; the gradient lines; and a -S start near zero
+  linked-fits      Level 1 under -S, -q (decision 024, nuisances from the -p Level 2 +G4 fit) and
+                   --link-model (-S); Level 2 under -S and -p with +G4, +I+G4 and free +R4; at every
+                   numbered checkpoint pi*, coordinates, references and residuals in every struct
+  linked-refusals  --link-model with another target and with the target at 8 decimals, refused at
+                   the first linked fit; a charset without a model and no -m; a charset with +H4
+  permuted         twopart -S Level 1 with the charsets reversed, bitwise; turtle at the seed under -p
+                   and -S with the charsets (and -S trees) reversed, by decision 038's lines
+  threads          turtle at the seed, -p at -T 4 and -S at -T 3, 10 runs each against -T 1 (decision
+                   038); 5 -p Level 2 fits at -T 4 without rate variation, the setup of NONREV's
+                   measured spread (explore/thread_counts.py "pL2"), reported
+  linked-restart   -p and -S Level 2 +G4 resumed from numbered checkpoint #1; --undo of the -S Level
+                   1 fit with the same command, another target and another domain
+  risk22-turtle    turtle Level 1 -S (+G4{0.5}) and Level 2 +G4 under -p and -S, in the default box
+                   and at --nqc-domain 1e-8,1e7, reported (PLAN.md risk 22)
+  warm-starts      two Level 1 continuations, in the box and at 1e-8,1e7, from the final state of
+                   each default-box fit of risk22, nesting and risk22-turtle, reported
+  linked-short     a Level 1 -S and a Level 2 -p +G4 fit on 150 sites of each twopart partition, for
+                   the sanitizer build
+
+Every run has its own directory under DIR and uses -seed 1 and -T 1 unless a case says otherwise.
+Final states are read from the class's checkpoint keys; the seed Q and the first gradient from its
+verbose output (decision 021). How often something is printed is reported, not asserted. Exit
+status 1 if an asserted check fails; checks marked "report" are not asserted.
 """
 import argparse
 import datetime
@@ -48,10 +72,12 @@ sys.path.insert(0, str(HERE.parent / "probes"))
 sys.path.insert(0, str(HERE.parent / "differential"))
 from oracle import chart, likelihood as lk, nqc, optimize, readers, target  # noqa: E402
 from probes import (AA, NEX, PREFIX, TURTLE, Runner, baseline_runs, first_taxa, fitted_gtr20, mdef,  # noqa: E402
-                    paml_rows, read_checkpoint, tree_comparison, tree_text, turtle_target, unrooted_text)
+                    paml_rows, read_checkpoint, tree_comparison, tree_text, turtle_target, unrooted_text,
+                    with_charpartition)
 from differential import datasets, significant_digits, write_matrix  # noqa: E402
 from regress import REPO, SCALARS, capture, read, sha256, write  # noqa: E402
 import toy  # noqa: E402
+import twopart  # noqa: E402
 
 SCRIPT = Path(__file__).resolve().relative_to(REPO).as_posix()
 DNA = REPO / "example" / "example.phy"
@@ -115,21 +141,36 @@ def first_gradient(text):
     return float(head.group(1)), a[:, 0], a[:, 1], a[:, 2]
 
 
-def nqc_checkpoint(run):
-    """The class's checkpoint keys, one dict per ModelNonrevFixedEq struct, keyed by the prefix
-    before the struct's name ("" for one alignment)."""
+def nqc_structs(flat):
+    """The class's keys in a flat checkpoint, one dict per ModelNonrevFixedEq struct, keyed by the
+    prefix before the struct's name: "" for one alignment; for partitioned data, the linked model's
+    name (NQC) or a partition's, under the PartitionModel struct."""
     structs = {}
-    for k, v in run.checkpoint().items():
+    for k, v in flat.items():
         if "ModelNonrevFixedEq!" in k:
             prefix, key = k.split("ModelNonrevFixedEq!", 1)
             structs.setdefault(prefix, {})[key] = v
     return structs
 
 
+def nqc_checkpoint(run):
+    return nqc_structs(run.checkpoint())
+
+
 def single_checkpoint(run):
     """The keys of a single-alignment run's one NQC struct, or None if it has not exactly one."""
     structs = nqc_checkpoint(run)
     return next(iter(structs.values())) if len(structs) == 1 else None
+
+
+def linked_struct(structs):
+    """The linked model's struct, which PartitionModel saves under the model's name, or None."""
+    return next((s for prefix, s in structs.items() if prefix.endswith("!NQC!")), None)
+
+
+def final_struct(run):
+    """A run's final NQC state: the one struct of a single alignment, else the linked struct."""
+    return single_checkpoint(run) or linked_struct(nqc_checkpoint(run))
 
 
 def summary(text):
@@ -415,11 +456,32 @@ BEST_LNL = re.compile(r"Optimal pinv,alpha: \S+ \S+ / LogL: (\S+)")
 
 def restore_check(label, text):
     """The +I+G path keeps the best of its starts through the model's checkpoint (decision 033): the
-    model it ends with must score as the best start did, at the 3 decimals IQ-TREE prints."""
+    model it ends with must score as the best start did, at the 3 decimals IQ-TREE prints. For one
+    alignment, which takes the path once; block_restore_check covers -S."""
     starts, best = [float(v) for v in START_LNL.findall(text)], BEST_LNL.search(text)
     ok = bool(starts and best and abs(float(best.group(1)) - max(starts)) <= 5e-4)
     return check(f"{label}: the restored model scores as the best +I+G start", ok,
                  best_start=max(starts) if starts else None, final=best.group(1) if best else None)
+
+
+def block_restore_check(label, text):
+    """restore_check for -S, which keeps IQ-TREE's +I+G multi-start on (only -p, -q and -blfix turn
+    it off), so each partition takes the path in every round of the first model optimization: every
+    "Optimal pinv,alpha" line must score as the best start printed since the one before it."""
+    blocks, starts = [], []
+    for line in text.splitlines():
+        m = START_LNL.search(line)
+        if m:
+            starts.append(float(m.group(1)))
+            continue
+        m = BEST_LNL.search(line)
+        if m:
+            blocks.append((max(starts) if starts else None, float(m.group(1))))
+            starts = []
+    bad = [i for i, (s, b) in enumerate(blocks) if s is None or abs(b - s) > 5e-4]
+    gaps = [abs(b - s) for s, b in blocks if s is not None]
+    return check(f"{label}: in each block of +I+G starts, the restored model scores as the best start", bool(blocks)
+                 and not bad, blocks=len(blocks), failing=bad, largest_gap=max(gaps, default=None))
 
 
 KEYS = ("target", "residuals", "coordinates", "domain", "bounds")
@@ -466,14 +528,19 @@ def monitoring(label, run, ck):
     ]
 
 
+def free_parameters_check(label, run, expected):
+    m = re.search(SCALARS["free_parameters"], run.report(), re.M)
+    return check(f"{label}: free parameters", bool(m) and int(m.group(1)) == expected,
+                 reported=m.group(1) if m else None, expected=expected)
+
+
 def fit_checks(label, run, c, expected_parameters, level):
+    """A single-alignment fit's checks."""
     if run.code != 0:
         return failed_run(run) + monitoring(label, run, None)
     text, ck = run.stdout(), single_checkpoint(run)
     out = key_checks(label, ck, c.pi)
-    m = re.search(SCALARS["free_parameters"], run.report(), re.M)
-    out.append(check(f"{label}: free parameters", bool(m) and int(m.group(1)) == expected_parameters,
-                     reported=m.group(1) if m else None, expected=expected_parameters))
+    out.append(free_parameters_check(label, run, expected_parameters))
     comp = tree_comparison(c.t02.strip(), run.trees()[0]) if run.trees() else None
     out.append(check(f"{label}: root split unchanged", bool(comp and comp["root_split_kept"])))
     if level == 1:
@@ -533,10 +600,10 @@ def widened_domain(z):
     return f"{lo:g},{hi:g}", float(ratios.min()), float(ratios.max())
 
 
-def case_nesting(r, c):
+def case_nesting(r, c, ctx):
     """Decision 025: NQC seeded at a fixed-tree GTR20+F{pi*}+G4 fit, carried from its checkpoint,
     starts at that fit's --show-lh evaluation and ends no lower, in a domain widened to hold the
-    start; the same NQC fit in the default box is reported."""
+    start; the same NQC fit in the default box is reported, and kept for the warm-starts case."""
     pif = f"+F{{{c.target_text}}}"
     gtr = r.run("nesting-gtr20", ["-s", AA, "-m", "GTR20" + pif + "+G4", "-te", "input.tree"], {"input.tree": c.u02})
     fit = fitted_gtr20(gtr)
@@ -546,6 +613,7 @@ def case_nesting(r, c):
              "start.paml": "\n".join(" ".join(row) for row in paml_rows(fit["rates"])) + "\n"
                            + c.target_text.replace(",", " ") + "\n"}
     g4 = "+G4{" + fit["alpha"] + "}"
+    ctx["nesting"] = {"files": files, "g4": g4}
     ev = r.run("nesting-evaluation", ["-s", AA, "-m", "start.paml" + pif + g4, "-te", "gtr.treefile", "--show-lh"],
                files)
     m = INITIAL.search(ev.stdout())
@@ -572,6 +640,7 @@ def case_nesting(r, c):
                   "final_minus_reference": None if final is None else final - reference, "line": line,
                   "bounds": (ck or {}).get("bounds"), "fits": (ck or {}).get("fits"), "falls": FALL.findall(run.stdout())}
         if label == "default box":
+            ctx["nesting"]["default box"] = run
             out.append(check(f"{label}: first and final log-likelihood against the GTR20 evaluation (report)", None,
                              **values))
         else:
@@ -605,9 +674,10 @@ def case_skewed(r, c):
             ] + monitoring("skewed", run, ck)
 
 
-def staged(rundir):
+def staged(rundir, inputs=("input.tree",)):
     """A finished run's inputs and checkpoint, to rerun in a new directory."""
-    return {"input.tree": read(rundir / "input.tree"), f"{PREFIX}.ckp.gz": (rundir / f"{PREFIX}.ckp.gz").read_bytes()}
+    return {**{name: read(rundir / name) for name in inputs},
+            f"{PREFIX}.ckp.gz": (rundir / f"{PREFIX}.ckp.gz").read_bytes()}
 
 
 def case_restart(r, c, ctx, older):
@@ -638,7 +708,7 @@ def case_restart(r, c, ctx, older):
 
 
 def fit_state(run):
-    ck = single_checkpoint(run) if run.code == 0 else None
+    ck = final_struct(run) if run.code == 0 else None
     printed = re.search(SCALARS["log_likelihood"], run.report(), re.M)
     return {"exit_code": run.code, "accepted_score": (ck or {}).get("accepted_score"),
             "printed_final": printed.group(1) if printed else None, "bounds": (ck or {}).get("bounds"),
@@ -725,6 +795,613 @@ def case_short(r, c, alisim):
     return out
 
 
+# ---------------------------------------------------------------- linked cases (S3b)
+
+# every linked fit dumped and numbered: otherwise a checkpoint is dumped at most once a minute
+# (CODE_PLAN.md section 3.5)
+LINKED_CKP = ["-cptime", "0", "--all-checkpoint"]
+SHARE_REFUSAL = "linked partitions must share one model"
+CPU = re.compile(r"^Total CPU time used: (\S+) sec", re.M)
+WALL = re.compile(r"^Total wall-clock time used: (\S+) sec", re.M)
+SEED_RUNS = 10          # decision 038: runs of each multi-threaded case at the seed
+LEVEL2_THREADED = 5     # CODE_PLAN.md section 3.5: Level 2 fits at -T 4, reported
+TURTLE_SEED = {"-p": ("run08", 4), "-S": ("run09", 3)}   # decision 038's trees and thread counts
+# CODE_PLAN.md section 3.5: 360, plus rate dimensions and branches per partition under -S, plus the
+# super tree's branchNum and P - 1 partition rates under -p (none under -q)
+TWOPART_COUNTS = {("-S", "seed"): 360, ("-p", "seed"): 384, ("-S", "Level 1"): 360, ("-q", "Level 1"): 383,
+                  ("-S", "+G4"): 406, ("-S", "+I+G4"): 408, ("-S", "+R4"): 416,
+                  ("-p", "+G4"): 386, ("-p", "+I+G4"): 388, ("-p", "+R4"): 396}
+LINKED_CASES = ("linked-seed", "linked-fits", "linked-refusals", "permuted", "linked-restart", "linked-short")
+
+
+def numbered_checkpoints(run):
+    """The paths of the checkpoints --all-checkpoint numbered, in order (utils/checkpoint.cpp)."""
+    found = []
+    for p in run.dir.glob(f"{PREFIX}.*.ckp.gz"):
+        n = p.name[len(PREFIX) + 1:-len(".ckp.gz")]
+        if n.isdigit():
+            found.append((int(n), p))
+    return [p for _, p in sorted(found)]
+
+
+def part_alignment(aln, sites):
+    return {n: "".join(s[i] for i in sites) for n, s in aln.items()}
+
+
+def tree_name(mode):
+    return "partition.trees" if mode == "-S" else "input.tree"
+
+
+def one_round(mode):
+    """One round of model optimization: -S counts rounds with --loop-model, -p and -q with -nparam
+    (CODE_PLAN.md section 5)."""
+    return ["--loop-model", "1"] if mode == "-S" else ["-nparam", "2"]
+
+
+def joint_args(aln, mode, nex, model, rate, trees, *extra):
+    """A --model-joint run. A rate model comes in through -m, whose substitution model the joint
+    model replaces (model/modelfactory.cpp, model_joint)."""
+    return (["-s", aln, mode, nex, "--model-joint", model, "-te", trees] + (["-m", "LG" + rate] if rate else [])
+            + list(extra))
+
+
+def qmat_text(r, c, name, z):
+    """The Q built from z at pi*, as the 17-digit -m FILE that --init-model reads."""
+    d = r.out / f"{name}-input"
+    d.mkdir()
+    write_matrix(d / f"{name}.qmat", chart.build(z, c.pi, c.ref)[0], c.pi)
+    return read(d / f"{name}.qmat")
+
+
+def reversed_charsets(text):
+    """A NEXUS sets block with its charset lines in reverse order."""
+    lines = text.splitlines()
+    at = [i for i, line in enumerate(lines) if line.strip().lower().startswith("charset")]
+    for i, line in zip(at, [lines[i] for i in reversed(at)]):
+        lines[i] = line
+    return "\n".join(lines) + "\n"
+
+
+class TwoPart:
+    """nqc/twopart.py's data, made once per run of this driver."""
+
+    def __init__(self, out, alisim, c):
+        d = out / "twopart-data"
+        d.mkdir()
+        self.made = twopart.make(d, alisim, c.pi)
+        self.phy, self.nex = d / "twopart.phy", d / "twopart.nex"
+        self.tree = read(d / "twopart.nwk")
+        self.aln = readers.read_phylip(self.phy)
+        self.charsets = readers.read_charsets(self.nex)
+
+    def files(self, mode):
+        return {tree_name(mode): self.tree * (2 if mode == "-S" else 1)}
+
+    def objective(self, c, shapes=None, free=None, rates=None, tree=None):
+        """The oracle's linked objective, partitions in file order. IQ-TREE sums in part_order, which
+        changes the sum by rounding only."""
+        parsed = readers.parse_newick(tree or self.tree)
+        parts = []
+        for k, sites in enumerate(self.charsets.values()):
+            shape = shapes[k] if isinstance(shapes, (list, tuple)) else shapes
+            parts.append(nqc.Objective(part_alignment(self.aln, sites), parsed, c.pi, c.ref, shape=shape, free=free,
+                                       part_rate=rates[k] if rates else 1.0))
+        return nqc.LinkedObjective(parts)
+
+
+def twopart_data(r, c, ctx, alisim):
+    if "twopart" not in ctx:
+        ctx["twopart"] = TwoPart(r.out, alisim, c)
+    return ctx["twopart"]
+
+
+def turtle_files(mode, reverse=False):
+    lines = [l for l in tree_text(baseline_runs(), TURTLE_SEED[mode][0]).splitlines() if l.strip()]
+    return {tree_name(mode): "\n".join(reversed(lines) if reverse else lines) + "\n"}
+
+
+def gamma_shapes(ck, names):
+    """Each partition's gamma shape as its checkpoint struct holds it (10 significant digits)."""
+    return [next((v for k, v in ck.items() if k.endswith(f"!{n}!RateGamma!gamma_shape")), None) for n in names]
+
+
+def q_route(run, names):
+    """Decision 024's -q inputs from a -p fit: its tree file, and each partition's gamma shape and
+    partition rate as its checkpoint holds them; None if the run left any of them out."""
+    ck = run.checkpoint() if run.code == 0 else {}
+    rates, shapes, trees = ck.get("PartitionModelPlen!part_rates"), gamma_shapes(ck, names), run.trees()
+    if rates is None or None in shapes or not trees:
+        return None
+    return {"tree": trees[0] + "\n", "shapes": shapes, "rates": rates.split(", ")}
+
+
+def q_charpartition(nex_text, names, route):
+    return with_charpartition(nex_text, [(f"LG+G4{{{a}}}", n, x) for n, a, x in zip(names, route["shapes"],
+                                                                                    route["rates"])])
+
+
+def linked_invariants(label, run, c, partitions):
+    """Asserted at every numbered checkpoint, or at the final one when the run wrote none
+    (CODE_PLAN.md section 4, S3b): pi* bitwise in the linked struct and in every partition struct,
+    coordinates bitwise equal across them, the oracle's references, and the residual keys within
+    decision 021's line. A checkpoint holding no NQC struct is counted, not judged."""
+    paths = numbered_checkpoints(run)
+    cks = [read_checkpoint(p) for p in paths] or [run.checkpoint()]
+    bad = {k: [] for k in ("structs", "target", "coordinates", "references", "residuals")}
+    judged, without, fits, worst = 0, 0, [], 0.0
+    ref = [int(v) for v in c.ref]
+    for n, flat in enumerate(cks, 1):
+        structs = nqc_structs(flat)
+        if not structs:
+            without += 1
+            continue
+        judged += 1
+        linked = linked_struct(structs)
+        if (linked is None or len(structs) != partitions + 1 or
+                any(k not in s for s in structs.values() for k in ("target", "coordinates", "references", "residuals"))):
+            bad["structs"].append(n)
+            continue
+        fits.append(linked.get("fits"))
+        if not all(np.array_equal(floats(s["target"]), c.pi) for s in structs.values()):
+            bad["target"].append(n)
+        if len({s["coordinates"] for s in structs.values()}) != 1:   # 17 digits identify a double
+            bad["coordinates"].append(n)
+        if any([int(v) for v in s["references"].split(",")] != ref for s in structs.values()):
+            bad["references"].append(n)
+        res = max(float(np.max(floats(s["residuals"])[:3])) for s in structs.values())
+        worst = max(worst, res)
+        if res > RESIDUAL:
+            bad["residuals"].append(n)
+    where = f"{judged} numbered checkpoints" if paths else "the final checkpoint"
+    ok = judged > 0 and not bad["structs"]
+    return [
+        check(f"{label}: the linked struct and {partitions} partition structs in {where}", ok,
+              failing=bad["structs"], checkpoints_without_nqc=without),
+        check(f"{label}: target bitwise equal to the parsed target in every struct", ok and not bad["target"],
+              failing=bad["target"]),
+        check(f"{label}: coordinates bitwise equal across the structs", ok and not bad["coordinates"],
+              failing=bad["coordinates"]),
+        check(f"{label}: references equal the oracle's in every struct", ok and not bad["references"],
+              failing=bad["references"]),
+        check(f"{label}: residual keys at most {RESIDUAL:g} in every struct (decision 021)",
+              ok and not bad["residuals"], failing=bad["residuals"], worst=worst),
+        check(f"{label}: linked fits key at each checkpoint (report)", None, fits=fits),
+    ]
+
+
+def linked_fit_checks(label, run, c, partitions, expected_parameters):
+    """A linked fit's checks, with block_restore_check for -S +I+G runs."""
+    if run.code != 0:
+        return failed_run(run) + monitoring(label, run, None)
+    final = linked_struct(nqc_checkpoint(run))
+    out = linked_invariants(label, run, c, partitions)
+    out.append(key_checks(f"{label}, final linked struct", final, c.pi)[-1])
+    out.append(free_parameters_check(label, run, expected_parameters))
+    if label.startswith("-S ") and "+I+G" in label:
+        out.append(block_restore_check(label, run.stdout()))
+    return out + monitoring(label, run, final)
+
+
+def oracle_score_check(label, run, objective):
+    """Decision 021's Level 1 line: the accepted score against the oracle's linked objective at the
+    checkpointed coordinates."""
+    name = f"{label}: accepted score against the oracle's linked re-evaluation (decisions 021, 030)"
+    ck = linked_struct(nqc_checkpoint(run)) if run.code == 0 else None
+    if not (ck and "accepted_score" in ck):
+        return [check(name, False, reason="no linked accepted_score key")]
+    oracle = -objective(floats(ck["coordinates"]))
+    accepted = float(ck["accepted_score"])
+    return [check(name, abs(accepted - oracle) <= TOL_LNL * abs(oracle), accepted=accepted, oracle=oracle)]
+
+
+def linked_gradient_checks(label, run, objective):
+    """Decision 021's lines at the printed point; the printed steps against decision 005's rule,
+    bitwise, with the upper bound from the domain key; and the count of coordinates at which IQ-TREE's
+    legacy step would differ (0 < |x| < 1), which must be at least 1 for the bitwise check to tell
+    the two rules apart."""
+    out, x, *_ = gradient_checks(label, run, objective)
+    ck = linked_struct(nqc_checkpoint(run))
+    if x is None or ck is None:
+        return out + [check(f"{label}: first gradient and linked struct present", False)]
+    h = first_gradient(run.stdout())[2]
+    rule = nqc.scaled_steps(x, floats(ck["domain"])[1])
+    out.append(check(f"{label}: printed steps equal decision 005's rule, bitwise", bool(np.array_equal(h, rule)),
+                     differing=int(np.sum(h != rule))))
+    differ = int(np.sum((np.abs(x) < 1) & (x != 0)))
+    out.append(check(f"{label}: coordinates where the legacy step differs, at least 1", differ >= 1, count=differ))
+    return out
+
+
+def seed_args(tp, c, mode, rate):
+    return joint_args(tp.phy, mode, tp.nex, c.model, rate, tree_name(mode), "-blfix", "-vv", *one_round(mode))
+
+
+def case_linked_seed(r, c, ctx, alisim):
+    """CODE_PLAN.md section 4, S3b, "Linked seed" and "Linked gradient": nothing moves before the
+    first linked gradient, so its -lnL is the oracle's linked objective at the LG seed."""
+    tp = twopart_data(r, c, ctx, alisim)
+    out = []
+    for mode in ("-S", "-p"):
+        for name, rate, shape, free in (("+G4", f"+G4{{{ALPHA}}}", ALPHA, None), ("+R4", R4, None, R4_GIVEN)):
+            label = f"{mode} {name} seed"
+            run = r.run("linked-seed" + slug(f"{mode} {name}"), seed_args(tp, c, mode, rate), tp.files(mode))
+            if run.code != 0:
+                out += failed_run(run)
+                continue
+            out += linked_gradient_checks(label, run, tp.objective(c, shape, free))
+            out.append(free_parameters_check(label, run, TWOPART_COUNTS[(mode, "seed")]))
+    z = c.z.copy()
+    z[::18] = NEAR_ZERO   # the first free coordinate of each row, as in the gradient case
+    files = {**tp.files("-S"), "nearzero.qmat": qmat_text(r, c, "linked-nearzero", z)}
+    run = r.run("linked-gradient-nearzero", seed_args(tp, c, "-S", f"+G4{{{ALPHA}}}") +
+                ["--init-model", "nearzero.qmat"], files)
+    if run.code != 0:
+        return out + failed_run(run)
+    out += linked_gradient_checks("-S near zero", run, tp.objective(c, ALPHA))
+    got = first_gradient(run.stdout())
+    near = int(np.sum(np.abs(got[1]) < 1e-8)) if got else None
+    # as in the gradient case: shows --init-model reached the linked objects
+    out.append(check("-S near zero: coordinates within 1e-8 of zero", near == 20, count=near))
+    return out
+
+
+def linked_level1(r, c, ctx, tp):
+    """The -S Level 1 fit that the fits, permuted and restart cases share."""
+    if "linked-level1" not in ctx:
+        ctx["linked-level1"] = r.run("linked-fit-s-level1", joint_args(
+            tp.phy, "-S", tp.nex, c.model, f"+G4{{{ALPHA}}}", tree_name("-S"), "-blfix", "-vv", *LINKED_CKP),
+            tp.files("-S"))
+    return ctx["linked-level1"]
+
+
+def linked_level2(r, c, ctx, tp, mode, name):
+    """A linked Level 2 fit. The +G4 runs print the first gradient, which the restart case reads
+    from the same command."""
+    key = ("linked-level2", mode, name)
+    if key not in ctx:
+        ctx[key] = r.run("linked-fit" + slug(f"{mode} level 2 {name}"), joint_args(
+            tp.phy, mode, tp.nex, c.model, name, tree_name(mode), "-vv" if name == "+G4" else "-v", *LINKED_CKP),
+            tp.files(mode))
+    return ctx[key]
+
+
+def case_linked_fits(r, c, ctx, alisim):
+    tp = twopart_data(r, c, ctx, alisim)
+    names = list(tp.charsets)
+    out = []
+    run = linked_level1(r, c, ctx, tp)
+    out += linked_fit_checks("-S Level 1", run, c, 2, TWOPART_COUNTS[("-S", "Level 1")])
+    if run.code == 0:
+        out += oracle_score_check("-S Level 1", run, tp.objective(c, ALPHA))
+    for mode in ("-S", "-p"):
+        for name in ("+G4", "+I+G4", "+R4"):
+            out += linked_fit_checks(f"{mode} Level 2 {name}", linked_level2(r, c, ctx, tp, mode, name), c, 2,
+                                     TWOPART_COUNTS[(mode, name)])
+    route = q_route(linked_level2(r, c, ctx, tp, "-p", "+G4"), names)
+    if route is None:
+        out.append(check("-q Level 1: the -p Level 2 +G4 fit's tree, shapes and partition rates", False))
+    else:
+        run = r.run("linked-fit-q-level1", ["-s", tp.phy, "-q", "parts.nex", "--model-joint", c.model, "-te",
+                                            "input.tree", "-blfix", "-v", *LINKED_CKP],
+                    {"parts.nex": q_charpartition(read(tp.nex), names, route), "input.tree": route["tree"]})
+        out += linked_fit_checks("-q Level 1", run, c, 2, TWOPART_COUNTS[("-q", "Level 1")])
+        if run.code == 0:
+            rates = nqc.normalize_part_rates([float(x) for x in route["rates"]], [len(s) for s in tp.charsets.values()])
+            out += oracle_score_check("-q Level 1", run, tp.objective(c, [float(a) for a in route["shapes"]],
+                                                                      rates=rates, tree=route["tree"]))
+            out.append(check("-q Level 1: inputs from the -p Level 2 +G4 fit (report)", None, shapes=route["shapes"],
+                             rates=route["rates"], normalized=rates))
+    parts = with_charpartition(read(tp.nex), [(c.model + f"+G4{{{ALPHA}}}", n, None) for n in names])
+    run = r.run("linked-fit-link-model", ["-s", tp.phy, "-S", "parts.nex", "--link-model", "-te", tree_name("-S"),
+                                          "-blfix", "-vv", *LINKED_CKP], {"parts.nex": parts, **tp.files("-S")})
+    out += linked_fit_checks("--link-model -S Level 1", run, c, 2, TWOPART_COUNTS[("-S", "Level 1")])
+    if run.code == 0:
+        out += oracle_score_check("--link-model -S Level 1", run, tp.objective(c, ALPHA))
+    a, b = final_struct(linked_level1(r, c, ctx, tp)) or {}, final_struct(run) or {}
+    out.append(check("--link-model against --model-joint, -S Level 1 (report)", None,
+                     coordinates_equal="coordinates" in a and a.get("coordinates") == b.get("coordinates"),
+                     accepted=[a.get("accepted_score"), b.get("accepted_score")], fits=[a.get("fits"), b.get("fits")]))
+    return out
+
+
+def case_linked_refusals(r, c, ctx, alisim):
+    tp = twopart_data(r, c, ctx, alisim)
+    nex = read(tp.nex)
+    cubed = ",".join(f"{v:.17g}" for v in twopart.cubed(c.pi))
+    eight = ",".join(f"{v:.8f}" for v in c.pi)
+    common = ["-s", tp.phy, "-S", "parts.nex", "--link-model", "-te", tree_name("-S"), "-blfix"]
+    out = []
+    for name, other in (("another target", cubed), ("the target written to 8 decimals", eight)):
+        parts = with_charpartition(nex, [(c.model + f"+G4{{{ALPHA}}}", "partA", None),
+                                         (f"NQC+F{{{other}}}+G4{{{ALPHA}}}", "partB", None)])
+        run = r.run("linked-compat-" + ("other" if other is cubed else "eight"), common + ["--loop-model", "1"],
+                    {"parts.nex": parts, **tp.files("-S")})
+        message = nqc_error(run)
+        # refused by startLinkedFit, not by an earlier NQC check
+        out.append(check(f"--link-model with {name}: refused at the first linked fit",
+                         run.code not in (0, "timeout") and message is not None and SHARE_REFUSAL in message,
+                         exit_code=run.code, message=message))
+    # each refusal must be the one meant: ModelFinder's, and the partition string's +H
+    for name, why, entries in (("a charset without a model and no -m", "ModelFinder", [(c.model, "partA"), ("", "partB")]),
+                               ("a charset NQC+F{...}+H4", "heterotachy", [(c.model + "+H4", "partA"),
+                                                                          (c.model + f"+G4{{{ALPHA}}}", "partB")])):
+        parts = with_charpartition(nex, [(m, n, None) for m, n in entries])
+        run = r.run("linked-refuse-" + ("modelfinder" if why == "ModelFinder" else "ghost"), common,
+                    {"parts.nex": parts, **tp.files("-S")})
+        message = nqc_error(run)
+        out.append(check(f"refused: --link-model with {name}, for {why}",
+                         run.code not in (0, "timeout") and message is not None and why in message,
+                         exit_code=run.code, message=message))
+    return out
+
+
+def turtle_seed_args(c, mode, nex=NEX):
+    return joint_args(TURTLE, mode, nex, c.model, f"+G4{{{ALPHA}}}", tree_name(mode), "-blfix", "-vv",
+                      *one_round(mode))
+
+
+def turtle_seed(r, c, ctx, mode):
+    """Turtle at the seed at -T 1, the reference of the threads and permuted cases."""
+    key = ("turtle-seed", mode)
+    if key not in ctx:
+        ctx[key] = r.run("turtle-seed" + slug(mode), turtle_seed_args(c, mode), turtle_files(mode))
+    return ctx[key]
+
+
+def seed_against(label, reference, runs):
+    """Decision 038's lines: -lnL within 1e-8 |lnL| and each gradient entry within 2e-12 |lnL| / |h_k|
+    of the reference run's, at the same printed point."""
+    ref = first_gradient(reference.stdout()) if reference.code == 0 else None
+    if ref is None:
+        return [check(f"{label}: reference run printed its first gradient", False, exit_code=reference.code)]
+    f1, x1, h1, g1 = ref
+    got = [first_gradient(run.stdout()) if run.code == 0 else None for run in runs]
+    same_point = [g is not None and np.array_equal(g[1], x1) and np.array_equal(g[2], h1) for g in got]
+    usable = [g for g, ok in zip(got, same_point) if ok]
+    complete = len(usable) == len(runs)
+    lnl_rel = [abs(g[0] - f1) / abs(f1) for g in usable]
+    ratio = [float(np.max(np.abs(g[3] - g1) / same_rule_bound(f1, h1))) for g in usable]
+    return [
+        check(f"{label}: -lnL within 1e-8 |lnL| of the reference (decision 038)",
+              complete and max(lnl_rel) <= TOL_LNL, runs=len(runs), at_the_same_point=len(usable),
+              largest_relative=max(lnl_rel, default=None)),
+        check(f"{label}: first gradient within 2e-12 |lnL| / |h| of the reference (decision 038)",
+              complete and max(ratio) <= 1, worst=max(ratio, default=None)),
+        check(f"{label}: runs bitwise equal to the reference (report)", None,
+              lnl=sum(g[0] == f1 for g in usable), gradient=sum(bool(np.array_equal(g[3], g1)) for g in usable)),
+    ]
+
+
+def cpu_wall(run):
+    cpu, wall = CPU.search(run.report()), WALL.search(run.report())
+    return round(float(cpu.group(1)) / float(wall.group(1)), 2) if cpu and wall and float(wall.group(1)) > 0 else None
+
+
+def case_permuted(r, c, ctx, alisim):
+    """CODE_PLAN.md section 3.5, "Permuted partition order"."""
+    tp = twopart_data(r, c, ctx, alisim)
+    base = linked_level1(r, c, ctx, tp)
+    run = r.run("permuted-twopart", joint_args(tp.phy, "-S", "reversed.nex", c.model, f"+G4{{{ALPHA}}}",
+                                               tree_name("-S"), "-blfix", "-vv", *LINKED_CKP),
+                {"reversed.nex": twopart.nexus(tuple(reversed(list(tp.charsets)))), **tp.files("-S")})
+    a = first_gradient(base.stdout()) if base.code == 0 else None
+    b = first_gradient(run.stdout()) if run.code == 0 else None
+    za, zb = ((final_struct(x) or {}) if x.code == 0 else {} for x in (base, run))
+    out = [check("twopart -S Level 1, charsets reversed: seed -lnL bitwise equal", bool(a and b and a[0] == b[0]),
+                 exit_codes=[base.code, run.code], lnl=[a and a[0], b and b[0]]),
+           check("twopart -S Level 1, charsets reversed: first gradient (point, steps, values) bitwise equal",
+                 bool(a and b and all(np.array_equal(u, v) for u, v in zip(a[1:], b[1:])))),
+           check("twopart -S Level 1, charsets reversed: final coordinates bitwise equal",
+                 "coordinates" in za and za.get("coordinates") == zb.get("coordinates"))]
+    for mode in ("-p", "-S"):
+        ref = turtle_seed(r, c, ctx, mode)
+        rev = r.run("permuted-turtle" + slug(mode), turtle_seed_args(c, mode, "reversed.nex"),
+                    {"reversed.nex": reversed_charsets(read(NEX)), **turtle_files(mode, reverse=True)})
+        out += seed_against(f"turtle {mode} at the seed, charsets reversed", ref, [rev])
+    return out
+
+
+def case_threads(r, c, ctx):
+    """Decision 038 on turtle: the linked seed at more threads against -T 1, never bitwise; and
+    Level 2 fits at -T 4, reported. Under -p IQ-TREE caps turtle at 3 threads, one per partition,
+    and says so; nothing logs the allocation under -S, so the CPU-to-wall ratio is reported."""
+    out = []
+    for mode in ("-p", "-S"):
+        threads = TURTLE_SEED[mode][1]
+        ref = turtle_seed(r, c, ctx, mode)
+        runs = [r.run(f"threads{slug(mode)}-t{threads}-{k}", turtle_seed_args(c, mode), turtle_files(mode), threads)
+                for k in range(1, SEED_RUNS + 1)]
+        out += seed_against(f"turtle {mode} at the seed, -T {threads} against -T 1", ref, runs)
+        note = [l for l in runs[0].stdout().splitlines() if "thread" in l.lower()][:4]
+        out.append(check(f"turtle {mode} -T {threads}: CPU-to-wall ratios and IQ-TREE's thread lines (report)", None,
+                         ratios=[cpu_wall(run) for run in runs], reference_ratio=cpu_wall(ref), lines=note))
+    args = joint_args(TURTLE, "-p", NEX, c.model, None, tree_name("-p"), "-v")
+    fits = [r.run(f"threads-p-level2-t4-{k}", args, turtle_files("-p"), 4) for k in range(1, LEVEL2_THREADED + 1)]
+    one = r.run("threads-p-level2-t1", args, turtle_files("-p"))
+    states = [fit_state(run) for run in fits]
+    finals = [float(s["printed_final"]) for s in states if s["printed_final"]]
+    out.append(check(f"turtle -p Level 2, no rate variation, {LEVEL2_THREADED} fits at -T 4 beside -T 1 "
+                     "(report; decision 038, NONREV's pL2 spread)", None, t4=states, t1=fit_state(one),
+                     t4_spread=max(finals) - min(finals) if finals else None,
+                     hard_stops=[("ASSERT" in run.stdout() or BUG_ABORT in run.stdout()) for run in fits + [one]],
+                     switches=[run.stdout().count(SWITCH) for run in fits + [one]]))
+    return out
+
+
+def case_linked_restart(r, c, ctx, alisim):
+    """CODE_PLAN.md section 3.5, "Restart", for linked runs: the -p and -S Level 2 +G4 runs resumed
+    from numbered checkpoint #1, written after the first linked fit (under -p before any branch
+    update; under -S after round 1's per-partition updates); no likelihood comparison, because the
+    resumed round refits the rates before its first linked fit. The counter must continue: the
+    first checkpoint whose coordinates differ from #1's, so written after the resumed run's first
+    fit, holds #1's count plus 1, where a reset counter would hold 1. Then --undo of the finished -S
+    Level 1 run."""
+    tp = twopart_data(r, c, ctx, alisim)
+    out = []
+    for mode in ("-p", "-S"):
+        base = linked_level2(r, c, ctx, tp, mode, "+G4")
+        label = f"{mode} Level 2 +G4"
+        paths = numbered_checkpoints(base) if base.code == 0 else []
+        ck1 = linked_struct(nqc_structs(read_checkpoint(paths[0]))) if paths else None
+        ok = bool(ck1) and paths[0].name == f"{PREFIX}.1.ckp.gz" and ck1.get("fits") == "1"
+        out.append(check(f"{label}: checkpoint #1 holds the first linked fit", ok, exit_code=base.code,
+                         numbered=len(paths), fits=(ck1 or {}).get("fits")))
+        if not ok:   # the record's precondition; stop and ask rather than pick another checkpoint
+            continue
+        rerun = r.run(f"restart{slug(mode)}-level2", base.args, {**tp.files(mode),
+                                                                f"{PREFIX}.ckp.gz": paths[0].read_bytes()})
+        got = first_gradient(rerun.stdout()) if rerun.code == 0 else None
+        fits, first_new = [], None
+        for p in numbered_checkpoints(rerun):
+            s = linked_struct(nqc_structs(read_checkpoint(p)))
+            if s and "fits" in s:
+                fits.append(int(s["fits"]))
+                if first_new is None and s.get("coordinates") != ck1["coordinates"]:
+                    first_new = int(s["fits"])
+        saved = int(ck1["fits"])
+        out += [check(f"{label}, resumed from #1: exit 0", rerun.code == 0, exit_code=rerun.code),
+                check(f"{label}, resumed: first linked gradient at #1's coordinates, bitwise",
+                      got is not None and np.array_equal(got[1], floats(ck1["coordinates"]))),
+                check(f"{label}, resumed: fits continue from #1's count, never reset",
+                      first_new == saved + 1 and min(fits) >= saved and fits == sorted(fits),
+                      fits=fits, first_after_a_fit=first_new, saved=saved)]
+        out += linked_invariants(f"{label}, resumed", rerun, c, 2)
+    base = linked_level1(r, c, ctx, tp)
+    if base.code != 0:
+        return out + failed_run(base)
+    files = staged(base.dir, (tree_name("-S"),))
+    cubed = f"NQC+F{{{skewed_target(c)}}}"
+    for name, args in (("target", [cubed if a == c.model else a for a in base.args]),
+                       ("domain", base.args + ["--nqc-domain", "1e-6,100"])):
+        run = r.run(f"restart-linked-other-{name}", args + ["--undo"], files)
+        message = nqc_error(run)
+        out.append(check(f"linked --undo with another {name}: refused by NQC's restore",
+                         run.code not in (0, "timeout") and message is not None and RESTORE_REFUSAL in message,
+                         exit_code=run.code, message=message))
+    run = r.run("restart-linked-undo", base.args + ["--undo"], files)
+    out.append(check("linked --undo with the same command: exit 0", run.code == 0, exit_code=run.code))
+    out.append(check("linked --undo: summary against the original's (report)", None,
+                     equal=summary(run.stdout()) == summary(base.stdout()), undo=summary(run.stdout())))
+    return out
+
+
+# PLAN.md risk 22 on turtle (interpretation recorded in CODE_PLAN.md section 3.5 at S3b's close)
+TURTLE_FITS = {"turtle Level 1 -S": ("-S", f"+G4{{{ALPHA}}}", ["-blfix"]),
+               "turtle Level 2 -p +G4": ("-p", "+G4", []),
+               "turtle Level 2 -S +G4": ("-S", "+G4", [])}
+
+
+def turtle_fit(r, c, ctx, label, wide=False):
+    key = ("turtle-fit", label, wide)
+    if key not in ctx:
+        mode, rate, extra = TURTLE_FITS[label]
+        args = joint_args(TURTLE, mode, NEX, c.model, rate, tree_name(mode), *extra, "-v")
+        ctx[key] = r.run(("risk22-" if wide else "") + slug(label), args + (["--nqc-domain", WIDE] if wide else []),
+                         turtle_files(mode))
+    return ctx[key]
+
+
+def case_risk22_turtle(r, c, ctx):
+    out = []
+    for label in TURTLE_FITS:
+        box, wide = turtle_fit(r, c, ctx, label), turtle_fit(r, c, ctx, label, True)
+        out.append(check(f"{label}: default box against --nqc-domain {WIDE} (report)", None,
+                         default=fit_state(box), widened=fit_state(wide)))
+        out += monitoring(label, box, final_struct(box) if box.code == 0 else None)
+        out += monitoring(f"{label} at {WIDE}", wide, final_struct(wide) if wide.code == 0 else None)
+    return out
+
+
+def continuations(r, c, label, box, args, files):
+    """Two Level 1 continuations from a default-box fit's final state, its coordinates passed as a
+    17-digit Q by --init-model, one in the box and one at WIDE (CODE_PLAN.md section 4, S3b, "Risk 22
+    warm starts"). The first lnL is -lnL at the first-gradient print."""
+    ck = final_struct(box) if box.code == 0 else None
+    if not (ck and "coordinates" in ck) or args is None:
+        return [check(f"{label}: continuations (report)", None, reason="no final state to start from",
+                      exit_code=box.code)]
+    files = {**files, "warm.qmat": qmat_text(r, c, "warm-" + slug(label), floats(ck["coordinates"]))}
+    printed = re.search(SCALARS["log_likelihood"], box.report(), re.M)
+    values = {"box_accepted_score": ck.get("accepted_score"), "box_printed_final": printed and printed.group(1)}
+    for name, extra in (("in the default box", []), (f"at {WIDE}", ["--nqc-domain", WIDE])):
+        run = r.run(f"warm-{slug(label)}-{'wide' if extra else 'box'}", args + ["-vv", "--init-model", "warm.qmat",
+                                                                               *extra], files)
+        got = first_gradient(run.stdout()) if run.code == 0 else None
+        end = final_struct(run) if run.code == 0 else {}
+        values[name] = {"exit_code": run.code, "first_lnl": -got[0] if got else None,
+                        "accepted_score": (end or {}).get("accepted_score"), "bounds": (end or {}).get("bounds"),
+                        "fits": (end or {}).get("fits"), "falls": len(FALL.findall(run.stdout())),
+                        "switches": run.stdout().count(SWITCH)}
+    return [check(f"{label}: Level 1 continuations from the default-box fit (report; PLAN.md risk 22)", None,
+                  **values)]
+
+
+def case_warm_starts(r, c, ctx):
+    tree = {"input.tree": c.t02}
+    if "Level 2 +G4" not in ctx:
+        ctx["Level 2 +G4"] = r.run("fit-level-2-g4", level2_args(c.model, "+G4"), tree)
+    if "nesting" not in ctx or "default box" not in ctx["nesting"]:
+        case_nesting(r, c, ctx)
+    out = continuations(r, c, "aa_example Level 1", level1(r, c, ctx), level1_args(c.model)[:-1], tree)
+    box = ctx["Level 2 +G4"]
+    alpha = next((v for k, v in box.checkpoint().items() if k.endswith("gamma_shape")), None) if box.code == 0 else None
+    args = ["-s", AA, "-m", c.model + f"+G4{{{alpha}}}", "-te", "input.tree", "-blfix"] if alpha else None
+    out += continuations(r, c, "aa_example Level 2 +G4", box, args,
+                         {"input.tree": box.trees()[0] + "\n" if box.trees() else ""})
+    nest = ctx.get("nesting", {})
+    if "default box" in nest:
+        out += continuations(r, c, "aa_example nesting fit", nest["default box"],
+                             ["-s", AA, "-m", c.model + nest["g4"], "-te", "gtr.treefile", "-blfix"], nest["files"])
+    else:
+        out.append(check("aa_example nesting fit: continuations (report)", None, reason="no nesting fit"))
+    names = list(readers.read_charsets(NEX))
+    out += continuations(r, c, "turtle Level 1 -S", turtle_fit(r, c, ctx, "turtle Level 1 -S"),
+                         joint_args(TURTLE, "-S", NEX, c.model, f"+G4{{{ALPHA}}}", tree_name("-S"), "-blfix"),
+                         turtle_files("-S"))
+    box = turtle_fit(r, c, ctx, "turtle Level 2 -S +G4")
+    shapes = gamma_shapes(box.checkpoint(), names) if box.code == 0 else [None]
+    ok = None not in shapes and len(box.trees()) == len(names)
+    out += continuations(r, c, "turtle Level 2 -S +G4", box,
+                         ["-s", TURTLE, "-S", "parts.nex", "--model-joint", c.model, "-te", tree_name("-S"), "-blfix"]
+                         if ok else None,
+                         {"parts.nex": with_charpartition(read(NEX), [(f"LG+G4{{{a}}}", n, None)
+                                                                      for n, a in zip(names, shapes)]),
+                          tree_name("-S"): "\n".join(box.trees()) + "\n"} if ok else {})
+    box = turtle_fit(r, c, ctx, "turtle Level 2 -p +G4")
+    route = q_route(box, names)
+    out += continuations(r, c, "turtle Level 2 -p +G4 (-q route)", box,
+                         ["-s", TURTLE, "-q", "parts.nex", "--model-joint", c.model, "-te", "input.tree", "-blfix"]
+                         if route else None,
+                         {"parts.nex": q_charpartition(read(NEX), names, route), "input.tree": route["tree"]}
+                         if route else {})
+    return out
+
+
+def case_linked_short(r, c, ctx, alisim):
+    """Cut-down twopart runs for the sanitizer build (CODE_PLAN.md section 3.6): a Level 1 -S fit and
+    a Level 2 -p +G4 fit on the first 150 sites of each partition."""
+    tp = twopart_data(r, c, ctx, alisim)
+    n = 150
+    d = r.out / "linked-short-data"
+    d.mkdir()
+    cut = {name: s[:n] + s[twopart.SITES:twopart.SITES + n] for name, s in tp.aln.items()}
+    write(d / "short.phy", f"{len(cut)} {2 * n}\n" + "".join(f"{k} {s}\n" for k, s in cut.items()))
+    write(d / "short.nex", twopart.nexus(sites=n))
+    out = [check("cut-down data: missing or identical sequences (report)", None,
+                 problems=twopart.problems({k: s[:n] for k, s in cut.items()}) +
+                 twopart.problems({k: s[n:] for k, s in cut.items()}))]
+    for label, mode, rate, extra in (("Level 1 -S", "-S", f"+G4{{{ALPHA}}}", ["-blfix", "--loop-model", "1"]),
+                                     ("Level 2 -p +G4", "-p", "+G4", ["-nparam", "3"])):
+        run = r.run("linked-short" + slug(f"{mode} {label}"),
+                    joint_args(d / "short.phy", mode, d / "short.nex", c.model, rate, tree_name(mode), *extra, "-v"),
+                    tp.files(mode))
+        if run.code != 0:
+            out += failed_run(run)
+            continue
+        out += linked_invariants(label, run, c, 2) + monitoring(label, run, linked_struct(nqc_checkpoint(run)))
+    return out
+
+
 # ---------------------------------------------------------------- driver
 
 def provenance(a, binary, out):
@@ -738,12 +1415,13 @@ def provenance(a, binary, out):
         "out": str(out), "python": sys.version, "numpy": np.__version__, "scipy": scipy.__version__,
         "platform": platform.platform(),
         "settings": {"tol_lnl": TOL_LNL, "residual": RESIDUAL, "tau": TAU, "central_steps": CENTRAL_STEPS,
-                     "alpha": ALPHA, "p_invar": PINV, "near_zero": NEAR_ZERO, "r4_given": R4_GIVEN, "wide": WIDE},
+                     "alpha": ALPHA, "p_invar": PINV, "near_zero": NEAR_ZERO, "r4_given": R4_GIVEN, "wide": WIDE,
+                     "seed_runs": SEED_RUNS, "level2_threaded": LEVEL2_THREADED, "turtle_seed": TURTLE_SEED},
     }
 
 
 def markdown(prov, results):
-    lines = ["# S2 and S3a checks of the compiled NQC model", "",
+    lines = ["# S2, S3a and S3b checks of the compiled NQC model", "",
              f"Generated by `{SCRIPT}` on {prov['started_utc']} at commit `{prov['git_commit']}` "
              f"(clean: {prov['git_clean']}); binary SHA-256 `{prov['binary']['sha256']}`.", ""]
     for case, rows in results.items():
@@ -757,7 +1435,9 @@ def markdown(prov, results):
 
 
 CASES = ("root", "seed", "gradient", "target", "refusals", "fits", "nesting", "skewed", "restart", "risk22", "toy",
-         "short")
+         "short", "linked-seed", "linked-fits", "linked-refusals", "permuted", "threads", "linked-restart",
+         "risk22-turtle", "warm-starts", "linked-short")
+SANITIZER_ONLY = ("short", "linked-short")
 
 
 def main():
@@ -767,7 +1447,8 @@ def main():
     ap.add_argument("--calibration", help="results.json of explore/toy_calibration.py")
     ap.add_argument("--older-run", help="S2's gate run fit-level1, whose checkpoint lacks S3a's keys")
     ap.add_argument("--out", required=True, help="new directory outside the repository")
-    ap.add_argument("--cases", help="comma-separated, from " + ",".join(CASES) + " (default: all but short)")
+    ap.add_argument("--cases", help="comma-separated, from " + ",".join(CASES) +
+                    " (default: all but short and linked-short)")
     ap.add_argument("--git", default="git", help="git executable (git.exe under WSL)")
     ap.add_argument("--allow-dirty", action="store_true")
     ap.add_argument("--timeout", type=float, default=7200, help="seconds per run")
@@ -779,11 +1460,12 @@ def main():
     prov = provenance(a, binary, out)
     if not prov["git_clean"] and not a.allow_dirty:
         sys.exit(f"the repository is not clean ({prov['git_commit']}); commit first or pass --allow-dirty")
-    keys = a.cases.split(",") if a.cases else [k for k in CASES if k != "short"]
+    keys = a.cases.split(",") if a.cases else [k for k in CASES if k not in SANITIZER_ONLY]
     if set(keys) - set(CASES):
         sys.exit(f"unknown cases: {sorted(set(keys) - set(CASES))}")
-    if {"toy", "short"} & set(keys) and not a.alisim or "toy" in keys and not a.calibration:
-        sys.exit("the toy case needs --alisim and --calibration, and the short case --alisim")
+    if {"toy", "short", *LINKED_CASES} & set(keys) and not a.alisim or "toy" in keys and not a.calibration:
+        sys.exit("the toy case needs --alisim and --calibration; the short case and the twopart cases ("
+                 + ",".join(LINKED_CASES) + ") need --alisim")
     older = Path(a.older_run).expanduser().resolve() if a.older_run else None
     if "restart" in keys and not (older and (older / f"{PREFIX}.ckp.gz").exists()):
         sys.exit(f"the restart case needs --older-run, a run directory holding {PREFIX}.ckp.gz")
@@ -813,7 +1495,7 @@ def main():
             elif key == "fits":
                 results[key] = case_fits(r, c, ctx)
             elif key == "nesting":
-                results[key] = case_nesting(r, c)
+                results[key] = case_nesting(r, c, ctx)
             elif key == "skewed":
                 results[key] = case_skewed(r, c)
             elif key == "restart":
@@ -824,10 +1506,30 @@ def main():
                 results[key] = case_toy(r, c, calibration, alisim)
             elif key == "short":
                 results[key] = case_short(r, c, alisim)
+            elif key == "linked-seed":
+                results[key] = case_linked_seed(r, c, ctx, alisim)
+            elif key == "linked-fits":
+                results[key] = case_linked_fits(r, c, ctx, alisim)
+            elif key == "linked-refusals":
+                results[key] = case_linked_refusals(r, c, ctx, alisim)
+            elif key == "permuted":
+                results[key] = case_permuted(r, c, ctx, alisim)
+            elif key == "threads":
+                results[key] = case_threads(r, c, ctx)
+            elif key == "linked-restart":
+                results[key] = case_linked_restart(r, c, ctx, alisim)
+            elif key == "risk22-turtle":
+                results[key] = case_risk22_turtle(r, c, ctx)
+            elif key == "warm-starts":
+                results[key] = case_warm_starts(r, c, ctx)
+            elif key == "linked-short":
+                results[key] = case_linked_short(r, c, ctx, alisim)
         except Exception:  # a crash in one case is recorded, and the other cases still run
             results[key] = [check("case ran", False, exception=traceback.format_exc())]
         for row in results[key]:
             print(f"  {row['check']}: {({True: 'pass', False: 'FAIL', None: 'report'})[row['passed']]}", flush=True)
+    if "twopart" in ctx:
+        prov["twopart"] = {k: ctx["twopart"].made[k] for k in ("sha256", "seeds")}
     prov["finished_utc"] = datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds")
     write(out / "results.json", json.dumps({"provenance": prov, "runs": r.runs, "results": results}, indent=1,
                                            default=str))
