@@ -411,8 +411,7 @@ def case_refusals(r, c):
         ("braces", aa + ["-m", f"NQC{{1,2}}+F{{{t}}}"], tree),
         ("optfromgiven", aa + ["-m", c.model, "-optfromgiven"], tree),
         ("jointopt", aa + ["-m", c.model, "-jointopt"], tree),
-        ("model-joint", ["-s", TURTLE, "-p", NEX, "--model-joint", c.model, "-nparam", "2"], {}),
-        ("link-model", ["-s", TURTLE, "-p", NEX, "-m", c.model, "--link-model", "-nparam", "2"], {}),
+        # --model-joint and --link-model were refused until S3b; the linked cases now fit them
         ("tree-mixture", ["-s", AA, "-m", c.model + "+T", "-te", "two.trees", "-nparam", "2"], {"two.trees": two}),
         ("ghost", aa + ["-m", c.model + "+H4"], tree),
         ("site-freq", aa + ["-m", c.model, "-ft", "input.tree"], tree),
@@ -1390,10 +1389,14 @@ def case_linked_short(r, c, ctx, alisim):
     out = [check("cut-down data: missing or identical sequences (report)", None,
                  problems=twopart.problems({k: s[:n] for k, s in cut.items()}) +
                  twopart.problems({k: s[n:] for k, s in cut.items()}))]
+    # The -S run has no -v: at -v and above, IQ-TREE ends a partitioned run by printing NNI counts
+    # through a cast to PhyloSuperTreePlen, which an -S tree is not, and AddressSanitizer stops it
+    # there (an upstream finding, PLAN.md maintainer question 6). Its asserted checks read the
+    # checkpoint, so only reported print lines are lost.
     for label, mode, rate, extra in (("Level 1 -S", "-S", f"+G4{{{ALPHA}}}", ["-blfix", "--loop-model", "1"]),
-                                     ("Level 2 -p +G4", "-p", "+G4", ["-nparam", "3"])):
+                                     ("Level 2 -p +G4", "-p", "+G4", ["-nparam", "3", "-v"])):
         run = r.run("linked-short" + slug(f"{mode} {label}"),
-                    joint_args(d / "short.phy", mode, d / "short.nex", c.model, rate, tree_name(mode), *extra, "-v"),
+                    joint_args(d / "short.phy", mode, d / "short.nex", c.model, rate, tree_name(mode), *extra),
                     tp.files(mode))
         if run.code != 0:
             out += failed_run(run)
