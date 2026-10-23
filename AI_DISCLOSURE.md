@@ -11,6 +11,26 @@ lines: tool and model, operator, up to five "what it did" bullets, files touched
 No AI-generated scientific claim, numerical result, or citation in this project has been accepted
 without human verification against source.
 
+## 2026-10-23: S3b milestone
+
+**Tool:** Claude Code (VS Code extension). **Model:** Claude Opus 5.5, 1M context, model id
+`claude-opus-5-5[1m]`. **Operator:** Peter Goodman.
+
+**What it did.**
+- **Plan.** It wrote the session's commit and gate plan from the approved S3 records, with eight
+  interpretations the operator approved, and asked before each long run (keep-awake helper).
+- **Code.** It wrote the linked hooks and NQC's linked fits, the oracle's linked objective, the
+  two-partition data and the check driver's linked cases.
+- **Validation.** A subagent reviewed the code before the gate. The gate failed three driver
+  checks (two outdated refusals; one run stopped by an upstream sanitizer bug it reproduced on
+  unmodified code); the operator chose the fixes and a rerun of those cases.
+- **Records.** It updated the plan documents, the changelog and both CLAUDE.md files, and
+  corrected a wrong S3a-close record. In chat it overstated the gate's pause as 43 min (about 9).
+
+**Files touched.** `model/`: `linkedmodelhooks.h`, `CMakeLists.txt`, `partitionmodel.{h,cpp}`,
+`modelnonrevfixedeq.{h,cpp}`; `test_scripts/fixedeq/`: `oracle/nqc.py`, `nqc/nqcchecks.py`,
+`nqc/toy.py`, `nqc/twopart.py`, `probes/probes.py`, `tests/test_oracle_nqc.py`.
+
 ## 2026-10-22: S3a milestone
 
 **Tool:** Claude Code (VS Code extension). **Model:** Claude Opus 5.5, 1M context, model id

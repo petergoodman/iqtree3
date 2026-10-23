@@ -100,7 +100,9 @@ cmake --build ~/iqtree3-build -j 4
   `sanitize.py run --binary DIR/iqtree3 --build-dir DIR --out OUT --git git.exe`, with
   `--regression-runs`, `--probes`, `--no-differential` and `--nqc-cases` (`--alisim` with the
   frozen binary for `short`); `sanitize.py scan OUT` groups the reports. Every run so far shows
-  one upstream finding at `model/modelmarkov.cpp:76` (PLAN.md, maintainer question 4). The
+  one upstream finding at `model/modelmarkov.cpp:76` (PLAN.md, maintainer question 4); any `-S`
+  run at `-v` or above is stopped at IQ-TREE's closing print by another (question 6), so
+  sanitizer runs of `-S` stay at default verbosity. The
   unmodified sanitizer binary is frozen at `~/iqtree3-baseline-asan/iqtree3` (SHA-256,
   `sanitizer-build.json` and `CMakeCache.txt` beside it), never rebuilt, so a later finding can
   be checked against unmodified code.

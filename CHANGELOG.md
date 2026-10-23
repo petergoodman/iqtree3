@@ -8,6 +8,34 @@ gate record and may run to 25 lines. The next session starts from the top entry.
 This is a fork of `iqtree/iqtree3`. Entries here describe work on the fork, not upstream
 development.
 
+## 2026-10-23: S3b, linked training (gate G3, first part)
+
+- **Done.** S3b as recorded, with eight interpretations Peter approved (CODE_PLAN 3.5, 4).
+  `64dfcac3` oracle and twopart data; `7388dd52` C++ (`LinkedModelHooks`, two `PartitionModel`
+  calls); `054914de` driver and review fixes; `fb5bf76d` gate fixes. This commit closes S3b.
+- **Gate** at `054914de` (`~/iqtree3-runs/s3b-gate/20261023-054914de/`), keep-awake on, paused
+  about 9 min by Peter: `nqcchecks.py` 21 cases, 236 asserted passed, 2 failed, 220 reported
+  (6308 s); regression 12 of 12; unit tests 44 of 44 twice; 192 Python tests; sanitizer build
+  894 s, run 9451 s, scan with no report in new code.
+- **Gate failures, all in the driver.** S3a's refusals of `--model-joint` and `--link-model`,
+  lifted by S3b, failed in both builds; the sanitizer stopped linked-short's `-S` fit at an
+  upstream bug (maintainer question 6). `fb5bf76d` removed both and ran that fit without `-v`;
+  clean reruns there: refusals 25 of 25; under the sanitizers refusals and linked-short 35 of 35.
+- **Asserted, new (143).** Linked seed −lnL against the oracle under `-S` and `-p` (≤ 1.7e-16);
+  steps bitwise decision 005's; gradient lines; Level 1 accepted scores against the oracle
+  (≤ 3.4e-16); π*, coordinates, references and residuals (≤ 6.2e-16) in every struct at every
+  numbered checkpoint; counts 360 to 416; `-S` `+I+G4` restore in 10 blocks; reversed twopart
+  bitwise; turtle threads and reversal within 038's lines; resumed counters; refusals.
+- **Reported.** Turtle seed at `-T 3`, `-T 4` bitwise equal to `-T 1`; five `-p` Level 2 fits at
+  `-T 4` print `-T 1`'s final lnL (accepted ≤ 5.8e-14 relative; NONREV's printed spreads 0.27 to
+  0.66); `--link-model` equals `--model-joint`; one record per fit; no fall, ASSERT, abort, switch.
+- **Risk 22.** Turtle, box then 1e-8,1e7: `-S` Level 1 −4806.088, −4808.070; `-p` Level 2
+  −4872.436, −4871.888; `-S` Level 2 −4800.048, −4801.432. Warm starts from all six box fits gain
+  0.012 to 0.054 in the box, so they stopped early; at 1e-8,1e7 at most 0.013 more, except turtle
+  `-p` (0.193 more, 19 fits against 2, a box cost) and aa_example Level 2 (8e-5 less).
+- **Found.** `-S` takes the `+I+G` multi-start (S3a-close note corrected); `-q` Level 1 and `-p`
+  `+R4` hit the 99-round cap, late fits gaining ~0.014 and ~0.018 (S3c). **Next.** S3c (PLAN.md).
+
 ## 2026-10-22 (seventh session): S3a, one alignment complete (gate G2)
 
 - **Done.** S3a as recorded. `f321532c`: the oracle's FreeRate categories. `bb89e2d9`, `17737325`:

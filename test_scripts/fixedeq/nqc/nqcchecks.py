@@ -25,8 +25,8 @@ Cases:
   short     a Level 1 and a +I+G4 Level 2 fit on 300 sites of the toy data, one round each, for
             the sanitizer build (CODE_PLAN.md section 3.6; needs --alisim)
 
-S3b's linked cases (CODE_PLAN.md sections 3.5 and 4, S3b), on nqc/twopart.py's data (needs
---alisim) unless they name turtle:
+S3b's linked cases (CODE_PLAN.md section 3.5, "Linked fits" and after), on nqc/twopart.py's data
+(needs --alisim) unless they name turtle:
   linked-seed      -lnL at the first linked gradient against the oracle's linked objective, under -S
                    and -p with +G4{0.5} and the given +R4; the printed steps against decision 005's
                    rule, bitwise; the gradient lines; and a -S start near zero
@@ -680,9 +680,10 @@ def staged(rundir, inputs=("input.tree",)):
 
 
 def case_restart(r, c, ctx, older):
-    """CODE_PLAN.md section 4, S3a: NQC's restore refuses a checkpoint written with another target or
-    domain, accepts the same command (exit 0 is all the keys can show, since IQ-TREE re-saves no
-    model after this restore), and reads S2's checkpoint, which lacks S3a's keys."""
+    """CODE_PLAN.md section 3.5, single alignment (S3a): NQC's restore refuses a checkpoint written
+    with another target or domain, accepts the same command (exit 0 is all the keys can show, since
+    IQ-TREE re-saves no model after this restore), and reads S2's checkpoint, which lacks S3a's
+    keys."""
     base = level1(r, c, ctx)
     if base.code != 0:
         return failed_run(base)
@@ -921,7 +922,7 @@ def q_charpartition(nex_text, names, route):
 
 def linked_invariants(label, run, c, partitions):
     """Asserted at every numbered checkpoint, or at the final one when the run wrote none
-    (CODE_PLAN.md section 4, S3b): pi* bitwise in the linked struct and in every partition struct,
+    (CODE_PLAN.md section 3.5, "Linked fits"): pi* bitwise in the linked struct and in every partition struct,
     coordinates bitwise equal across them, the oracle's references, and the residual keys within
     decision 021's line. A checkpoint holding no NQC struct is counted, not judged."""
     paths = numbered_checkpoints(run)
@@ -1016,7 +1017,7 @@ def seed_args(tp, c, mode, rate):
 
 
 def case_linked_seed(r, c, ctx, alisim):
-    """CODE_PLAN.md section 4, S3b, "Linked seed" and "Linked gradient": nothing moves before the
+    """CODE_PLAN.md section 3.5, "Linked fits", seed and gradient: nothing moves before the
     first linked gradient, so its -lnL is the oracle's linked objective at the LG seed."""
     tp = twopart_data(r, c, ctx, alisim)
     out = []
@@ -1313,8 +1314,8 @@ def case_risk22_turtle(r, c, ctx):
 
 def continuations(r, c, label, box, args, files):
     """Two Level 1 continuations from a default-box fit's final state, its coordinates passed as a
-    17-digit Q by --init-model, one in the box and one at WIDE (CODE_PLAN.md section 4, S3b, "Risk 22
-    warm starts"). The first lnL is -lnL at the first-gradient print."""
+    17-digit Q by --init-model, one in the box and one at WIDE (CODE_PLAN.md section 4, "Evidence for PLAN.md risk
+    22"). The first lnL is -lnL at the first-gradient print."""
     ck = final_struct(box) if box.code == 0 else None
     if not (ck and "coordinates" in ck) or args is None:
         return [check(f"{label}: continuations (report)", None, reason="no final state to start from",

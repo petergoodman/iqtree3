@@ -226,17 +226,17 @@ log-ratio chart is a required full decision, open (PLAN.md risk 22).
 ### 008. Refuse every combination the first release does not support
 
 **Rule.** NQC stops with a message for every input outside the first release; the full list is
-`CODE_PLAN.md` section 2.2, "Refusals". It covers non-protein data, untargeted `+F`,
-`-optfromgiven`, `-jointopt`, mixtures, tree mixtures and HMM, GHOST `+H` (also in a partition's
-own model string, S3b), site-specific frequencies, `--link-exchange-rates`, `--eigen`, ModelFinder
-in any form (detected at run time from S3a), AliSim, unlinked partitioned use (S3a), and until S3b
-`--model-joint` and `--link-model`. Mixture components are refused where `initMixture` makes them.
+`CODE_PLAN.md` section 2.2, "Refusals": non-protein data, untargeted `+F`, `-optfromgiven`,
+`-jointopt`, mixtures (where `initMixture` makes a component), tree mixtures and HMM, GHOST `+H`
+(also in a partition's model string, S3b), site-specific frequencies, `--link-exchange-rates`,
+`--eigen`, ModelFinder in any form (detected at run time, S3a), AliSim, unlinked partitions (S3a).
 **Why.** Each path bypasses the invariants or is undesigned: `-optfromgiven` releases the
 equilibrium in the base decomposition (015), `-jointopt` clamps coordinates with rate bounds, and
 an `--mdef` mixture never shows "MIX" in the model string. Unlinked partitions lie outside the
 first release, so Peter chose refusing them over testing them (2026-10-22).
 **Not chosen.** Allowing them silently; supporting them now; detecting mixtures from the string.
-**Since** 2026-09-23; revised 2026-10-20 (032; 034 items 2, 4, 5) and 2026-10-22 (S3 plan).
+**Since** 2026-09-23; revised 2026-10-20 (032; 034 items 2, 4, 5), 2026-10-22 (S3 plan) and
+2026-10-23 (S3b: `--model-joint` and `--link-model` no longer refused).
 
 ### 009. Check every fit afterwards, report a fall below the start, restore nothing
 
@@ -464,5 +464,5 @@ Retired and merged numbers, so that every citation in code, tests and records st
 | 034 | item 1 in 015; items 2, 4, 5 in 008; item 3 (matrix setters stop with an error) in `CODE_PLAN.md` section 2.2; item 6 in 002; item 7 in 021 |
 | 035 | item 1 in 002; item 2 in 022 |
 | 036 | 021 (the withdrawn claim is gone; its measure is kept) |
-| 037 | not a rule: S2's shortfalls, S3-1, listed in full in `CODE_PLAN.md` section 4 at `4749f222` and closed for one alignment in S3a (section 4 now; the linked half is S3b's) |
+| 037 | not a rule: S2's shortfalls, S3-1, listed in full in `CODE_PLAN.md` section 4 at `4749f222` and closed for one alignment in S3a and for linked fits in S3b |
 | D04 | dropped by 028; see D01. The T3 gauge the oracle's test reference uses ("the D04 gauge") is a_{19,20} = 0 and h_{i,20} = 0 for i < 20 (189 strength and 171 tilt coordinates, 19 balancing potentials by damped Newton), synthesis section 6.1 |

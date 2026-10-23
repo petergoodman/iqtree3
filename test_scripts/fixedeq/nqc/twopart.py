@@ -1,5 +1,5 @@
-"""S3b's two-partition data (CODE_PLAN.md section 4, S3b): one seeded rooted 12-taxon tree;
-partition A simulated by the frozen binary's AliSim from NQ.pfam's jump chain transferred to
+"""S3b's two-partition data (CODE_PLAN.md section 3.5, "Linked fits"): one seeded rooted 12-taxon
+tree; partition A simulated by the frozen binary's AliSim from NQ.pfam's jump chain transferred to
 decision 023's target, partition B from the same chain at that target cubed and renormalized; 600
 sites each, with a two-charset NEXUS file. Used by nqc/nqcchecks.py.
 
