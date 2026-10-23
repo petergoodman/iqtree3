@@ -73,3 +73,38 @@ def test_toy_truth_is_stationary_at_the_target():
     pi = cases.random_target(20, np.random.default_rng(3))
     d = chart.diagnostics(toy.truth(pi), pi)
     assert d["stationarity"] <= 1e-10 and d["mean_rate_error"] <= 1e-10   # decision 021
+
+
+def test_linked_objective_sums_partitions_in_the_order_given():
+    pi, ref, aln, tree, z = small_problem()
+    half = {n: s[:14] for n, s in aln.items()}
+    rest = {n: s[14:] for n, s in aln.items()}
+    f1, f2 = nqc.Objective(half, tree, pi, ref, shape=0.5), nqc.Objective(rest, tree, pi, ref, part_rate=2.0)
+    assert nqc.LinkedObjective([f1])(z) == f1(z)
+    assert nqc.LinkedObjective([f1, f2])(z) == (0.0 + f1(z)) + f2(z)
+    z[3] = np.nan
+    assert nqc.LinkedObjective([f1, f2])(z) == 2.0e30   # as PartitionModel::targetFunk sums 1e30 per partition
+
+
+def test_a_partition_rate_scales_every_branch():
+    pi, ref, aln, tree, z = small_problem()
+    scaled = readers.parse_newick(TREE)
+    for node in scaled.preorder():
+        if node.length is not None:
+            node.length *= 1.7
+    folded = nqc.Objective(aln, tree, pi, ref, shape=0.5, p_invar=0.2, part_rate=1.7)(z)
+    assert abs(folded - nqc.Objective(aln, scaled, pi, ref, shape=0.5, p_invar=0.2)(z)) <= 1e-12 * abs(folded)
+
+
+def test_normalize_part_rates_divides_by_the_site_weighted_mean():
+    assert nqc.normalize_part_rates([1.0, 3.0], [1, 1]) == [0.5, 1.5]
+    r = nqc.normalize_part_rates([0.7, 1.9, 0.2], [172, 216, 386])
+    assert abs(sum(a * n for a, n in zip(r, (172, 216, 386))) / 774 - 1.0) <= 1e-15
+    assert abs(r[1] / r[0] - 1.9 / 0.7) <= 1e-15
+
+
+def test_twopart_problems_finds_unknown_and_identical_sequences():
+    import twopart
+    assert twopart.problems({"a": "ARND", "b": "ARNC"}) == []
+    assert twopart.problems({"a": "--X?", "b": "ARNC"}) == ["a has no known character"]
+    assert twopart.problems({"a": "ARND", "b": "ARND", "c": "AAAA"}) == ["a and b are identical"]

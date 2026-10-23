@@ -21,11 +21,11 @@ TAXA, SITES = 8, 3000
 LENGTHS = (0.05, 0.3)
 
 
-def tree_text(seed=SEED):
-    """A rooted binary tree on T1..T8, built by joining two random subtrees at a time; every branch
+def tree_text(seed=SEED, taxa=TAXA):
+    """A rooted binary tree on T1..Tn, built by joining two random subtrees at a time; every branch
     length is drawn from LENGTHS and written with 4 decimals, which both IQ-TREE and the oracle read."""
     rng = np.random.default_rng(seed)
-    nodes = [f"T{i + 1}:{rng.uniform(*LENGTHS):.4f}" for i in range(TAXA)]
+    nodes = [f"T{i + 1}:{rng.uniform(*LENGTHS):.4f}" for i in range(taxa)]
     while len(nodes) > 2:
         a, b = sorted(rng.choice(len(nodes), size=2, replace=False), reverse=True)
         joined = f"({nodes[b]},{nodes[a]})"
@@ -43,15 +43,22 @@ def truth(pi):
     return chart.transfer_seed(Q0, pi)
 
 
+def simulate(out, alisim, name, tree, Q, pi, sites, seed):
+    """Write NAME.nwk, NAME.qmat and NAME.phy, simulated by AliSim without rate variation, into the
+    existing directory out."""
+    out = Path(out)
+    write(out / f"{name}.nwk", tree)
+    write_matrix(out / f"{name}.qmat", Q, pi)
+    argv = [str(alisim), "--alisim", name, "--seqtype", "AA", "-m", f"{name}.qmat", "-t", f"{name}.nwk",
+            "--length", str(sites), "--seed", str(seed), "-af", "phy", "-nt", "1"]
+    log = out / ("alisim.log" if name == "toy" else f"{name}.alisim.log")
+    with open(log, "w", encoding="utf-8") as fh:
+        code = subprocess.run(argv, cwd=out, stdout=fh, stderr=subprocess.STDOUT).returncode
+    if code != 0 or not (out / f"{name}.phy").exists():
+        sys.exit(f"AliSim failed with exit {code}; see {log}")
+    return {"argv": argv, "sha256": {n: sha256(out / n) for n in (f"{name}.nwk", f"{name}.qmat", f"{name}.phy")}}
+
+
 def make(out, alisim, pi):
     """Write toy.nwk, toy.qmat and the simulated toy.phy into the existing directory out."""
-    out = Path(out)
-    write(out / "toy.nwk", tree_text())
-    write_matrix(out / "toy.qmat", truth(pi), pi)
-    argv = [str(alisim), "--alisim", "toy", "--seqtype", "AA", "-m", "toy.qmat", "-t", "toy.nwk",
-            "--length", str(SITES), "--seed", str(SEED), "-af", "phy", "-nt", "1"]
-    with open(out / "alisim.log", "w", encoding="utf-8") as fh:
-        code = subprocess.run(argv, cwd=out, stdout=fh, stderr=subprocess.STDOUT).returncode
-    if code != 0 or not (out / "toy.phy").exists():
-        sys.exit(f"AliSim failed with exit {code}; see {out / 'alisim.log'}")
-    return {"argv": argv, "sha256": {n: sha256(out / n) for n in ("toy.nwk", "toy.qmat", "toy.phy")}}
+    return simulate(out, alisim, "toy", tree_text(), truth(pi), pi, SITES, SEED)

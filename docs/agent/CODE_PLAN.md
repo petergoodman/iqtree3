@@ -668,7 +668,11 @@ S3b, linked training:
   - The oracle's linked objective.
   - `nqc/nqcchecks.py`: the runner takes a thread count, since it appends `-T 1` last, which
     wins; numbered checkpoints are read. Copied checkpoints are staged as bytes since S3a
-    (`probes.Runner`).
+    (`probes.Runner`). `restore_check` applies to single-alignment runs only: partitioned data
+    never take IQ-TREE's `+I+G` multi-start path, because the super tree's site rate is a plain
+    `RateHeterogeneity` and `optimizeParametersGammaInvar` falls back to `optimizeParameters`
+    (section 5), so a linked run prints none of the lines it reads. Today `fit_checks` applies
+    it to any label containing "+I+G" (found at S3a's close).
 - **Data, `nqc/twopart.py`** (seeds recorded).
   - One seeded rooted 12-taxon tree. Partition A is simulated by the frozen binary's AliSim from
     NQ.pfam's jump chain transferred to decision 023's target; partition B from the same chain at
@@ -898,4 +902,5 @@ after 60 are offset by 1 and lines after 1412 by 3.
 | `utils/checkpoint.cpp:146-216`; `utils/tools.cpp:5050, 5060, 5068, 5544-5549`; `main/main.cpp:2268-2295, 2476-2494`; `tree/iqtree.cpp:2346-2351, 2363-2394` | the dump interval and `--all-checkpoint`'s numbered files; `--undo`, `-cptime`, `--all-checkpoint`, and HMM set only with `+T`; a finished run refused without `--undo`; a changed command line only warns; the "BUG: Tree logl gets worse" abort; `ensureModelParametersAreSet` restores the model, then skips or runs the fit (added 2026-10-22) |
 | `tree/phylosupertreeunlinked.cpp:20-26`; `tree/mtree.cpp:687-701` | `-S` reads one `-te` tree per partition; `-p` and `-q` read only the first (added 2026-10-22) |
 | `model/modelfactory.cpp:643-670` | the site-specific frequency path (`-fs`, `-ft`) builds each model with an empty frequency string (added 2026-10-22, S3a) |
+| `model/partitionmodel.cpp:47`; `model/modelfactory.cpp:1380-1381` | the super tree's site rate is a plain `RateHeterogeneity`, so `optimizeParametersGammaInvar` falls back to `optimizeParameters` for partitioned data (added 2026-10-22, S3a's close) |
 | `tree/iqtree.cpp:3248-3254`; `model/modelfactory.cpp:1395-1398` | in `IQTree::doNNISearch`, the save of each re-optimized model to the top level of the checkpoint; the copy of the checkpoint the `+I+G` starts restore from (PLAN.md risk 23, unverified; added 2026-10-22) |

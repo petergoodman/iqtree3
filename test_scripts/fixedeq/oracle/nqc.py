@@ -22,12 +22,16 @@ def lg_seed(pi):
 
 class Objective:
     """f(z) = -lnL of the Q built from z at pi, on a fixed tree with fixed rate parameters; 1e30
-    when the build fails, as the class's targetFunk returns."""
+    when the build fails, as the class's targetFunk returns. A partition rate (-p, -q) multiplies
+    every rate category, which gives the likelihood of the partition tree IQ-TREE forms by scaling
+    every branch by that rate."""
 
-    def __init__(self, alignment, tree, pi, ref, shape=None, ncat=4, p_invar=0.0, build=chart.build, free=None):
+    def __init__(self, alignment, tree, pi, ref, shape=None, ncat=4, p_invar=0.0, build=chart.build, free=None,
+                 part_rate=1.0):
         self.tree, self.pi, self.ref, self.build = tree, np.asarray(pi, dtype=float), ref, build
         patterns, self.counts, self.columns = likelihood.compress(alignment, tree)
         self.rates, self.weights = likelihood.rate_categories(shape, ncat, p_invar, free)
+        self.rates = self.rates * part_rate
         self.invariant = ([likelihood.invariant_term(c, self.pi, p_invar) for c in patterns]
                           if p_invar else None)
         self.evaluations = 0
@@ -44,6 +48,34 @@ class Objective:
         except chart.BuildError:
             return 1.0e30
         return -self.log_likelihood(Q)
+
+
+class LinkedObjective:
+    """The linked objective of decision 005, as PartitionModel::targetFunk forms it: each partition's
+    Objective at the same z, summed from 0 in IQ-TREE's partition order (part_order)."""
+
+    def __init__(self, parts):
+        self.parts = list(parts)
+        self.evaluations = 0
+
+    def __call__(self, z):
+        self.evaluations += 1
+        total = 0.0
+        for f in self.parts:
+            total += f(z)
+        return total
+
+
+def normalize_part_rates(rates, sites):
+    """PhyloSuperTreePlen::normalizePartRate's statements in order (tree/phylosupertreeplen.cpp): the
+    rates a -q partition file gives as {x}, divided by their mean weighted by each partition's sites."""
+    total, nsite = 0.0, 0
+    for r, n in zip(rates, sites):
+        total += r * n
+        nsite += n
+    total /= nsite
+    total = 1.0 / total
+    return [r * total for r in rates]
 
 
 def scaled_steps(z, upper=UPPER):
