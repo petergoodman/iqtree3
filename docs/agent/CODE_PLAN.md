@@ -646,7 +646,8 @@ read it only where these lists are unclear.
     - the free-parameter count, read from the report;
     - the `+I+G` restore check: the restored model scores as the best start, from the printed
       start scores at IQ-TREE's 3 decimals (S2's `restore_check`, missing from this list until
-      S3a's close).
+      S3a's close; Peter kept it asserted on 2026-10-22, as the only test of the restore in an
+      ordinary fit).
 
 S3a (done 2026-10-22, gate at `4749f222`; gate record in `CHANGELOG.md`, S3a entry): S3-1, the
 S2 build's shortfalls (report once, default visibility, checkpoint record, ModelFinder and other
@@ -716,6 +717,18 @@ S3b, linked training:
   - **Permuted order, threads, restarts:** section 3.5.
   - **Risk 22:** turtle Level 1 (`-S`) and Level 2 (`-p`, `-S`), in the default box and at
     `1e-8,1e7`, reported.
+  - **Risk 22 warm starts** (Peter, 2026-10-22), reported. In S3a the widened domain, which
+    contains the box, ended lower in two of three `aa_example` comparisons (`CHANGELOG.md`, S3a
+    entry), so a single fit per domain mixes the domain with the optimizer's path.
+    - For each comparison, S3a's three on `aa_example` (Level 1, Level 2 `+G4`, the nesting fit)
+      and turtle's above, two Level 1 continuations start from the default-box fit's final
+      state: its coordinates written by the oracle as a 17-digit Q for `--init-model`, as the
+      near-zero gradient case does, with its final trees and rate parameters fixed (under `-p`
+      its partition rates by decision 024's `-q` route).
+    - One continuation runs in the default box, one at `1e-8,1e7`. Reported: each first lnL
+      (which should equal the box fit's state) and final `accepted_score`.
+    - A gain only at `1e-8,1e7` shows the box costing likelihood; a gain in both shows the box
+      fit had stopped early.
   - **Layer 4:** 12 of 12.
 - **Gate,** from a clean tree at the gate commit, outputs under
   `~/iqtree3-runs/s3b-gate/<date>-<commit>/`:
@@ -797,7 +810,7 @@ approved on 2026-10-22, before any measurement:
 
 Evidence for PLAN.md risk 22, reported: bound activity in every S3 fit, and aa_example's runs (S3a)
 and turtle's (S3b) repeated with `--nqc-domain 1e-8,1e7` (the nesting test's `aa_example` domain),
-comparing final log-likelihoods and bound counts.
+comparing final log-likelihoods and bound counts, and S3b's warm starts from the box fits.
 
 S4:
 

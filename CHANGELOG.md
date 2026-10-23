@@ -30,9 +30,9 @@ development.
 - **Failed.** The new `-fs` test found the refusal naming the wrong cause; the review found five
   driver gaps, one an oracle check skipped silently; all fixed before the gate. Commit messages
   miscount development checks: 37, not 39 (`bb89e2d9`); 15, not 20 (`4749f222`).
-- **Found.** The sanitizer build took 15 min, not 4 h. With `-b 1` a summary follows each of
-  IQ-TREE's two reports; left as it is.
-- **Next.** S3b in a new session, with the prompt in PLAN.md's next step.
+- **Found.** Sanitizer build 15 min, not 4 h; with `-b 1` a summary follows each of two reports.
+- **Next.** S3b, prompt in PLAN.md. After the close Peter kept `restore_check` asserted and added
+  risk 22 warm starts to S3b (CODE_PLAN.md section 4).
 
 ## 2026-10-22 (sixth session): S3 planned as three slices
 
