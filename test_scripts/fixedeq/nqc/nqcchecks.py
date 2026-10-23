@@ -81,6 +81,7 @@ SWITCH = "INFO: Switch to scaling-squaring"
 FALL = re.compile(r"WARNING: NQC fit (\d+): the re-scored lnL is below the start by (\S+)", re.M)
 BUG_ABORT = "BUG: Tree logl gets worse after model optimization"
 SUMMARY = "NQC summary of the final model (17 significant digits):"
+RESTORE_REFUSAL = "the checkpoint was written with a different"
 
 
 # ---------------------------------------------------------------- pass lines (decisions 026 and 030)
@@ -491,7 +492,10 @@ def case_fits(r, c, ctx):
     run1 = level1(r, c, ctx)
     out += fit_checks("Level 1", run1, c, 360, 1)
     ck = single_checkpoint(run1) if run1.code == 0 else None
-    if ck and "accepted_score" in ck:
+    if not (ck and "accepted_score" in ck):
+        out.append(check("Level 1: accepted score against the oracle's re-evaluation (decisions 021, 030)", False,
+                         reason="no accepted_score key"))
+    else:
         z = floats(ck["coordinates"])
         ref_ok = [int(v) for v in ck["references"].split(",")] == [int(v) for v in c.ref]
         out.append(check("Level 1: references in the checkpoint equal the oracle's", ref_ok))
@@ -505,9 +509,9 @@ def case_fits(r, c, ctx):
                          gap=abs(float(printed.group(1)) - accepted) if printed else None))
     # free rate parameters: +G4 1, +I+G4 2, +R4 6 (CODE_PLAN.md section 3.5)
     for label, suffix, extra in (("Level 2 +G4", "+G4", 1), ("Level 2 +I+G4", "+I+G4", 2), ("Level 2 +R4", "+R4", 6)):
-        run = r.run("fit-" + slug(label), level2_args(c.model, suffix), {"input.tree": c.t02})
-        ctx[label] = run
-        out += fit_checks(label, run, c, 360 + extra + BRANCHES_AA, 2)
+        if label not in ctx:  # risk22 may have run it
+            ctx[label] = r.run("fit-" + slug(label), level2_args(c.model, suffix), {"input.tree": c.t02})
+        out += fit_checks(label, ctx[label], c, 360 + extra + BRANCHES_AA, 2)
     run = r.run("fit-domain", ["-s", AA, "-m", c.model + f"+G4{{{ALPHA}}}", "-te", "input.tree", "-blfix",
                                "-nparam", "3", "--nqc-domain", "1e-6,100"], {"input.tree": c.t02})
     if run.code != 0:
@@ -570,11 +574,12 @@ def case_nesting(r, c):
         if label == "default box":
             out.append(check(f"{label}: first and final log-likelihood against the GTR20 evaluation (report)", None,
                              **values))
-            continue
-        out.append(check(f"{label}: first log-likelihood equals the GTR20 evaluation within 1e-8 |lnL|",
-                         first is not None and abs(first - reference) <= line, **values))
-        out.append(check(f"{label}: final log-likelihood not below the GTR20 evaluation by more than 1e-8 |lnL|",
-                         final is not None and final >= reference - line))
+        else:
+            out.append(check(f"{label}: first log-likelihood equals the GTR20 evaluation within 1e-8 |lnL|",
+                             first is not None and abs(first - reference) <= line, **values))
+            out.append(check(f"{label}: final log-likelihood not below the GTR20 evaluation by more than 1e-8 |lnL|",
+                             final is not None and final >= reference - line))
+        out += monitoring(label, run, ck)
     return out
 
 
@@ -596,7 +601,8 @@ def case_skewed(r, c):
                   exit_code=run.code, target_min=float(pi.min()), start_outside_default_box=int(
                       np.sum((z < nqc.LOWER) | (z > nqc.UPPER))), first_start=fits[0][1] if fits else None,
                   accepted_score=(ck or {}).get("accepted_score"), bounds=(ck or {}).get("bounds"), residuals=res,
-                  fits=(ck or {}).get("fits"), falls=FALL.findall(run.stdout()), error=nqc_error(run))]
+                  fits=(ck or {}).get("fits"), falls=FALL.findall(run.stdout()), error=nqc_error(run))
+            ] + monitoring("skewed", run, ck)
 
 
 def staged(rundir):
@@ -617,7 +623,9 @@ def case_restart(r, c, ctx, older):
                     ("domain", args + ["--nqc-domain", "1e-6,100"])):
         run = r.run(f"restart-other-{name}", a + ["--undo"], staged(base.dir))
         message = nqc_error(run)
-        out.append(check(f"--undo with another {name}: refused", run.code not in (0, "timeout") and message is not None,
+        # refused by the restore, not by an earlier NQC check
+        out.append(check(f"--undo with another {name}: refused by NQC's restore",
+                         run.code not in (0, "timeout") and message is not None and RESTORE_REFUSAL in message,
                          exit_code=run.code, message=message))
     run = r.run("restart-undo", args + ["--undo"], staged(base.dir))
     out.append(check("--undo with the same command: exit 0", run.code == 0, exit_code=run.code))
@@ -648,6 +656,7 @@ def case_risk22(r, c, ctx):
         wide = r.run("risk22-" + slug(label), args + ["--nqc-domain", WIDE], tree)
         out.append(check(f"{label}: default box against --nqc-domain {WIDE} (report)", None,
                          default=fit_state(default), widened=fit_state(wide)))
+        out += monitoring(f"{label} at {WIDE}", wide, single_checkpoint(wide) if wide.code == 0 else None)
     return out
 
 
@@ -678,6 +687,9 @@ def case_toy(r, c, calibration_path, alisim):
         out.append(check("first gradient, same rule, |g - g_oracle| / line", bool(np.all(ratio <= 1)),
                          worst=float(ratio.max())))
     ck = single_checkpoint(run)
+    if not (ck and "accepted_score" in ck):
+        return out + [check("final score against the oracle's port (decision 030's calibrated line)", False,
+                            reason="no single NQC struct with accepted_score")]
     accepted = float(ck["accepted_score"])
     out.append(check("final score against the oracle's port (decision 030's calibrated line)",
                      abs(accepted - plain["final_lnl"]) <= cal["line"], iqtree=accepted, oracle=plain["final_lnl"],
@@ -708,7 +720,8 @@ def case_short(r, c, alisim):
             continue
         if suffix:
             out.append(restore_check(label, run.stdout()))
-        out += key_checks(label, single_checkpoint(run), c.pi)
+        ck = single_checkpoint(run)
+        out += key_checks(label, ck, c.pi) + monitoring(label, run, ck)
     return out
 
 

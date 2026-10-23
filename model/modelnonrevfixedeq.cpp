@@ -444,6 +444,7 @@ void ModelNonrevFixedEq::saveCheckpoint() {
     checkpoint->put("domain", numbers17(domain, 2));
     checkpoint->put("derivative", string(DERIVATIVE));
     checkpoint->put("coordinates", numbers17(accepted.data(), (int)accepted.size()));
+    checkpoint->putBool("fixed", fixed_parameters);
     checkpoint->put("fits", fits);
     checkpoint->put("evaluations", evaluations);
     checkpoint->put("accepted_fit", accepted_fit);
