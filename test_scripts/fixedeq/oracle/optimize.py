@@ -237,3 +237,88 @@ def optimize_model(f, x0, lower, upper, gradient_epsilon, derivative=legacy_deri
     if "x" not in last or not np.array_equal(last["x"], r.x) or score == -1.0e30:
         score = -np.float64(target(r.x))
     return ModelFit(r.x, score, gtol, r)
+
+
+# ---------------------------------------------------------------- a reference climber, not IQ-TREE's
+
+@dataclass
+class Climb:
+    x: np.ndarray
+    f: float
+    evaluations: int
+    phases: list           # (derivative, iterations, SciPy's message) per L-BFGS-B pass
+    gradient: np.ndarray   # central differences at x
+    pg_max: float          # the largest projected-gradient component of that gradient
+    at_lower: np.ndarray   # indices exactly at a bound
+    at_upper: np.ndarray
+
+
+def projected_gradient(x, g, lower, upper):
+    """x - clip(x - g, lower, upper): g in the interior, 0 where a bound blocks descent."""
+    return x - np.clip(x - g, lower, upper)
+
+
+def probes(x, steps):
+    """One point per coordinate, x with that coordinate moved by its step."""
+    pts = np.repeat(np.asarray(x, dtype=float)[None, :], len(x), axis=0)
+    pts[np.arange(len(x)), np.arange(len(x))] += steps
+    return list(pts)
+
+
+def forward_gradient(evaluate, x, upper, fx):
+    """scaled_derivative's gradient with every probe handed to evaluate at once."""
+    h = np.array([scaled_step(v, u) for v, u in zip(x, upper)])
+    return (np.array(evaluate(probes(x, h)), dtype=float) - fx) / h
+
+
+def central_gradient(evaluate, x, step):
+    """central_derivative's gradient for one step, with every probe handed to evaluate at once."""
+    h = step * np.maximum(1.0, np.abs(x))
+    values = np.array(evaluate(probes(x, h) + probes(x, -h)), dtype=float)
+    return (values[:len(x)] - values[len(x):]) / (2 * h)
+
+
+def lbfgsb_fit(f, x0, lower, upper, pgtol=1e-3, max_iter=2000, central_step=ERROR_X, evaluate=None):
+    """A test reference for where a fit's peak lies (PLAN.md risks 22 and 24), not IQ-TREE's method:
+    SciPy's L-BFGS-B minimizing f in the box, stopped by its projected-gradient test at pgtol. The
+    first pass uses decision 005's forward differences; when the central-difference gradient at its
+    end still fails pgtol, a second pass uses central differences, whose error does not grow with
+    the curvature as the forward step's does. Central probes may leave the box by one step, which
+    the NQC chart allows (constraint 1). evaluate(points) returns f at each point, in order; a
+    process pool's map spreads a gradient's probes, with the same values as the serial default."""
+    from scipy.optimize import Bounds, minimize
+
+    n = len(x0)
+    lower = np.broadcast_to(np.asarray(lower, dtype=float), (n,)).copy()
+    upper = np.broadcast_to(np.asarray(upper, dtype=float), (n,)).copy()
+    evaluate = evaluate or (lambda pts: [f(p) for p in pts])
+    count = [0]
+
+    def counted(pts):
+        count[0] += len(pts)
+        return evaluate(pts)
+
+    def forward(x):
+        x = np.array(x, dtype=float)
+        fx = np.float64(counted([x])[0])
+        return fx, forward_gradient(counted, x, upper, fx)
+
+    def central(x):
+        x = np.array(x, dtype=float)
+        return np.float64(counted([x])[0]), central_gradient(counted, x, central_step)
+
+    x = np.clip(np.asarray(x0, dtype=float), lower, upper)
+    phases, g = [], None
+    for name, fun in (("forward", forward), ("central", central)):
+        if g is not None and np.max(np.abs(projected_gradient(x, g, lower, upper))) <= pgtol:
+            break
+        r = minimize(fun, x, jac=True, method="L-BFGS-B", bounds=Bounds(lower, upper),
+                     options={"maxiter": max_iter, "maxfun": 4 * max_iter, "gtol": pgtol, "ftol": 1e-15,
+                              "maxcor": 20})
+        x = np.clip(r.x, lower, upper)
+        phases.append((name, int(r.nit), str(r.message)))
+        _, g = central(x)
+    fx = float(counted([x])[0])
+    pg = projected_gradient(x, g, lower, upper)
+    return Climb(x, fx, count[0], phases, g, float(np.max(np.abs(pg))), np.flatnonzero(x == lower),
+                 np.flatnonzero(x == upper))

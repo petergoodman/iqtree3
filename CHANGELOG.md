@@ -8,6 +8,19 @@ gate record and may run to 25 lines. The next session starts from the top entry.
 This is a fork of `iqtree/iqtree3`. Entries here describe work on the fork, not upstream
 development.
 
+## 2026-10-24: S3c's first part begun, the stopping study and risk 22's evidence
+
+- **Done.** Risk 22 and early stopping explained to Peter; S3c's first part planned and approved
+  (CODE_PLAN 4; PLAN risks 22, 24, question 7). `lbfgsb_fit`, a test-only L-BFGS-B climber in
+  `oracle/optimize.py`, with `tests/test_lbfgsb.py` (196 Python tests pass); the driver
+  `explore/convergence.py`. Fork workflow on S3b's close passed (run 40009247380).
+- **Corrected.** S3b's "0.193 ..., a box cost". `convergence.py reread`: box rounds gain 0.0106 then
+  0.0095 (below 0.01, stop); wide 19 rounds, 0.0139 falling to 0.0100; 724 evaluations a round, one
+  step; dfpmin's test already 8.5e-5 < 1e-4 at the first gradient; probe c2's last round +3.507.
+- **Found.** The single-alignment report omits the last round's gain (aa_example: −6960.6135
+  printed, −6960.6085 the model's). Wide fits put whole rows above the box (S; turtle N, C, W).
+- **Next.** The case A pilot from this commit, keep-awake agreed; B and C after Peter sees the cost.
+
 ## 2026-10-23: S3b, linked training (gate G3, first part)
 
 - **Done.** S3b as recorded, with eight interpretations Peter approved (CODE_PLAN 3.5, 4).
@@ -30,9 +43,9 @@ development.
   `-T 4` print `-T 1`'s final lnL (accepted ≤ 5.8e-14 relative; NONREV's printed spreads 0.27 to
   0.66); `--link-model` equals `--model-joint`; one record per fit; no fall, ASSERT, abort, switch.
 - **Risk 22.** Turtle, box then 1e-8,1e7: `-S` Level 1 −4806.088, −4808.070; `-p` Level 2
-  −4872.436, −4871.888; `-S` Level 2 −4800.048, −4801.432. Warm starts from all six box fits gain
-  0.012 to 0.054 in the box, so they stopped early; at 1e-8,1e7 at most 0.013 more, except turtle
-  `-p` (0.193 more, 19 fits against 2, a box cost) and aa_example Level 2 (8e-5 less).
+  −4872.436, −4871.888; `-S` Level 2 −4800.048, −4801.432. Box warm starts gain 0.012 to 0.054
+  (stopped early); at 1e-8,1e7 ≤ 0.013 more, except aa_example Level 2 (8e-5 less) and turtle `-p`:
+  0.193 more in 19 rounds against 2, both ended by the 0.01 round rule, so not separable from stopping.
 - **Found.** `-S` takes the `+I+G` multi-start (S3a-close note corrected); `-q` Level 1 and `-p`
   `+R4` hit the 99-round cap, late fits gaining ~0.014 and ~0.018 (S3c). **Next.** S3c (PLAN.md).
 

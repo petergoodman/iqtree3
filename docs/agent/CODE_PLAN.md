@@ -21,7 +21,7 @@ Labels are those of PLAN.md. Source anchors refer to `63c330d9` and were verifie
 | `model/modelnonrevfixedeq.{h,cpp}` | S2 to S4 | Class `ModelNonrevFixedEq : public ModelProtein`, public name "NQC" held in one constant (decision 002; section 2.2); from S3b also `public LinkedModelHooks`, listed second |
 | `model/linkedmodelhooks.h` | S3b | Header only: the abstract `LinkedModelHooks` through which `PartitionModel::optimizeLinkedModel` lets a linked model check, differentiate and record its fits (decision 005; section 2.2, "Linked hooks"). A separate header because NQC's header is included by `model/modelmixture.cpp` and `partitionmodel.h` pulls in the super tree, so putting the interface in either would create an include cycle |
 | `unittest/` | S1 | Standalone CMake project that compiles `model/fixedeqchart.cpp` directly, with IQ-TREE's clang Release flags and the `model` target's SSE flags (verified, `CMakeLists.txt:420`, `711-718`, `984`), and fetches googletest 1.12.1 at cmaple's pinned commit, checked by the archive's SHA-256 (verified, `cmaple/CMakeLists.txt:283-293`; decision 012); `fixtures/`, 27 chart cases and `targets.txt` in plain text at 17 significant digits with a provenance header (section 3.2); its own `.gitattributes` (decision 014) |
-| `test_scripts/fixedeq/` | S0 onward | `environment.yml` and lock (decision 013); `oracle/`; `tests/`; drivers `regression/`, `differential/`, `probes/`, `sanitizer/`, `unittests/`, `nqc/` and `design_rerun.py`; `manifest/` (G0 manifest); `explore/` (exploratory measurements behind decisions 007, 021, 023, 025 and 038); `make_fixtures.py`; `.gitattributes` and `.gitignore`. Added in S3: `nqc/twopart.py`, the two-partition data (S3b); `profile/profile.py`, the profiling driver (S3c) |
+| `test_scripts/fixedeq/` | S0 onward | `environment.yml` and lock (decision 013); `oracle/`; `tests/`; drivers `regression/`, `differential/`, `probes/`, `sanitizer/`, `unittests/`, `nqc/` and `design_rerun.py`; `manifest/` (G0 manifest); `explore/` (exploratory measurements behind decisions 007, 021, 023, 025 and 038); `make_fixtures.py`; `.gitattributes` and `.gitignore`. Added in S3: `nqc/twopart.py`, the two-partition data (S3b); `explore/convergence.py`, the stopping study and risk 22's converged evidence, with `oracle/optimize.py`'s reference climber `lbfgsb_fit` (S3c's first part); `profile/profile.py`, the profiling driver (S3c) |
 | `.github/workflows/fixedeq.yaml` | S1 | Fork-only workflow that builds and runs the unit tests and the oracle's tests on Linux, and from S2 a short NQC run |
 
 Run outputs never go into the working copy; they go under `~/iqtree3-runs/` in WSL. Fixtures and
@@ -724,6 +724,38 @@ Monitoring, reported for every S3a and S3b fit and not asserted:
   (anchors in section 5). S2: none in the 183 fits of its three `aa_example` runs;
 - falls below the start, and the optimizer's score against the re-scored one.
 
+S3c's first part, approved by Peter on 2026-10-24 (PLAN.md risks 22 and 24): the stopping study
+and converged evidence for risk 22, by `test_scripts/fixedeq/explore/convergence.py`
+(exploratory; its checks and lines were set before any run).
+- **Cases,** Level 1 with every nuisance fixed, `-T 1 -seed 1`: A `aa_example` (`+G4{0.5}`, run 2's
+  rooted tree); B turtle `-S` (`+G4{0.5}`, run 9's trees); C turtle `-q` with the tree, shapes and
+  partition rates of an NQC `-p` Level 2 `+G4` fit in the default box (decision 024).
+- **IQ-TREE runs:** NONREV, NQC in the default box and NQC at `1e-8,1e7`, each at default settings
+  and relaxed (`-me 1e-6`, with `--loop-model` and `-nparam` allowing 300 rounds), and NQC relaxed
+  at `1e-5,1e5`. Each run's per-round trajectory, rounds and ending rule (round threshold or cap).
+- **Reference peaks:** the oracle's `lbfgsb_fit` (SciPy's L-BFGS-B with decision 005's forward
+  step, then central differences if needed, stopping at a projected gradient of 1e-3) climbs from
+  NQC's relaxed box endpoint through P0 [1e-5, 10], P1 [1e-5, 1e5], P2 [1e-8, 1e7] and P3 (±50 in
+  log units), each from the last, and climbs P2's domain again from NQC's relaxed endpoint there
+  (P2w). It is a test reference in the same chart; IQ-TREE's optimizer is unchanged (decision 009).
+- **Asserted:** the oracle's −lnL at NQC's box endpoints equals the accepted score (decision 021).
+  S-1, NONREV's relaxed run ends above its default run by more than the case's round threshold
+  (0.01, or 0.1 under `-S`) in at least one case. S-2, P0 lies above NQC's default box endpoint by
+  more than that threshold. S-3, NQC's relaxed box run is not ended by its round threshold while
+  more than 0.01 below P0; such a stall would point to an NQC-specific obstacle.
+- **Reported:** both models' per-round gains; at each peak, the gain over the last (below −1e-6
+  flagged as not reached), coordinates at each bound by row and side, those whose gradient pushes
+  outward, rows with three or more at the upper bound (a collapsed reference), and the largest
+  change in log rate from P0; at P3, the coordinates leaving P2's domain and the log-likelihood
+  they add (below 1e-3, a flat direction); the six built-in NQ matrices placed against the domains.
+- **Risk 22's material line** (Peter, 2026-10-24, before any run): a box cost, the higher of P2 and
+  P2w minus P0, above 0.1 in any case. If material, the recommendation is the narrowest tested
+  domain within 0.1 of that peak in every case whose IQ-TREE runs show no new warnings, switches,
+  falls or ASSERTs; otherwise the default box stays.
+- **Order:** a pilot on case A; Peter then sees its iteration counts and the estimated cost of B
+  and C before they run. The `reread` mode recomputes, from the S3b gate's outputs, the numbers
+  that corrected S3b's risk 22 record.
+
 S3c, profiling against NONREV (PLAN.md risks 5 and 18), with settings and thresholds Peter
 approved on 2026-10-22, before any measurement:
 - **Runs.**
@@ -739,7 +771,9 @@ approved on 2026-10-22, before any measurement:
 - **Measured:** time per likelihood evaluation, fit wall and CPU time, rounds, NQC's evaluation
   count, IQ-TREE's memory estimate. Labelled as an extrapolation: 1000 alignments and about a
   million columns on dozens of CPUs. Reported: NONREV's free-parameter count minus NQC's, 19 in
-  every configuration.
+  every configuration; each fit's final log-likelihood and the rule that ended it (round
+  threshold or cap), beside which the per-fit ratio is read, since default settings stop the two
+  models at different distances from their peaks (risk 24); bound activity by row and side.
 - **The per-evaluation measurement must be redefined in S3c's plan, and Peter approves it.**
   - The approved source, the time printed with the initial log-likelihood under `-v`, times one
     `computeLikelihood` with Q already decomposed (`model/modelfactory.cpp:1585-1597`). It misses
@@ -782,8 +816,10 @@ Evidence for PLAN.md risk 22, reported (results in `CHANGELOG.md`, S3a and S3b e
   written by the oracle as a 17-digit Q for `--init-model` and its final trees and rate
   parameters fixed (`-p` through decision 024's `-q` route), one in the box and one at
   `1e-8,1e7`, with `-vv`. Reported: each continuation's first lnL, which should equal the box
-  fit's state, and its final `accepted_score`. A gain only at `1e-8,1e7` shows the box costing
-  likelihood; a gain in both shows the box fit had stopped early.
+  fit's state, and its final `accepted_score`. Both continuations end by the same round rule, so a
+  gain at `1e-8,1e7` larger than in the box can come from that rule alone (turtle `-p`: 19 rounds
+  against 2, each gaining about 0.01). The box's cost is read from converged peaks (S3c's first
+  part).
 
 S4:
 
