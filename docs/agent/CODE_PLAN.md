@@ -757,20 +757,13 @@ and converged evidence for risk 22, by `test_scripts/fixedeq/explore/convergence
   domain within 0.1 of that peak in every case whose IQ-TREE runs show no new warnings, switches,
   falls or ASSERTs; otherwise the default box stays.
 - **Order:** a pilot on case A (done, `CHANGELOG.md` 2026-10-24); then cases B and C, approved by
-  Peter on 2026-10-24 with P1b added. The `reread` mode recomputes, from the S3b gate's outputs,
-  the numbers that corrected S3b's risk 22 record.
-- **Cases B and C, how to run them** (estimate 4.5 to 6.5 hours, from the pilot's timings scaled by
-  turtle's oracle evaluation, 26.2 ms against aa_example's 17.9 ms):
-  - From a clean commit, after agreeing keep-awake with Peter (laptop plugged in, lid open), in
-    the `iqtree3-fixedeq` environment under WSL: `convergence.py run --binary
-    ~/iqtree3-build/iqtree3 --out ~/iqtree3-runs/explore/<UTC>-<commit>-casesBC --cases B,C
-    --rounds 300 --max-iter 1000 --jobs 12 --workers 11 --git git.exe`, its output to a log beside
-    (not inside) the out directory. The binary is the S3b gate's (SHA-256 `841472e8...`). Twelve
-    runs at once let both cases' long relaxed runs start together on the VM's 12 CPUs.
-  - Keep-awake helper: a background PowerShell process that calls `SetThreadExecutionState`
-    while `wsl.exe -d Debian -- pgrep -fc convergence.py.run` counts above zero; a pattern with
-    no space; its `Out-File` log is UTF-16, read with `Get-Content`.
-  - Monitor the log; stop no run that is only slow (compare CPU and wall time first).
+  Peter on 2026-10-24 with P1b added (done 2026-10-25, `CHANGELOG.md`; the command, with
+  `--timeout 21600` added by Peter, is in the run's `results.json`; 85 minutes against the 4.5 to
+  6.5 hours estimated, since turtle's climbs took fewer iterations). The `reread` mode recomputes, from
+  the S3b gate's outputs, the numbers that corrected S3b's risk 22 record.
+- **Keep-awake for long runs:** a background PowerShell process that calls
+  `SetThreadExecutionState` while `wsl.exe -d Debian -- pgrep -fc PATTERN` counts above zero; a
+  pattern with no space; its `Out-File` log is UTF-16, read with `Get-Content`.
 - **Reading B and C** (lines fixed before they run):
   - Per case: W, the higher of P2 and P2w; the box cost W − P0. Material if above 0.1 in any case
     (case A: 0.187, so the default box already fails the line).
@@ -781,10 +774,20 @@ and converged evidence for risk 22, by `test_scripts/fixedeq/explore/convergence
   - Box first, then wide: P2 against P2w in each case (case A: P2w 0.30 lower). Reported as a
     finding on how to fit, for Peter.
   - S-1 to S-3 and the oracle matches per case; case C's converged box cost answers S3b's 0.193.
-  - Recorded in `CHANGELOG.md`, PLAN.md's current state and next step; decision 007 changes only
-    after Peter's decision, in a separately planned change: `utils/tools.{h,cpp}` (default and
-    help text), the oracle's `nqc.LOWER` and `nqc.UPPER`, the driver and tests that cite the box,
-    then `nqcchecks.py` rerun. Fixtures and the G0 manifest are not regenerated.
+  - Read on 2026-10-25 (`CHANGELOG.md`): material in every case; P1 is the narrowest that
+    qualifies. S-3 failed in case B (recorded as a failure, the check unchanged).
+- **Domain change** (Peter, 2026-10-25: default [1e-5, 1e5], P1 above), planned before it is
+  made:
+  - `utils/tools.{h,cpp}`: `nqc_domain_hi`'s default, the `--nqc-domain` help text and the header
+    comment; decision 007 rewritten in place.
+  - The oracle's `nqc.LOWER` and `nqc.UPPER`, which also set `scaled_steps`' backward step and the
+    decision 017 toy box; the tests that cite `nqc.UPPER`.
+  - Scripts whose recorded results used the old box (`convergence.py`'s P0 and its "outside the
+    default box" reports, `skewed_targets.py`, `thresholds.py`) name [1e-5, 10] explicitly, so
+    they reproduce. Fixtures and the G0 manifest name their own box and are not regenerated.
+  - Settled in its plan: which `nqcchecks.py` cases rerun (the default-box ones change meaning),
+    whether the regression runs (a shared file changes, legacy behaviour should not), and whether
+    a sanitizer build is needed for a changed default.
 
 S3c, profiling against NONREV (PLAN.md risks 5 and 18), with settings and thresholds Peter
 approved on 2026-10-22, before any measurement:
