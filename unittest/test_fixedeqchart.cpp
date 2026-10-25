@@ -26,7 +26,7 @@ using fq::Status;
 namespace {
 
 const double RESIDUAL = 1e-10;                               // decision 026
-const double LO = std::log(1e-5), HI = std::log(10.0);      // the default box (decisions 007, 027)
+const double LO = std::log(1e-5), HI = std::log(10.0);      // the default box when written (007)
 const double NaN = std::numeric_limits<double>::quiet_NaN();
 
 double qLimit(double kappa) { return std::max(1e-12, 1e-14 * kappa); }

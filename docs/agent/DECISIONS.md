@@ -79,15 +79,16 @@ relative derivative error was about 9.6e-2 at z = 1e-6 and 6.4 at z = 1e-8 (synt
 ### D03. Declare numerical domains explicitly and report their effect
 
 **Rule.** Coordinate bounds are explicit and recorded for every run (default and option: 007);
-the default is a benchmark domain, not a chosen production range. Bound activity is reported,
+the default was chosen from converged peaks (S3c's first part). Bound activity is reported,
 final scientific runs include a domain-expansion sensitivity check, and an imported matrix is
 never clipped to a box. A start is not checked against the box.
 **Why.** A finite box restricts the family, and boxes in different charts are different sets of
 matrices (synthesis section 4.2).
 **Retained.** Wider limits when bounds are active or sensitivity checks move the solution; a
 boundary-capable method if exact zero rates are needed (D10).
-**Since** 2026-09-23; start clause removed 2026-10-05 by 027 (D03; Peter's direction;
-implementation only, box and estimand unchanged; no regression or rerun).
+**Since** 2026-09-23; start clause removed 2026-10-05 by 027 (implementation only); default
+chosen 2026-10-25 (D03; S3c's first part; the default estimand widens to [log 1e-5, log 1e5]; no
+regression effect, legacy models never read it; finished comparisons keep their recorded box).
 
 ### D05. Build the first seed and the guide candidates at the target
 
@@ -210,18 +211,20 @@ IQ-TREE's 8-decimal print; Peter accepted the departure because it lives only in
 **Not chosen.** A `--target-freq FILE` option (a maintainer question, PLAN.md); `NQC{...}` braces.
 **Since** 2026-09-23; sum line confirmed 2026-10-05 (026).
 
-### 007. Domain: the benchmark box by default, a parse-only option, no start check
+### 007. Domain: [log 1e-5, log 1e5] by default, a parse-only option, no start check
 
-**Rule.** The default box is z in [log 1e-5, log 10], the per-row form of IQ-TREE's rate bounds
-[1e-4, 100] with a protein start scaled to a largest rate of 10 and the reference weight at 10.
-`--nqc-domain LO,HI` (provisional name, ratio units) sets it per run; a step option is added only
-if a step study needs it. Both are parse-only and read through `Params`. The start is not
-compared with the box: it is evaluated as given, and the line search clamps later trial points.
-**Why.** D03 needs explicit, variable domains; the box reuses IQ-TREE's constants, and the chart
-is total on R^360, so a start outside the box still gives a valid Q (D06).
-**Not chosen.** Compiled constants; a domain per start; a start margin; [log 1e-5, log 1e5].
-**Since** 2026-09-23; start check removed by 027 (2026-10-05). Whether this default suits the
-log-ratio chart is a required full decision, open (PLAN.md risk 22).
+**Rule.** The default box is z in [log 1e-5, log 1e5]. `--nqc-domain LO,HI` (provisional name,
+ratio units) sets it per run; a step option is added only if a step study needs it. Both are
+parse-only and read through `Params`. The start is not compared with the box: it is evaluated as
+given, and the line search clamps later trial points.
+**Why.** D03 needs explicit, variable domains; the chart is total on R^360, so a start outside
+the box still gives a valid Q (D06). At converged peaks (S3c's first part, cases A to C) the
+first default cost 0.187 to 0.245 in log-likelihood, all at its upper edge; this box lies within
+0.022 of the best peak found in every case and is the narrowest tested that does.
+**Not chosen.** Compiled constants; a domain per start; a start margin; the first default
+[log 1e-5, log 10], the per-row form of IQ-TREE's rate bounds [1e-4, 100], kept as the benchmark
+box of the records made in it; [log 1e-6, log 1e6], NONREV's ratio range; [log 1e-8, log 1e7].
+**Since** 2026-09-23; start check removed by 027 (2026-10-05); default widened 2026-10-25 (Peter).
 
 ### 008. Refuse every combination the first release does not support
 
@@ -326,10 +329,10 @@ and starts NQC from it with `--nqc-domain` widened to contain the start (`CODE_P
 falls below it by no more than that. The domain is a test setting only (007 is unchanged); the
 same fit in the default box is reported.
 **Why.** A tree search leaves the checkpoint's model stale (S0 probe (g)). The 10-digit carry
-moves the log-likelihood by about 3e-12 relative, kept out by re-evaluation. In the default box
-the first line search clamps the start's 146 of 360 outside coordinates (`aa_example`).
+moves the log-likelihood by about 3e-12 relative, kept out by re-evaluation. In the first
+default box the first line search clamped the start's 146 of 360 outside coordinates (`aa_example`).
 **Not chosen.** Carrying from the report; the printed log-likelihood; the default box alone.
-**Since** 2026-10-05; domain 2026-10-22 (Peter). The default box itself is open (PLAN.md risk 22).
+**Since** 2026-10-05; domain 2026-10-22 (Peter); the default box widened 2026-10-25 (007).
 
 ## Tests
 

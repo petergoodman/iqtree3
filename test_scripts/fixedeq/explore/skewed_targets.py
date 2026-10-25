@@ -1,4 +1,4 @@
-"""Exploratory, read-only: whether LG rebuilt at a skewed target lies in NQC's default box (PLAN.md
+"""Exploratory, read-only: whether LG rebuilt at a skewed target lies in NQC's first default box (PLAN.md
 risk 22; decisions 023 and 025). Not a test; nothing here is a pass line.
 
   python test_scripts/fixedeq/explore/skewed_targets.py --git git.exe > OUT.txt
@@ -37,7 +37,7 @@ def git(exe, *args):
 def outside(pi):
     Q, ref = nqc.lg_seed(pi)
     z = chart.inverse(Q, ref)
-    return int(np.sum(z < nqc.LOWER)) + int(np.sum(z > nqc.UPPER)), float(z.min()), float(z.max())
+    return int(np.sum(z < nqc.BOX_LOWER)) + int(np.sum(z > nqc.BOX_UPPER)), float(z.min()), float(z.max())
 
 
 def row(label, pi):
@@ -54,7 +54,7 @@ def main():
     print(f"script test_scripts/fixedeq/explore/skewed_targets.py; commit {git(a.git, 'rev-parse', 'HEAD')}; "
           f"clean {git(a.git, 'status', '--porcelain') == ''}; "
           f"{datetime.datetime.now(datetime.timezone.utc).isoformat(timespec='seconds')}; "
-          f"seed {SEED}; draws {DRAWS}; numpy {np.__version__}; box [{nqc.LOWER:.4f}, {nqc.UPPER:.4f}]")
+          f"seed {SEED}; draws {DRAWS}; numpy {np.__version__}; box [{nqc.BOX_LOWER:.4f}, {nqc.BOX_UPPER:.4f}]")
 
     data = REPO / "test_scripts/test_data"
     turtle = np.asarray(target.pooled_frequencies(readers.read_fasta(data / "turtle_aa.fasta"),

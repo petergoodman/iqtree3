@@ -44,7 +44,7 @@ def test_ends_no_lower_than_iqtrees_optimizer_on_an_nqc_objective():
     aln = {n: "".join(rng.choice(list(lk.AMINO), 25)) + "B-X" for n in "abcd"}
     f = nqc.Objective(aln, readers.parse_newick(TREE), pi, ref)
     z0 = rng.normal(-1.0, 0.5, 360)
-    lower, upper = np.full(360, nqc.LOWER), np.full(360, nqc.UPPER)
+    lower, upper = np.full(360, nqc.BOX_LOWER), np.full(360, nqc.BOX_UPPER)   # the port's box
     port = nqc.fit(f, z0)
     r = opt.lbfgsb_fit(f, z0, lower, upper, max_iter=20)   # 134 iterations to converge; 20 keep the test short
     assert np.all((r.x >= lower) & (r.x <= upper))

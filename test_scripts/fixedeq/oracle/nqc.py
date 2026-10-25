@@ -10,7 +10,10 @@ import numpy as np
 
 from . import builtin, chart, likelihood, optimize
 
-LOWER, UPPER = math.log(1e-5), math.log(10.0)  # decisions 007 and 027
+LOWER, UPPER = math.log(1e-5), math.log(1e5)  # the default domain (decisions 007 and 027)
+# decision 007's first default, the benchmark box, kept for the records made in it: the decision 017
+# toy comparison and S3c's stopping study
+BOX_LOWER, BOX_UPPER = math.log(1e-5), math.log(10.0)
 GRADIENT_EPSILON = 1e-4  # ModelFactory's default, passed to the model fit (model/modelfactory.h:204-205)
 
 
@@ -113,8 +116,8 @@ def central(f, z, s):
 
 def fit(f, z0):
     """One model fit as ModelMarkov::optimizeParameters makes it, with the scaled step and the
-    default box: the oracle's side of the decision 017 toy comparison."""
+    benchmark box: the oracle's side of the decision 017 toy comparison, calibrated in that box."""
     n = len(z0)
-    lower, upper = np.full(n, LOWER), np.full(n, UPPER)
+    lower, upper = np.full(n, BOX_LOWER), np.full(n, BOX_UPPER)
     return optimize.optimize_model(f, z0, lower, upper, GRADIENT_EPSILON,
                                    derivative=lambda g, x: optimize.scaled_derivative(g, x, upper))

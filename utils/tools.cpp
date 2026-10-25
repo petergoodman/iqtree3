@@ -6011,7 +6011,7 @@ void usage_iqtree(char* argv[], bool full_command) {
     << "                       NONREV, UNREST (unrestricted model, equiv. 12.12)" << endl
     << "                       NQ.pfam, NQ.bird, NQ.mammal, NQ.insect, NQ.plant, NQ.yeast" << endl
     << "           Otherwise:  Name of file containing user-model parameters" << endl
-    << "  --nqc-domain LO,HI   Bounds on each NQC jump-probability ratio (default: 1e-5,10)" << endl
+    << "  --nqc-domain LO,HI   Bounds on each NQC jump-probability ratio (default: 1e-5,1e5)" << endl
     << endl << "STATE FREQUENCY:" << endl
     << "  -m ...+F             Empirically counted frequencies from alignment" << endl
     << "  -m ...+FO            Optimized frequencies by maximum-likelihood" << endl
@@ -7275,7 +7275,7 @@ void Params::setDefault() {
     keep_zero_freq = true;
     min_state_freq = MIN_FREQUENCY;
     nqc_domain_lo = 1e-5;
-    nqc_domain_hi = 10.0;
+    nqc_domain_hi = 1e5;
     min_rate_cats = 2;
     num_rate_cats = 4;
     max_rate_cats = 10;

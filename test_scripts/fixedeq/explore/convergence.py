@@ -8,8 +8,10 @@ everything else is reported.
 
 run: three Level 1 cases with every nuisance fixed: A aa_example (+G4{0.5}, baseline run02's rooted
 tree); B turtle -S (+G4{0.5}, run09's trees); C turtle -q with the tree, shapes and partition rates
-of an NQC -p Level 2 +G4 fit in the default box (decision 024). In each, NONREV, NQC in the default
-box and NQC at 1e-8,1e7 run at IQ-TREE's default settings and with the round rules relaxed (-me
+of an NQC -p Level 2 +G4 fit in the box (decision 024). "The box" is the benchmark box [1e-5, 10],
+decision 007's first default, named on every run so that the study reproduces after the default
+changed (2026-10-25). In each, NONREV, NQC in the box and NQC at 1e-8,1e7 run at IQ-TREE's
+default settings and with the round rules relaxed (-me
 1e-6, --loop-model and -nparam for ROUNDS rounds), and NQC relaxed at 1e-5,1e5 and 1e-6,1e6. The
 oracle's reference climber (oracle/optimize.py lbfgsb_fit) then starts at NQC's relaxed box
 endpoint and climbs to the peak of each domain in turn, P0, P1, P1b (added after case A's pilot),
@@ -22,7 +24,7 @@ value. Writes results.json and results.md in the new directory DIR.
 reread: recomputes from S3b's gate outputs (GATE is the gate's run directory) and S0 probe c2 (PROBE
 is the probe record directory) the numbers that correct the S3b record: the turtle -q
 continuations' per-round gains, evaluations per round and dfpmin's test at their first gradient;
-c2's per-round gains; final coordinates outside the default box, by row, in the gate's NQC runs.
+c2's per-round gains; final coordinates outside the box, by row, in the gate's NQC runs.
 Writes reread.json and reread.md in the new directory DIR.
 """
 import os
@@ -69,13 +71,13 @@ GTOL = 1e-4         # dfpmin's gtol, max(gradient_epsilon, TOL_RATE)
 # (peak, log lower, log upper, --nqc-domain value). P1b was added after case A's pilot (Peter,
 # 2026-10-24): the smallest symmetric box holding every within-row rate ratio NONREV's bounds
 # [1e-4, 100] allow.
-DOMAINS = (("P0", nqc.LOWER, nqc.UPPER, None), ("P1", math.log(1e-5), math.log(1e5), "1e-5,1e5"),
+DOMAINS = (("P0", nqc.BOX_LOWER, nqc.BOX_UPPER, "1e-5,10"),("P1", math.log(1e-5), math.log(1e5), "1e-5,1e5"),
            ("P1b", math.log(1e-6), math.log(1e6), "1e-6,1e6"), ("P2", math.log(1e-8), math.log(1e7), WIDE),
            ("P3", -50.0, 50.0, None))
 DOMAIN = {d[0]: d for d in DOMAINS}
 CASES = {"A": ("aa_example Level 1", "single", 0.01), "B": ("turtle Level 1 -S", "-S", 0.1),
          "C": ("turtle Level 1 -q", "-q", 0.01)}   # label, path, the default round threshold
-MODELS = (("nonrev", False, None), ("nqc-box", True, None), ("nqc-wide", True, WIDE))
+MODELS = (("nonrev", False, None), ("nqc-box", True, DOMAIN["P0"][3]), ("nqc-wide", True, WIDE))
 NQ = ("NQ.PFAM", "NQ.INSECT", "NQ.YEAST", "NQ.PLANT", "NQ.BIRD", "NQ.MAMMAL")
 WIDTH = 18          # coordinates per row (n - 2)
 
@@ -234,7 +236,7 @@ def run_state(run, mode, nqc_model, setting, rounds_relaxed):
     if ck:
         z = floats(ck["coordinates"])
         out.update({"evaluations": int(ck["evaluations"]), "fits": int(ck["fits"]), "bounds": ck["bounds"],
-                    "outside_default_box": outside(z, nqc.LOWER, nqc.UPPER), "coordinates": z.tolist(),
+                    "outside_box": outside(z, nqc.BOX_LOWER, nqc.BOX_UPPER), "coordinates": z.tolist(),
                     "fit_gains": [float(f[3]) - float(f[1]) for f in FIT.findall(text)]})
     return out
 
@@ -254,7 +256,7 @@ def peak_report(peaks, pi, ref):
             rows.append(check("peak P2w: P2's domain climbed from IQ-TREE's relaxed endpoint there (report)", None,
                               lnl=p["lnl"], above_P2=p["lnl"] - named["P2"]["lnl"], pg_max=p["pg_max"],
                               phases=p["phases"], evaluations=p["evaluations"], wall_s=p["wall_s"],
-                              outside_default_box=outside(p["x"], nqc.LOWER, nqc.UPPER)))
+                              outside_box=outside(p["x"], nqc.BOX_LOWER, nqc.BOX_UPPER)))
             continue
         x, g = np.array(p["x"]), np.array(p["gradient"])
         lower, upper = np.array(p["at_lower"], dtype=int), np.array(p["at_upper"], dtype=int)
@@ -294,7 +296,8 @@ def case_checks(key, states, peaks, oracle_rows):
     if peaks:
         p0 = peaks[0]["lnl"]
         if box_d.get("final_lnl") is not None:
-            rows.append(check(f"S-2: the box peak P0 above NQC's default box endpoint by more than {threshold:g}",
+            rows.append(check(f"S-2: the box peak P0 above NQC's box endpoint at default settings by more than "
+                              f"{threshold:g}",
                               p0 - box_d["final_lnl"] > threshold, p0=p0, default=box_d["final_lnl"],
                               difference=p0 - box_d["final_lnl"]))
         if box_r.get("final_lnl") is not None:
@@ -337,7 +340,7 @@ def nq_placement(c):
             per = {d: {"below": int(np.sum(z < lo)), "above": int(np.sum(z > hi))}
                    for d, lo, hi, _ in DOMAINS if d != "P3"}
             rows.append(check(f"{name}, {label}: coordinates outside each domain (report)", None, domains=per,
-                              rows_above_P0=by_row(np.flatnonzero(z > nqc.UPPER)), min=float(z.min()),
+                              rows_above_P0=by_row(np.flatnonzero(z > nqc.BOX_UPPER)), min=float(z.min()),
                               max=float(z.max())))
     return rows
 
@@ -345,7 +348,7 @@ def nq_placement(c):
 # ---------------------------------------------------------------- run
 
 def case_setup(key, c, r):
-    """Files and argument builder for a case; C first fits NQC under -p in the default box for its
+    """Files and argument builder for a case; C first fits NQC under -p in the box for its
     nuisances."""
     if key == "A":
         return ({"input.tree": c.t02},
@@ -355,8 +358,8 @@ def case_setup(key, c, r):
         files = turtle_files("-S")
         return (files, lambda m: joint_args(TURTLE, "-S", NEX, m, f"+G4{{{ALPHA}}}", "partition.trees", "-blfix", "-v"),
                 {"mode": "-S", "trees": files["partition.trees"]})
-    source = r.run("C-source-p-level2-g4", joint_args(TURTLE, "-p", NEX, c.model, "+G4", "input.tree", "-v"),
-                   turtle_files("-p"))
+    source = r.run("C-source-p-level2-g4", joint_args(TURTLE, "-p", NEX, c.model, "+G4", "input.tree", "-v",
+                                                      "--nqc-domain", DOMAIN["P0"][3]), turtle_files("-p"))
     names = list(readers.read_charsets(NEX))
     route = q_route(source, names)
     if route is None:
@@ -526,8 +529,8 @@ def cmd_reread(a):
         if ck and "coordinates" in ck:
             dom = floats(ck["domain"])
             rows.append(check(f"{d.name} (report)", None, domain=dom.tolist(),
-                              **outside(floats(ck["coordinates"]), nqc.LOWER, nqc.UPPER)))
-    results["final coordinates outside the default box, by row (S3b gate)"] = rows
+                              **outside(floats(ck["coordinates"]), nqc.BOX_LOWER, nqc.BOX_UPPER)))
+    results["final coordinates outside the box, by row (S3b gate)"] = rows
     prov["inputs_sha256"] = used
     prov["finished_utc"] = datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds")
     out.mkdir(parents=True)

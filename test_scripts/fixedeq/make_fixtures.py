@@ -31,7 +31,7 @@ from regress import REPO, capture, write  # noqa: E402
 
 SCRIPT = Path(__file__).resolve().relative_to(REPO).as_posix()
 SEED = 20261019
-LO, HI = math.log(1e-5), math.log(10.0)   # the default box (decisions 007 and 027)
+LO, HI = math.log(1e-5), math.log(10.0)   # the default box when the fixtures were made (decision 007)
 RESIDUAL = 1e-10                           # decision 026
 MIN_FREQ = 1e-4                            # IQ-TREE's default min_state_freq (utils/tools.cpp:7263)
 MANIFEST = REPO / "test_scripts/fixedeq/manifest/g0_manifest.json"

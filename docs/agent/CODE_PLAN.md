@@ -350,7 +350,7 @@ from a clean tree (in S1, commit `c349e41a`, seed 20261019).
     rebuilt at the decision 023 target.
   - 10 are built by the oracle's chart: NQ.pfam's jump chain transferred to that target, skewed
     targets with 19 entries at 1e-4, near-reducible chains at n = 4 and 20, coordinates across the
-    default box and beyond it, and one logit near the exponential's underflow.
+    first default box and beyond it, and one logit near the exponential's underflow.
 - **Headers.** Each records the condition number κ of the case's augmented ν system
   (`chart.nu_condition`) and the oracle's own error against the pass line.
 - **Self-check.** The generator writes nothing if any case fails decision 021's lines in the
@@ -465,7 +465,7 @@ later from the same frozen binary with run 8 rerun in each repeat to supply its 
   and a Level 1 run makes several fits. Its final one is `accepted_score`. The NQC fit runs with
   `--nqc-domain LO,HI` computed by the driver from the carried start before the run: one decade
   beyond the start's smallest and largest jump-weight ratios, rounded outward to powers of ten,
-  and never inside the default box (LO at most 1e-5, HI at least 10); for `aa_example`'s start,
+  and never inside the default box (LO at most 1e-5, HI at least 1e5); for `aa_example`'s start,
   ratios of 1.19e-7 and 1.13e5 (S3a's gate) give 1e-8 and 1e7. This is a test setting; decision 007's
   default, with no start margin, is unchanged. The same fit in the default box is reported, not
   asserted.

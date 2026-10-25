@@ -595,7 +595,7 @@ def widened_domain(z):
     ratios, rounded outward to powers of ten, and never inside the default box."""
     ratios = np.exp(z)
     lo = min(10.0 ** math.floor(math.log10(ratios.min() / 10)), 1e-5)
-    hi = max(10.0 ** math.ceil(math.log10(ratios.max() * 10)), 10.0)
+    hi = max(10.0 ** math.ceil(math.log10(ratios.max() * 10)), 1e5)
     return f"{lo:g},{hi:g}", float(ratios.min()), float(ratios.max())
 
 
@@ -737,7 +737,9 @@ def case_toy(r, c, calibration_path, alisim):
     made = toy.make(data, alisim, c.pi)
     out = [check("toy data identical to the calibration's", made["sha256"] == cal["provenance"]["toy"]["sha256"]),
            check("toy target identical to the calibration's", cal["target_text"] == c.target_text)]
-    run = r.run("toy", ["-s", data / "toy.phy", "-m", c.model, "-te", data / "toy.nwk", "-blfix", "-nparam", "3", "-vv"])
+    # in the benchmark box, where the calibration and the oracle's port were made (nqc.fit)
+    run = r.run("toy", ["-s", data / "toy.phy", "-m", c.model, "-te", data / "toy.nwk", "-blfix", "-nparam", "3", "-vv",
+                        "--nqc-domain", "1e-5,10"])
     if run.code != 0:
         return out + failed_run(run)
     plain = cal["fits"]["plain"]
