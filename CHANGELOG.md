@@ -10,16 +10,16 @@ development.
 
 ## 2026-10-24: S3c's first part begun, the stopping study and risk 22's evidence
 
-- **Done.** Risk 22 and early stopping explained to Peter; S3c's first part planned and approved
-  (CODE_PLAN 4; PLAN risks 22, 24, question 7). `lbfgsb_fit`, a test-only L-BFGS-B climber in
-  `oracle/optimize.py`, with `tests/test_lbfgsb.py` (196 Python tests pass); the driver
-  `explore/convergence.py`. Fork workflow on S3b's close passed (run 40009247380).
-- **Corrected.** S3b's "0.193 ..., a box cost". `convergence.py reread`: box rounds gain 0.0106 then
-  0.0095 (below 0.01, stop); wide 19 rounds, 0.0139 falling to 0.0100; 724 evaluations a round, one
-  step; dfpmin's test already 8.5e-5 < 1e-4 at the first gradient; probe c2's last round +3.507.
-- **Found.** The single-alignment report omits the last round's gain (aa_example: −6960.6135
-  printed, −6960.6085 the model's). Wide fits put whole rows above the box (S; turtle N, C, W).
-- **Next.** The case A pilot from this commit, keep-awake agreed; B and C after Peter sees the cost.
+- **Done.** Risk 22 and early stopping explained; S3c's first part planned and approved (CODE_PLAN
+  4; PLAN risks 22, 24, question 7). `a7614b9f`: `lbfgsb_fit`, a test-only L-BFGS-B climber, and its
+  tests (196 pass); the driver `explore/convergence.py`. Fork workflow on S3b's close passed.
+- **Corrected.** S3b's "0.193 ..., a box cost" (`reread`, clean): box rounds +0.0106, +0.0095, stop
+  below 0.01; wide 19 rounds, +0.0139 to +0.0100; one step a round; dfpmin's test 8.5e-5 < 1e-4.
+- **Pilot, case A** (`~/iqtree3-runs/explore/20261024T222824Z-a7614b9f-pilotA/`, 8 asserted pass):
+  box peak P0 −6958.898, 4.05 above NQC's default fit, 2.31 above 300 relaxed rounds; NONREV relaxed
+  +3.24, at its cap. P1 +0.165, P2 +0.022 (cost 0.187, rows C and W), P3 +8e-6; P2w 0.30 below P2.
+  Climbs 56 min on 11 workers. The single-alignment report omits the last round's gain (< -me).
+- **Next.** P1b [1e-6, 1e6] added (Peter); cases B and C in a new session (PLAN.md next step).
 
 ## 2026-10-23: S3b, linked training (gate G3, first part)
 

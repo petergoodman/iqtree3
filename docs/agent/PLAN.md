@@ -263,7 +263,10 @@ S0 to S2, S3a and S3b are complete. S3b's gate ran from the clean tree at `05491
   binds but not what it costs; S3c's first part measures that from converged peaks, and S3c's
   profiling adds bound activity on its sets.
 - **S3c's first part, started 2026-10-24:** the driver `explore/convergence.py` and the oracle's
-  reference climber `lbfgsb_fit`, with their tests; S3b's record corrected (`CHANGELOG.md`).
+  reference climber `lbfgsb_fit`, with their tests; S3b's record corrected. Case A's pilot
+  (`CHANGELOG.md`, 2026-10-24): IQ-TREE's stopping left NQC 4.05 below the box's peak, and the
+  converged box cost is 0.187, above the 0.1 line, carried by rows C and W. Cases B and C, with
+  P1b [1e-6, 1e6] added (Peter, 2026-10-24), have not run.
 - **Cost, for S3c (risk 5):** in the `-q` Level 1 and `-p` `+R4` twopart fits every linked fit
   ended after a small gain, so IQ-TREE's round loop ran to its 99-round cap (S3b entry).
 - **Continuous integration:** Actions is back on since 2026-10-22. Upstream's Build workflow is
@@ -272,10 +275,16 @@ S0 to S2, S3a and S3b are complete. S3b's gate ran from the clean tree at `05491
 
 ## Next step
 
-1. S3c's first part (`CODE_PLAN.md` section 4): the case A pilot of `explore/convergence.py` from
-   a clean commit, with keep-awake agreed; Peter sees its iteration counts and the estimated cost
-   of cases B and C, then they run; the results go to Peter.
-2. Peter's full decision on the production domain (risk 22), before S4 is planned.
+1. Cases B and C of S3c's first part, in a new session started with this prompt:
+
+   > Run cases B and C of S3c's first part as recorded and approved on 2026-10-24. Read the
+   > start-of-session files, then `CODE_PLAN.md` section 4's S3c first part (how to run and read
+   > B and C) and PLAN.md risks 22 and 24. Agree keep-awake with me before launching, monitor the
+   > run, then report the results against the recorded lines with your recommendation on the
+   > default domain, and record them. Do not change the default or decision 007 until I decide.
+
+2. Peter's full decision on the production domain (risk 22), before S4 is planned; its change is
+   planned separately (`CODE_PLAN.md` section 4, "Reading B and C").
 3. Plan and implement S3c's profiling in a new session, started in plan mode with this prompt:
 
    > Plan S3c's profiling as recorded and approved on 2026-10-22, with its first part's additions

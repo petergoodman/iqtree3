@@ -10,11 +10,12 @@ run: three Level 1 cases with every nuisance fixed: A aa_example (+G4{0.5}, base
 tree); B turtle -S (+G4{0.5}, run09's trees); C turtle -q with the tree, shapes and partition rates
 of an NQC -p Level 2 +G4 fit in the default box (decision 024). In each, NONREV, NQC in the default
 box and NQC at 1e-8,1e7 run at IQ-TREE's default settings and with the round rules relaxed (-me
-1e-6, --loop-model and -nparam for ROUNDS rounds), and NQC relaxed at 1e-5,1e5. The oracle's
-reference climber (oracle/optimize.py lbfgsb_fit) then starts at NQC's relaxed box endpoint and
-climbs to the peak of each domain in turn, P0 to P3, each from the last, and climbs P2's domain
-again from NQC's relaxed endpoint at 1e-8,1e7 (P2w), which may lie by another peak. The six built-in NQ
-matrices are placed against the domains. IQ-TREE runs at -T 1, several at once, so its times are
+1e-6, --loop-model and -nparam for ROUNDS rounds), and NQC relaxed at 1e-5,1e5 and 1e-6,1e6. The
+oracle's reference climber (oracle/optimize.py lbfgsb_fit) then starts at NQC's relaxed box
+endpoint and climbs to the peak of each domain in turn, P0, P1, P1b (added after case A's pilot),
+P2 and P3, each from the last, and climbs P2's domain again from NQC's relaxed endpoint at
+1e-8,1e7 (P2w), which may lie by another peak. The six built-in NQ matrices are placed against
+the domains. IQ-TREE runs at -T 1, several at once, so its times are
 indicative only; the oracle spreads each gradient's probes over worker processes, which changes no
 value. Writes results.json and results.md in the new directory DIR.
 
@@ -65,9 +66,13 @@ CONVERGED = -1e-6   # a later peak further below an earlier one than this was no
 COLLAPSE = 3        # coordinates of one row at the upper bound that mark its reference as collapsed
 RATE_FLOOR = 1e-3   # rates compared between peaks
 GTOL = 1e-4         # dfpmin's gtol, max(gradient_epsilon, TOL_RATE)
-# (peak, log lower, log upper, --nqc-domain value)
+# (peak, log lower, log upper, --nqc-domain value). P1b was added after case A's pilot (Peter,
+# 2026-10-24): the smallest symmetric box holding every within-row rate ratio NONREV's bounds
+# [1e-4, 100] allow.
 DOMAINS = (("P0", nqc.LOWER, nqc.UPPER, None), ("P1", math.log(1e-5), math.log(1e5), "1e-5,1e5"),
-           ("P2", math.log(1e-8), math.log(1e7), WIDE), ("P3", -50.0, 50.0, None))
+           ("P1b", math.log(1e-6), math.log(1e6), "1e-6,1e6"), ("P2", math.log(1e-8), math.log(1e7), WIDE),
+           ("P3", -50.0, 50.0, None))
+DOMAIN = {d[0]: d for d in DOMAINS}
 CASES = {"A": ("aa_example Level 1", "single", 0.01), "B": ("turtle Level 1 -S", "-S", 0.1),
          "C": ("turtle Level 1 -q", "-q", 0.01)}   # label, path, the default round threshold
 MODELS = (("nonrev", False, None), ("nqc-box", True, None), ("nqc-wide", True, WIDE))
@@ -134,7 +139,7 @@ def climb_chain(job):
     f = objective(spec, np.array(pi), np.array(ref))
     climbs = [(name, lo, hi, None) for name, lo, hi, _ in DOMAINS]
     if z_wide is not None:
-        climbs.append(("P2w", DOMAINS[2][1], DOMAINS[2][2], z_wide))
+        climbs.append(("P2w", DOMAIN["P2"][1], DOMAIN["P2"][2], z_wide))
     z, peaks = np.array(z0, dtype=float), []
     with ProcessPoolExecutor(max_workers=workers, mp_context=multiprocessing.get_context("spawn"),
                              initializer=_init_worker, initargs=(spec, pi, ref)) as pool:
@@ -299,7 +304,10 @@ def case_checks(key, states, peaks, oracle_rows):
                               difference=p0 - box_r["final_lnl"]))
         named = {q["peak"]: q for q in peaks}
         for peak, run in (("P0", f"{key}-nqc-box-relaxed"), ("P1", f"{key}-nqc-p1-relaxed"),
+                          ("P1b", f"{key}-nqc-p1b-relaxed"),
                           ("P2w" if "P2w" in named else "P2", f"{key}-nqc-wide-relaxed")):
+            if peak not in named:
+                continue
             final = states.get(run, {}).get("final_lnl")
             rows.append(check(f"{run}: below the oracle's {peak} by (report)", None,
                               shortfall=None if final is None else named[peak]["lnl"] - final))
@@ -326,7 +334,8 @@ def nq_placement(c):
             except chart.BuildError as e:
                 rows.append(check(f"{name}, {label} (report)", None, error=str(e)))
                 continue
-            per = {d: {"below": int(np.sum(z < lo)), "above": int(np.sum(z > hi))} for d, lo, hi, _ in DOMAINS[:3]}
+            per = {d: {"below": int(np.sum(z < lo)), "above": int(np.sum(z > hi))}
+                   for d, lo, hi, _ in DOMAINS if d != "P3"}
             rows.append(check(f"{name}, {label}: coordinates outside each domain (report)", None, domains=per,
                               rows_above_P0=by_row(np.flatnonzero(z > nqc.UPPER)), min=float(z.min()),
                               max=float(z.max())))
@@ -419,10 +428,10 @@ def cmd_run(a):
     for key in keys:
         files, args, spec = case_setup(key, c, r)
         setups[key] = spec
-        for config, is_nqc, domain in MODELS + (("nqc-p1", True, DOMAINS[1][3]),):
+        for config, is_nqc, domain in MODELS + (("nqc-p1", True, DOMAIN["P1"][3]), ("nqc-p1b", True, DOMAIN["P1b"][3])):
             model = c.model if is_nqc else "NONREV"
             extra = ["--nqc-domain", domain] if domain else []
-            for setting in (("relaxed",) if config == "nqc-p1" else ("default", "relaxed")):
+            for setting in (("relaxed",) if config in ("nqc-p1", "nqc-p1b") else ("default", "relaxed")):
                 jobs.append((f"{key}-{config}-{setting}", args(model) + extra + (relaxed if setting == "relaxed" else []),
                              files, key, is_nqc, setting))
     print(f"{len(jobs)} IQ-TREE runs, {a.jobs} at a time", flush=True)

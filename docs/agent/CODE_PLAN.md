@@ -735,9 +735,13 @@ and converged evidence for risk 22, by `test_scripts/fixedeq/explore/convergence
   at `1e-5,1e5`. Each run's per-round trajectory, rounds and ending rule (round threshold or cap).
 - **Reference peaks:** the oracle's `lbfgsb_fit` (SciPy's L-BFGS-B with decision 005's forward
   step, then central differences if needed, stopping at a projected gradient of 1e-3) climbs from
-  NQC's relaxed box endpoint through P0 [1e-5, 10], P1 [1e-5, 1e5], P2 [1e-8, 1e7] and P3 (±50 in
-  log units), each from the last, and climbs P2's domain again from NQC's relaxed endpoint there
-  (P2w). It is a test reference in the same chart; IQ-TREE's optimizer is unchanged (decision 009).
+  NQC's relaxed box endpoint through P0 [1e-5, 10], P1 [1e-5, 1e5], P1b [1e-6, 1e6], P2
+  [1e-8, 1e7] and P3 (±50 in log units), each from the last, and climbs P2's domain again from
+  NQC's relaxed endpoint there (P2w). It is a test reference in the same chart; IQ-TREE's
+  optimizer is unchanged (decision 009). P1b, with its NQC relaxed run, was added after case A's
+  pilot (Peter, 2026-10-24) and is reported as such: it is the smallest symmetric box holding
+  every within-row rate ratio NONREV's bounds [1e-4, 100] allow (1e-4/100 to 100/1e-4). Case A has
+  no P1b climb; its P1b peak, climbed from P1's, would be at least P1's.
 - **Asserted:** the oracle's −lnL at NQC's box endpoints equals the accepted score (decision 021).
   S-1, NONREV's relaxed run ends above its default run by more than the case's round threshold
   (0.01, or 0.1 under `-S`) in at least one case. S-2, P0 lies above NQC's default box endpoint by
@@ -752,9 +756,35 @@ and converged evidence for risk 22, by `test_scripts/fixedeq/explore/convergence
   P2w minus P0, above 0.1 in any case. If material, the recommendation is the narrowest tested
   domain within 0.1 of that peak in every case whose IQ-TREE runs show no new warnings, switches,
   falls or ASSERTs; otherwise the default box stays.
-- **Order:** a pilot on case A; Peter then sees its iteration counts and the estimated cost of B
-  and C before they run. The `reread` mode recomputes, from the S3b gate's outputs, the numbers
-  that corrected S3b's risk 22 record.
+- **Order:** a pilot on case A (done, `CHANGELOG.md` 2026-10-24); then cases B and C, approved by
+  Peter on 2026-10-24 with P1b added. The `reread` mode recomputes, from the S3b gate's outputs,
+  the numbers that corrected S3b's risk 22 record.
+- **Cases B and C, how to run them** (estimate 4.5 to 6.5 hours, from the pilot's timings scaled by
+  turtle's oracle evaluation, 26.2 ms against aa_example's 17.9 ms):
+  - From a clean commit, after agreeing keep-awake with Peter (laptop plugged in, lid open), in
+    the `iqtree3-fixedeq` environment under WSL: `convergence.py run --binary
+    ~/iqtree3-build/iqtree3 --out ~/iqtree3-runs/explore/<UTC>-<commit>-casesBC --cases B,C
+    --rounds 300 --max-iter 1000 --jobs 12 --workers 11 --git git.exe`, its output to a log beside
+    (not inside) the out directory. The binary is the S3b gate's (SHA-256 `841472e8...`). Twelve
+    runs at once let both cases' long relaxed runs start together on the VM's 12 CPUs.
+  - Keep-awake helper: a background PowerShell process that calls `SetThreadExecutionState`
+    while `wsl.exe -d Debian -- pgrep -fc convergence.py.run` counts above zero; a pattern with
+    no space; its `Out-File` log is UTF-16, read with `Get-Content`.
+  - Monitor the log; stop no run that is only slow (compare CPU and wall time first).
+- **Reading B and C** (lines fixed before they run):
+  - Per case: W, the higher of P2 and P2w; the box cost W − P0. Material if above 0.1 in any case
+    (case A: 0.187, so the default box already fails the line).
+  - A domain among P1, P1b and P2 qualifies if its peak lies within 0.1 of W in every case and
+    its relaxed IQ-TREE run shows no new warnings, scaling-squaring switches, falls or ASSERTs.
+    Peter's rule recommends the narrowest that qualifies; the NONREV-range argument for P1b is
+    reported beside it, and Peter decides.
+  - Box first, then wide: P2 against P2w in each case (case A: P2w 0.30 lower). Reported as a
+    finding on how to fit, for Peter.
+  - S-1 to S-3 and the oracle matches per case; case C's converged box cost answers S3b's 0.193.
+  - Recorded in `CHANGELOG.md`, PLAN.md's current state and next step; decision 007 changes only
+    after Peter's decision, in a separately planned change: `utils/tools.{h,cpp}` (default and
+    help text), the oracle's `nqc.LOWER` and `nqc.UPPER`, the driver and tests that cite the box,
+    then `nqcchecks.py` rerun. Fixtures and the G0 manifest are not regenerated.
 
 S3c, profiling against NONREV (PLAN.md risks 5 and 18), with settings and thresholds Peter
 approved on 2026-10-22, before any measurement:
