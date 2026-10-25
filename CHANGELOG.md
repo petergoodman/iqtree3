@@ -8,20 +8,30 @@ gate record and may run to 25 lines. The next session starts from the top entry.
 This is a fork of `iqtree/iqtree3`. Entries here describe work on the fork, not upstream
 development.
 
+## 2026-10-25 (continued): default domain [1e-5, 1e5]; decision 039
+
+- **Domain** (`0e9fb159`; decisions 007, D03, 025): `nqc_domain_hi` defaults to 1e5 and the oracle
+  mirrors it; the toy comparison and the stopping study name the old box [1e-5, 10], so they
+  reproduce. No sanitizer build (Peter): only a default value and a help string changed.
+- **Verified** from the clean commit (`~/iqtree3-runs/domain-change/20261025T213903Z-0e9fb159/`,
+  keep-awake on, 80 min): build (binary `81729f4b...`); pytest 196; unit tests in both variants;
+  case A's box run reproduces the pilot bitwise; `nqcchecks.py` 21 cases, 236 asserted passed, none
+  failed, no switch, fall or ASSERT; regression 12 of 12. At default settings the new default ends
+  +2.73, +0.55 (aa_example L1, turtle `-p` L2), −1.98, −1.38 (turtle `-S` L1, L2) against the old.
+- **Decided** (Peter): decision 039, NONREV's optimization process kept and S7 declares one stopping
+  protocol (risk 24); risk 22 retired. **Next.** Push; S3c's profiling (PLAN.md next step).
+
 ## 2026-10-25: S3c's first part, cases B and C; default domain decided
 
-- **Run** (`~/iqtree3-runs/explore/20261025T024937Z-57e4855f-casesBC/`, clean `57e4855f`, 85 min;
-  `--timeout 21600` added, Peter). Passed: oracle matches 4/4, S-1 (NONREV relaxed +9.93 B, +0.24 C),
-  S-2 (0.528, 0.565), peak order. **S-3 failed, case B:** NQC's relaxed box run ended by the `-S`
-  threshold (1e-5) at round 87, 0.479 below P0; rounds average 724 evaluations (one step each), gains
-  alternate 5e-4 and a short leg falling to 8.9e-6. Not shown NQC-specific: the climber gained 0.48
-  from that endpoint; C and wider B runs ran to the cap; NONREV also stopped on zero-gain rounds.
+- **Run** (`~/iqtree3-runs/explore/20261025T024937Z-57e4855f-casesBC/`, clean `57e4855f`, 85 min,
+  `--timeout 21600` added by Peter): 16 of 17 asserted passed (oracle matches; S-1 +9.93 B, +0.24 C;
+  S-2 0.528, 0.565; peak order). **S-3 failed, case B:** the relaxed box run ended by the `-S`
+  threshold at round 87, 0.479 below P0, in alternating gains of one step a round (724 evaluations);
+  not shown NQC-specific (the climber gained 0.48 from it; C and wider B runs reached the cap).
 - **Risk 22.** Box cost A 0.187, B 0.245, C 0.229 (upper edge, rows W and C); P1 within 0.022, 0.017,
-  0.013 of the best peak; P1b 0.017 (B), 0.001 (C); P2w − P2 −0.30, +0.017, +0.001; no new warnings,
-  switches, falls or ASSERTs. IQ-TREE's endpoints 0.77 to 4.2 below the peaks, 0.67 to 2.5 relaxed.
-- **Decided** (Peter): default domain [1e-5, 1e5]; NQC keeps NONREV's optimization process unless a
-  clear reason, with NONREV's issues noted for the maintainers (question 7).
-- **Next.** The domain change, planned first; risk 24 explained to Peter; then S3c's profiling.
+  0.013 of the best peak; clean runs. IQ-TREE's endpoints 0.77 to 4.2 below the peaks, 0.67 to 2.5
+  relaxed; NONREV's relaxed fits stopped on zero-gain rounds (question 7).
+- **Decided** (Peter): default domain [1e-5, 1e5]. **Next.** The domain change; risk 24 explained.
 
 ## 2026-10-24: S3c's first part begun, the stopping study and risk 22's evidence
 

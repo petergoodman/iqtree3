@@ -2,9 +2,9 @@
 
 > **Status, 2026-10-25: S3b complete (gate G3, first part): NQC trains one matrix across linked
 > partitions under `-S`, `-p` and `-q`; S3c's first part (the stopping study and risk 22's
-> converged evidence) done, and the default domain decided as [1e-5, 1e5], its change pending;
-> approach accepted by the IQ-TREE maintainers (reported by Peter, 2026-10-01).** Peter owns this
-> document.
+> converged evidence) done, the default domain changed to [1e-5, 1e5] and decision 039 set for
+> comparing fits; S3c's profiling next; approach accepted by the IQ-TREE maintainers (reported by
+> Peter, 2026-10-01).** Peter owns this document.
 
 This is the project's living core document: what we are building and why, the constraints the
 work must satisfy, where it stands, and the next step. It is read at the start of every task and
@@ -189,11 +189,11 @@ validation.
 | S2 | G2 | First compiled model, one alignment | root, seed, gradient, target and refusal checks and the toy comparison pass under decision 021's lines; Level 1 and Level 2 fits on `example/aa_example.phy`, `+I+G4` included; regression reproduces; sanitizers clean for new code | done 2026-10-22 (`35d4a1bf`); shortfalls in S3-1 |
 | S3a | G2 | One alignment complete | S3-1 done for one alignment (fit record once under `-v`, end-of-run summary at default verbosity, full checkpoint record and restore, ModelFinder and unlinked partitions refused); GTR20-seeded nesting in the widened domain (decision 025); the skewed-target fit (023) and aa_example's risk 22 runs reported; `+R4` seed against the oracle and a Level 2 fit; incompatible restarts refused; regression reproduces; sanitizers clean for new code | done 2026-10-22 (`4749f222`) |
 | S3b | G3 | Linked training and lifecycle | two partitions with different compositions under `-S` and `-p`, one target and one Q in every object; each linked fit checked and reported once (S3-1's linked half); 360 counted once; the linked gradient uses the scaled step; thread counts compared at a fixed point (decision 038); permuted order; mid-run and `--undo` restarts, incompatible ones refused; turtle's risk 22 runs and the warm starts from the box fits reported; regression reproduces; sanitizers clean for new code | done 2026-10-23 (`054914de`, reruns at `fb5bf76d`) |
-| S3c | G3 | Stopping, risk 22's evidence, cost against NONREV | first part: the stopping study's asserted checks and the converged risk 22 evidence (`CODE_PLAN.md` section 4); then profiling against NONREV within its blocking threshold, or, above 3 per fit, fixed in NQC's code or accepted by Peter; any ratio above 1.25 per evaluation or 2 per fit explained (risks 5, 18, 24); risk 22's evidence collected | first part done (2026-10-25); profiling not started |
+| S3c | G3 | Stopping, risk 22's evidence, cost against NONREV | first part: the stopping study's asserted checks and the converged risk 22 evidence (`CODE_PLAN.md` section 4); then profiling against NONREV within its blocking threshold, or, above 3 per fit, fixed in NQC's code or accepted by Peter; any ratio above 1.25 per evaluation or 2 per fit explained (risks 5, 18, 24) | first part done (2026-10-25), default domain changed (`0e9fb159`); profiling not started |
 | S4 | G3 | Export, re-import and report | export then `-m FILE` reproduces the log-likelihood of a Level 1 fit; metadata complete; first release candidate | not started |
 | S5 | G4, as reduced by D01 | Independent reference | D10's direct balanced-flux fit in Python agrees with NQC fits on small problems; comparison report | not started |
 | S6 | G5 | Workflow | candidate-set and mixing-guard tests; G5 conditions | not started |
-| S7 | G6 | Science | the confirmatory plan's checks; G6 conditions | not started |
+| S7 | G6 | Science | the confirmatory plan's checks, with decision 039's convergence protocol; G6 conditions | not started |
 
 ## Risks and open questions
 
@@ -205,14 +205,15 @@ validation.
 | 9 | Real training data: a small real set for S5, and the full set with a written confirmatory plan for S7 | Peter |
 | 11 | Scientific success criterion and manuscript details (placeholder above) | Peter |
 | 18 | No fallback is chosen if S3c's profiling shows training runs impractical while analytic gradients are out of scope | Peter, if S3c's profiling crosses its blocking threshold; the candidate fallbacks are listed with it |
-| 22 | NQC's production coordinate domain, a required full decision (risk 8 merged here). Decision 007's box is the per-row log-ratio counterpart of IQ-TREE's rate bounds [1e-4, 100]. Upstream fits sit on that floor: NONREV leaves 189 of 380 rates at 1e-4 on `aa_example` and 230 on turtle (checkpoints from before the final model optimization), and the GTR20 incumbent 87 of 190 (`explore/thresholds.py`). Whether the chart needs a different default is open. S2's `aa_example` fits ended with 1 or 2 coordinates at the upper bound, and the jump chains of upstream's NONREV fits (baseline runs 2 and 8), re-expressed in the chart, put 6 and 7 coordinates above it; decision 025's GTR20 start has 146 of 360 outside (-15.94 to 11.65). LG at decision 023's target lies inside (smallest ratio 3.3e-4); raising that target to powers, the start first leaves the box between frequency ratios (largest to smallest) of 306 and 963, while 6.4% of very uneven random targets (median ratio 91) put a coordinate outside (`explore/skewed_targets.py`). The nesting test and the risk 22 evidence runs use a widened domain; every other test uses the default box. The upper edge also binds where NONREV's raw-rate box has no counterpart: every coordinate is a ratio to a fixed reference destination, so the box keeps the reference's jump at no less than a tenth of the row's largest. Wide fits from the default start put whole rows above it (`aa_example` row S, 12 of 18 coordinates; turtle rows N, C and W in all three fits, up to 12.73). Single fits per domain cannot measure the box's cost (risk 24); S3c's first part compares converged peaks against a material line of 0.1 (Peter, 2026-10-24). Converged box cost: 0.187, 0.245 and 0.229 in its cases A to C, all from the upper edge (rows W and C); [1e-5, 1e5] lies within 0.022 of the best peak in every case | Decided by Peter on 2026-10-25: default [1e-5, 1e5]. The change, planned separately (`CODE_PLAN.md` section 4), rewrites decision 007 and stays in NQC's code; no existing inference method changes (D06). The risk retires when it lands |
 | 23 | Reported by the S3 plan's review, not verified: resuming an `-S` tree search with `+I+G` may restore stale top-level model keys, for every model, because per-partition refits during the search save to the top level (the model re-optimization in `IQTree::doNNISearch`) and the resumed process keeps `opt_gammai` on, so the `+I+G` starts restore from a copy of the checkpoint (`ModelFactory::optimizeParametersGammaInvar`; anchors in `CODE_PLAN.md` section 5). Outside S3's validation paths, which use `-te` | Checked before it becomes a question for the maintainers |
-| 24 | Fits stop short of their peaks under IQ-TREE's stopping rules, for every model. `dfpmin` tests its gradient relative to the log-likelihood with gtol fixed at 1e-4 and starts each call with no curvature memory; the round loops stop at a gain below `-me` (0.01; ten times that under `-S`) or at a cap (10 rounds under `-S`, 99 under `-p` and `-q`). On turtle's `-q` warm start each round was one step gaining about 0.01, so where a fit stops is close to chance; NONREV's turtle `-S` Level 1 fit hit its cap still gaining 3.5 per round (maintainer question 7). Comparing two fits' scores (box against wide, NQC against NONREV, D08's arms) therefore needs a convergence protocol. IQ-TREE's optimizer stays unchanged (decision 009). S3c's first part: NQC's endpoints lie 0.77 to 4.2 below the converged peaks at default settings and 0.67 to 2.5 after 300 relaxed rounds, more than the box costs; its later rounds average 724 evaluations, one step each | Testing: S3c's first part (done 2026-10-25). Science: S7's confirmatory plan declares one protocol for every compared fit. NQC keeps NONREV's optimization process unless there is a clear reason, and issues found in it are noted for the maintainers (Peter, 2026-10-25) |
+| 24 | Fits stop short of their peaks under IQ-TREE's stopping rules, for every model. `dfpmin` tests its gradient relative to the log-likelihood with gtol fixed at 1e-4 and starts each call with no curvature memory; the round loops stop at a gain below `-me` (0.01; ten times that under `-S`) or at a cap (10 rounds under `-S`, 99 under `-p` and `-q`). On turtle's `-q` warm start each round was one step gaining about 0.01, so where a fit stops is close to chance; NONREV's turtle `-S` Level 1 fit hit its cap still gaining 3.5 per round (maintainer question 7). Comparing two fits' scores (box against wide, NQC against NONREV, D08's arms) therefore needs a convergence protocol. IQ-TREE's optimizer stays unchanged (decision 009). S3c's first part: NQC's endpoints lie 0.77 to 4.2 below the converged peaks at default settings and 0.67 to 2.5 after 300 relaxed rounds, more than the box costs; its later rounds average 724 evaluations, one step each | Testing: S3c's first part (done 2026-10-25). Science: decision 039 (Peter, 2026-10-25): NQC keeps NONREV's optimization process, issues in it go to the maintainers; S7's confirmatory plan declares one stopping setting for every compared fit, reports each fit's ending rule and checks its conclusions against relaxed settings or a reference climb on a subset; the climbing routine is revisited if S7's pilot shows differences between arms the size of the stopping shortfall |
 
 Retired risk numbers: 2, 3, 4, 6, 10 and 13 to 17 were resolved by 2026-10-07 (archived
 decisions and `CHANGELOG.md`); on 2026-10-22, 7 (a linked-round `ASSERT`) and 12 (the switch to
 scaling and squaring) became S3 monitoring checks in `CODE_PLAN.md` section 4, 8 joined 22,
-1, 20 and 21 became maintainer questions 1, 4 and 5 below, and 19 was settled by decision 038.
+1, 20 and 21 became maintainer questions 1, 4 and 5 below, and 19 was settled by decision 038;
+on 2026-10-25, 22 (NQC's production domain) was settled by decision 007's revision, default
+[1e-5, 1e5] from S3c's first part's converged peaks.
 
 ### Questions for the maintainers
 
@@ -264,10 +265,13 @@ S0 to S2, S3a and S3b are complete. S3b's gate ran from the clean tree at `05491
   `docs/agent/archive/S3_plan_2026-10-22.md`.
 - **S3c's first part, done 2026-10-25** (`explore/convergence.py` and the oracle's reference
   climber `lbfgsb_fit`; `CHANGELOG.md`, 2026-10-24 and 2026-10-25): the converged box cost is
-  0.187, 0.245 and 0.229 in cases A to C, above the 0.1 line, and Peter chose [1e-5, 1e5] as the
-  default (risk 22; change pending). IQ-TREE's stopping leaves NQC 0.67 to 4.2 below the peaks
-  (risk 24). S-3 failed in case B: under `-S` the relaxed threshold caught the short round of
-  alternating gains, 0.479 below the box's peak; not shown NQC-specific.
+  0.187, 0.245 and 0.229 in cases A to C, above the 0.1 line. IQ-TREE's stopping leaves NQC 0.67
+  to 4.2 below the peaks (risk 24). S-3 failed in case B: under `-S` the relaxed threshold caught
+  the short round of alternating gains, 0.479 below the box's peak; not shown NQC-specific. Its
+  binary is kept at `~/iqtree3-binaries/841472e8/`; its box runs name the benchmark box.
+- **Default domain [1e-5, 1e5]** (decision 007, `0e9fb159`, 2026-10-25), verified from the clean
+  commit: check driver 236 asserted passed, none failed; regression 12 of 12; tests in both
+  variants. Compared fits follow decision 039 (risk 24).
 - **Cost, for S3c (risk 5):** in the `-q` Level 1 and `-p` `+R4` twopart fits every linked fit
   ended after a small gain, so IQ-TREE's round loop ran to its 99-round cap (S3b entry).
 - **Continuous integration:** Actions is back on since 2026-10-22. Upstream's Build workflow is
@@ -276,20 +280,12 @@ S0 to S2, S3a and S3b are complete. S3b's gate ran from the clean tree at `05491
 
 ## Next step
 
-1. The domain change (risk 22), planned before it is made (`CODE_PLAN.md` section 4, "Domain
-   change"). In a new session, started in plan mode with this prompt:
-
-   > Plan and make the domain change Peter decided on 2026-10-25 (PLAN.md risk 22). Read the
-   > start-of-session files, then `CODE_PLAN.md` section 4's "Domain change" and decisions 005,
-   > 007, 017 and 025. Stop before any run longer than a few minutes to agree keep-awake.
-
-2. Risk 24: Peter decides how compared fits are brought to convergence, after the explanation of
-   2026-10-25; NQC keeps NONREV's optimization process unless there is a clear reason.
-3. Plan and implement S3c's profiling in a new session, started in plan mode with this prompt:
+1. Plan and implement S3c's profiling in a new session, started in plan mode with this prompt:
 
    > Plan S3c's profiling as recorded and approved on 2026-10-22, with its first part's additions
-   > of 2026-10-24. Read the start-of-session files, then `CODE_PLAN.md` sections 3.5, 4 (its S3
-   > introduction and S3c) and 5, and `DECISIONS.md`. Where a record is unclear, read
+   > of 2026-10-24 and the decisions of 2026-10-25 (decision 007's new default, decision 039).
+   > Read the start-of-session files, then `CODE_PLAN.md` sections 3.5, 4 (its S3 introduction
+   > and S3c) and 5, and `DECISIONS.md`. Where a record is unclear, read
    > `docs/agent/archive/S3_plan_2026-10-22.md`, and ask me before departing from it. Stop before
    > any run longer than a few minutes to agree keep-awake.
 

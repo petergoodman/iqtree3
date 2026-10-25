@@ -151,6 +151,21 @@ projection methods do not substitute for the constrained maximum-likelihood esti
 infrastructure.
 **Since** 2026-09-23.
 
+### 039. Fit with NONREV's optimization process; compare fits under one declared protocol
+
+**Rule.** NQC's matrix fit uses NONREV's optimization process (IQ-TREE's optimizer and round
+rules) unless there is a clear reason to depart; problems found in it are noted for the
+maintainers, not fixed. S7's confirmatory plan requires, for every compared fit, one declared
+stopping setting, each fit's ending rule reported, and a check that the conclusions survive
+relaxed settings or a reference climb (the oracle's `lbfgsb_fit`) on a subset.
+**Why.** S3c's first part: endpoints 0.77 to 4.2 below converged peaks at default settings, 0.67
+to 2.5 after 300 relaxed rounds (one step a round), more than the domain's cost; where fits stop
+reversed a comparison in two of three cases. Every endpoint is still a valid matrix.
+**Not chosen.** IQ-TREE's existing L-BFGS-B routine for NQC (a departure from NONREV), revisited
+if S7's pilot shows differences between arms the size of the stopping shortfall, a few
+log-likelihood units; relaxed settings alone (still short, at 5 to 12 times the time).
+**Since** 2026-10-25 (Peter).
+
 ## Model class
 
 ### 002. NQC is a `ModelProtein` subclass built through a protected constructor

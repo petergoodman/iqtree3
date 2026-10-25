@@ -729,8 +729,9 @@ and converged evidence for risk 22, by `test_scripts/fixedeq/explore/convergence
 (exploratory; its checks and lines were set before any run).
 - **Cases,** Level 1 with every nuisance fixed, `-T 1 -seed 1`: A `aa_example` (`+G4{0.5}`, run 2's
   rooted tree); B turtle `-S` (`+G4{0.5}`, run 9's trees); C turtle `-q` with the tree, shapes and
-  partition rates of an NQC `-p` Level 2 `+G4` fit in the default box (decision 024).
-- **IQ-TREE runs:** NONREV, NQC in the default box and NQC at `1e-8,1e7`, each at default settings
+  partition rates of an NQC `-p` Level 2 `+G4` fit in the box (decision 024). "The box" here is
+  [1e-5, 10], decision 007's first default, named on every run since the default changed.
+- **IQ-TREE runs:** NONREV, NQC in the box and NQC at `1e-8,1e7`, each at default settings
   and relaxed (`-me 1e-6`, with `--loop-model` and `-nparam` allowing 300 rounds), and NQC relaxed
   at `1e-5,1e5`. Each run's per-round trajectory, rounds and ending rule (round threshold or cap).
 - **Reference peaks:** the oracle's `lbfgsb_fit` (SciPy's L-BFGS-B with decision 005's forward
@@ -744,7 +745,8 @@ and converged evidence for risk 22, by `test_scripts/fixedeq/explore/convergence
   no P1b climb; its P1b peak, climbed from P1's, would be at least P1's.
 - **Asserted:** the oracle's −lnL at NQC's box endpoints equals the accepted score (decision 021).
   S-1, NONREV's relaxed run ends above its default run by more than the case's round threshold
-  (0.01, or 0.1 under `-S`) in at least one case. S-2, P0 lies above NQC's default box endpoint by
+  (0.01, or 0.1 under `-S`) in at least one case. S-2, P0 lies above NQC's box endpoint at default
+  settings by
   more than that threshold. S-3, NQC's relaxed box run is not ended by its round threshold while
   more than 0.01 below P0; such a stall would point to an NQC-specific obstacle.
 - **Reported:** both models' per-round gains; at each peak, the gain over the last (below −1e-6
@@ -764,35 +766,19 @@ and converged evidence for risk 22, by `test_scripts/fixedeq/explore/convergence
 - **Keep-awake for long runs:** a background PowerShell process that calls
   `SetThreadExecutionState` while `wsl.exe -d Debian -- pgrep -fc PATTERN` counts above zero; a
   pattern with no space; its `Out-File` log is UTF-16, read with `Get-Content`.
-- **Reading B and C** (lines fixed before they run):
-  - Per case: W, the higher of P2 and P2w; the box cost W − P0. Material if above 0.1 in any case
-    (case A: 0.187, so the default box already fails the line).
-  - A domain among P1, P1b and P2 qualifies if its peak lies within 0.1 of W in every case and
-    its relaxed IQ-TREE run shows no new warnings, scaling-squaring switches, falls or ASSERTs.
-    Peter's rule recommends the narrowest that qualifies; the NONREV-range argument for P1b is
-    reported beside it, and Peter decides.
-  - Box first, then wide: P2 against P2w in each case (case A: P2w 0.30 lower). Reported as a
-    finding on how to fit, for Peter.
-  - S-1 to S-3 and the oracle matches per case; case C's converged box cost answers S3b's 0.193.
-  - Read on 2026-10-25 (`CHANGELOG.md`): material in every case; P1 is the narrowest that
-    qualifies. S-3 failed in case B (recorded as a failure, the check unchanged).
-- **Domain change** (Peter, 2026-10-25: default [1e-5, 1e5], P1 above), planned before it is
-  made:
-  - `utils/tools.{h,cpp}`: `nqc_domain_hi`'s default, the `--nqc-domain` help text and the header
-    comment; decision 007 rewritten in place.
-  - The oracle's `nqc.LOWER` and `nqc.UPPER`, which also set `scaled_steps`' backward step and the
-    decision 017 toy box; the tests that cite `nqc.UPPER`.
-  - Scripts whose recorded results used the old box (`convergence.py`'s P0 and its "outside the
-    default box" reports, `skewed_targets.py`, `thresholds.py`) name [1e-5, 10] explicitly, so
-    they reproduce. Fixtures and the G0 manifest name their own box and are not regenerated.
-  - Settled in its plan: which `nqcchecks.py` cases rerun (the default-box ones change meaning),
-    whether the regression runs (a shared file changes, legacy behaviour should not), and whether
-    a sanitizer build is needed for a changed default.
+- **Read** on 2026-10-25 (`CHANGELOG.md`) by lines fixed before the runs (W, the higher of P2 and
+  P2w; material if W − P0 exceeds 0.1 in any case; a domain qualifies if its peak lies within 0.1
+  of W in every case and its relaxed runs are clean): material in every case, P1 the narrowest
+  that qualifies. S-3 failed in case B (recorded as a failure, the check unchanged).
+- **Domain change** (Peter, 2026-10-25): default [1e-5, 1e5], `0e9fb159`, verified from the clean
+  commit (`CHANGELOG.md`, 2026-10-25); no sanitizer build, since only a default value and a help
+  string changed.
 
 S3c, profiling against NONREV (PLAN.md risks 5 and 18), with settings and thresholds Peter
 approved on 2026-10-22, before any measurement:
 - **Runs.**
-  - `--model-joint NONREV` and NQC on the same data, trees, rate model and threads.
+  - `--model-joint NONREV` and NQC on the same data, trees, rate model and threads; NQC in
+    decision 007's default domain, [1e-5, 1e5] since 2026-10-25.
   - Data: turtle, and AliSim sets from the frozen binary (NQ.pfam+G4 on random rooted trees, 20
     taxa, 500 sites per alignment, seeds recorded) of 10, 30 and 100 alignments.
   - `+G4`, `+I+G4` and `+R4`; `-S` and `-p`; Levels 1 and 2.
@@ -833,26 +819,13 @@ approved on 2026-10-22, before any measurement:
   - `-p` data simulated on one shared tree with partition rates, rather than one tree per
     alignment;
   - Level 1 nuisances taken from the simulation's true values.
-- **Close.** Thresholds evaluated; risks 5 and 18 updated; risk 22's evidence collected for
-  Peter's decision before S4 is planned. A sanitizer build only if S3c changes C++.
+- **Close.** Thresholds evaluated; risks 5 and 18 updated. A sanitizer build only if S3c changes
+  C++.
 
-Evidence for PLAN.md risk 22, reported (results in `CHANGELOG.md`, S3a and S3b entries):
-- bound activity in every S3 fit;
-- aa_example's runs (S3a) and turtle's (S3b: Level 1 `-S` with `+G4{0.5}` on baseline run 9's
-  trees, Level 2 `+G4` under `-p` on run 8's tree and under `-S` on run 9's), each in the default
-  box and at `--nqc-domain 1e-8,1e7` (the nesting test's `aa_example` domain), comparing final
-  log-likelihoods and bound counts;
-- S3b's warm starts (Peter, 2026-10-22). A single fit per domain mixes the domain with the
-  optimizer's path: in S3a the widened domain, which contains the box, ended lower in two of three
-  comparisons. So from each default-box fit (`aa_example` Level 1, Level 2 `+G4` and the nesting
-  fit; the three turtle fits) two Level 1 continuations start at its final state, its coordinates
-  written by the oracle as a 17-digit Q for `--init-model` and its final trees and rate
-  parameters fixed (`-p` through decision 024's `-q` route), one in the box and one at
-  `1e-8,1e7`, with `-vv`. Reported: each continuation's first lnL, which should equal the box
-  fit's state, and its final `accepted_score`. Both continuations end by the same round rule, so a
-  gain at `1e-8,1e7` larger than in the box can come from that rule alone (turtle `-p`: 19 rounds
-  against 2, each gaining about 0.01). The box's cost is read from converged peaks (S3c's first
-  part).
+Evidence for PLAN.md risk 22 (S3a's and S3b's single fits and warm starts, S3c's first part's
+converged peaks; `CHANGELOG.md`): settled by decision 007's revision on 2026-10-25. The
+`nqcchecks.py` cases `risk22`, `risk22-turtle` and `warm-starts` still report the default against
+`1e-8,1e7`.
 
 S4:
 
@@ -867,7 +840,7 @@ S4:
   - Proposed by the S3 review: an `--undo` run's export compared with the original's, the
     asserted restore check that S3a's undo test cannot make.
 
-S5 to S7: lists written when S4 is done.
+S5 to S7: lists written when S4 is done; S7's starts from decision 039's convergence protocol.
 
 ## 5. Source anchors
 
