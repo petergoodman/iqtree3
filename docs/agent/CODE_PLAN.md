@@ -21,7 +21,7 @@ Labels are those of PLAN.md. Source anchors refer to `63c330d9` and were verifie
 | `model/modelnonrevfixedeq.{h,cpp}` | S2 to S4 | Class `ModelNonrevFixedEq : public ModelProtein`, public name "NQC" held in one constant (decision 002; section 2.2); from S3b also `public LinkedModelHooks`, listed second |
 | `model/linkedmodelhooks.h` | S3b | Header only: the abstract `LinkedModelHooks` through which `PartitionModel::optimizeLinkedModel` lets a linked model check, differentiate and record its fits (decision 005; section 2.2, "Linked hooks"). A separate header because NQC's header is included by `model/modelmixture.cpp` and `partitionmodel.h` pulls in the super tree, so putting the interface in either would create an include cycle |
 | `unittest/` | S1 | Standalone CMake project that compiles `model/fixedeqchart.cpp` directly, with IQ-TREE's clang Release flags and the `model` target's SSE flags (verified, `CMakeLists.txt:420`, `711-718`, `984`), and fetches googletest 1.12.1 at cmaple's pinned commit, checked by the archive's SHA-256 (verified, `cmaple/CMakeLists.txt:283-293`; decision 012); `fixtures/`, 27 chart cases and `targets.txt` in plain text at 17 significant digits with a provenance header (section 3.2); its own `.gitattributes` (decision 014) |
-| `test_scripts/fixedeq/` | S0 onward | `environment.yml` and lock (decision 013); `oracle/`; `tests/`; drivers `regression/`, `differential/`, `probes/`, `sanitizer/`, `unittests/`, `nqc/` and `design_rerun.py`; `manifest/` (G0 manifest); `explore/` (exploratory measurements behind decisions 007, 021, 023, 025 and 038); `make_fixtures.py`; `.gitattributes` and `.gitignore`. Added in S3: `nqc/twopart.py`, the two-partition data (S3b); `explore/convergence.py`, the stopping study and risk 22's converged evidence, with `oracle/optimize.py`'s reference climber `lbfgsb_fit` (S3c's first part); `profile/profile.py`, the profiling driver (S3c) |
+| `test_scripts/fixedeq/` | S0 onward | `environment.yml` and lock (decision 013); `oracle/`; `tests/`; drivers `regression/`, `differential/`, `probes/`, `sanitizer/`, `unittests/`, `nqc/` and `design_rerun.py`; `manifest/` (G0 manifest); `explore/` (exploratory measurements behind decisions 007, 021, 023, 025 and 038); `make_fixtures.py`; `.gitattributes` and `.gitignore`. Added in S3: `nqc/twopart.py`, the two-partition data (S3b); `explore/convergence.py`, the stopping study and risk 22's converged evidence, with `oracle/optimize.py`'s reference climber `lbfgsb_fit` (S3c's first part); `profile/profiling.py`, the profiling driver (S3c) |
 | `.github/workflows/fixedeq.yaml` | S1 | Fork-only workflow that builds and runs the unit tests and the oracle's tests on Linux, and from S2 a short NQC run |
 
 Run outputs never go into the working copy; they go under `~/iqtree3-runs/` in WSL. Fixtures and
@@ -774,53 +774,113 @@ and converged evidence for risk 22, by `test_scripts/fixedeq/explore/convergence
   commit (`CHANGELOG.md`, 2026-10-25); no sanitizer build, since only a default value and a help
   string changed.
 
-S3c, profiling against NONREV (PLAN.md risks 5 and 18), with settings and thresholds Peter
-approved on 2026-10-22, before any measurement:
-- **Runs.**
-  - `--model-joint NONREV` and NQC on the same data, trees, rate model and threads; NQC in
-    decision 007's default domain, [1e-5, 1e5] since 2026-10-25.
-  - Data: turtle, and AliSim sets from the frozen binary (NQ.pfam+G4 on random rooted trees, 20
-    taxa, 500 sites per alignment, seeds recorded) of 10, 30 and 100 alignments.
-  - `+G4`, `+I+G4` and `+R4`; `-S` and `-p`; Levels 1 and 2.
-  - `-T 1` for the comparison, `-T 2` and `-T 4` for scaling. On turtle, `-S` at `-T 4` ran
-    slower than at `-T 1`, each small partition taking all four threads.
-  - This laptop only.
-  - Driver `test_scripts/fixedeq/profile/profile.py` (new): simulates the sets, runs the matrix,
-    and writes its table with provenance.
-- **Measured:** time per likelihood evaluation, fit wall and CPU time, rounds, NQC's evaluation
-  count, IQ-TREE's memory estimate. Labelled as an extrapolation: 1000 alignments and about a
-  million columns on dozens of CPUs. Reported: NONREV's free-parameter count minus NQC's, 19 in
-  every configuration; each fit's final log-likelihood and the rule that ended it (round
-  threshold or cap), beside which the per-fit ratio is read, since default settings stop the two
-  models at different distances from their peaks (risk 24); bound activity by row and side.
-- **The per-evaluation measurement must be redefined in S3c's plan, and Peter approves it.**
-  - The approved source, the time printed with the initial log-likelihood under `-v`, times one
-    `computeLikelihood` with Q already decomposed (`model/modelfactory.cpp:1585-1597`). It misses
-    NQC's chart build, ν solve and decomposition, and it is not printed under `-p`.
-  - NONREV has no evaluation counter, and ModelMarkov is not edited (decision 015).
-  - Recommended: count each model's `targetFunk` calls in a separate `-T 1` run under gdb with a
-    breakpoint counter, on the deterministic turtle and 10-set runs, checking NQC's count against
-    its `evaluations` key. Per-evaluation time is the timed run's fit time over that count.
-- **Thresholds.** An NQC-to-NONREV ratio above 1.25 per likelihood evaluation (a gradient costs
-  361 evaluations against NONREV's 380), or above 2 per fit, is investigated and explained in
-  S3c's gate record. Above 3 per fit it blocks the gate until fixed inside NQC's code or accepted
-  by Peter. No absolute time limit.
+S3c, profiling against NONREV (PLAN.md risks 5 and 18). The thresholds were approved by Peter on
+2026-10-22, before any measurement. On 2026-10-25 he approved a scaled design, the measurement and
+the simulation model in S3c's plan. They replace the recorded matrix of 24 configurations at `-T 1`
+on turtle and on 10, 30 and 100 alignments, estimated then at "roughly 70 hours"; by S3c's
+measured times its pilot alone would take 15 to 20 hours. The approach: code speed (time per
+evaluation) is timed over short windows at every size, and full fits run only where time per fit
+is needed.
+- **Driver.** `test_scripts/fixedeq/profile/profiling.py` (subcommands `simulate`, `windows`,
+  `fits`), tested by `tests/test_profiling.py`. It is not named `profile.py`, because that would
+  shadow the standard library's `profile`, which `cProfile` imports.
+- **Binary.** `81729f4b`, the binary of the default-domain verification, frozen in
+  `~/iqtree3-binaries/81729f4b/`. gdb sets breakpoints from its dynamic symbols (`-rdynamic`), so
+  no extra build is needed.
+- **Counter.**
+  - gdb runs in batch mode with its own command language, not its embedded Python, which is
+    Debian's system Python (decision 013).
+  - It stops at `PartitionModel::targetFunk`. That function is called once per linked evaluation
+    for both models under `-S`, `-p` and `-q`, and never for branch, rate or partition-rate
+    parameters. Inside it, each partition builds and decomposes its own matrix within the OpenMP
+    loop, for both models, so NQC's extra work runs in parallel exactly where NONREV's does.
+  - Window mode reads `/proc/uptime` at evaluation 1 and at evaluation 1001, then ends the run.
+    Time per evaluation is the difference divided by 1000.
+  - Count mode counts every evaluation of a full fit, and a second breakpoint, on
+    `PartitionModel::optimizeLinkedModel`, records the count at the start of each linked fit,
+    which gives the evaluations of each round.
+- **Asserted checks on the counter.**
+  - NQC's `evaluations` key equals gdb's hits in every counted NQC run.
+  - NONREV's `ModelMarkov::targetFunk` hits equal 3 times its linked hits on turtle (one round,
+    under `-S` and `-q`), one call per partition.
+  - Three plain and counted pairs of NQC's turtle `-S` Level 1 round end bitwise equal.
+  - **CPU guard,** set before any gate run: a timed run at `-T 1`, window or fit, must keep its
+    CPU time at or above 0.75 of its wall time. Normal runs keep 0.92 to 0.95; a development run
+    paused for 55 s kept 0.44. A run below the line was paused or shared the CPU; it fails its
+    row and is rerun, and the rerun is recorded. Windows read IQ-TREE's CPU ticks from `/proc`
+    beside each reading.
+- **Cost of a gdb stop, reported.** It was 0.37 ms in development (one pair): 9% of a turtle
+  evaluation and 1.4% of a 10-set one. Both models pay it, so it pulls ratios toward 1. Each ratio
+  is therefore also reported with it removed, and a verdict uses the worse of the two figures.
+- **Data.**
+  - Turtle, as in S3b. Its `-q` Level 1 inputs come from NQC's `-p` Level 2 `+G4` fit (decision
+    024).
+  - Simulated sets, made by the frozen binary's AliSim from NQ.pfam's jump chain at decision
+    023's target (`toy.truth`) with `+G4{0.5}`. Peter chose this on 2026-10-25 over the built-in
+    NQ.pfam composition, which would leave NQC fitting a misspecified target.
+  - Each simulated alignment has 20 taxa and 500 sites. Under `-S`, 100 alignments each on its
+    own seeded tree. Under `-p`, 100 alignments on one tree, each with a partition rate drawn
+    log-uniform on [0.5, 2] and normalized to mean 1. The 10-, 30- and 100-sets are the first
+    alignments of each collection.
+  - Level 1 nuisances are the true values, as the record recommended. `normalizePartRate`
+    rescales given rates to mean 1 without rescaling the tree, so a `-p` set of n alignments gets
+    the tree T × m_n and the rates r_k / m_n.
+- **Stage A, windows.** Level 1 `+G4` under `-S` and `-q`, both models, at `-T 1`. Turtle and the
+  10-set run 3 times; the 30- and 100-sets once. The 10- and 100-sets also run at `-T 2` and
+  `-T 4`, reported without a verdict, since gdb stops every thread.
+- **Stage B, full fits at default settings, counted.**
+  - Turtle: Level 1 `+G4` under `-S` and `-q`; Level 2 under `-S` and `-p` with `+G4`, `+I+G4`
+    and free `+R4`.
+  - 10-set: Level 1 `+G4` under `-S` and `-q`; Level 2 `+G4` under `-S` and `-p`.
+  - After turtle, the 10-set's cost is re-estimated, and Peter may trim it to its `-S` fits.
+- **Left out** (departures from the record, approved 2026-10-25):
+  - full fits on the 30- and 100-sets: their cost comes from the windows and the round caps;
+  - Level 1 `+I+G4` and `+R4`: fixed rate values change neither model's matrix code nor the
+    round rules, and none were recorded;
+  - the 10-set's Level 2 `+I+G4` and `+R4`: they add nuisance cost both models share;
+  - fit times at `-T 2` and `-T 4`: at more than one thread a fit does not repeat (decision 038).
+- **Reported for each run:**
+  - time per evaluation;
+  - IQ-TREE's wall and CPU time;
+  - rounds and the ending rule;
+  - evaluations and time per round;
+  - final log-likelihoods, and NQC's accepted score;
+  - free parameters, with NONREV's count minus NQC's (19 expected);
+  - IQ-TREE's memory estimate;
+  - bound activity by row and side, for both models;
+  - the monitors.
+- **Reported for each configuration:** the per-fit ratio split into the per-evaluation ratio and
+  the evaluation-count ratio, and each model's time outside its evaluations. Expected, stated
+  before the runs: the per-evaluation ratio is about equal at 10, 30 and 100 alignments, and
+  largest on turtle.
+- **Extrapolation,** labelled as one, for both models:
+  - time per evaluation is fitted linearly over 10, 30 and 100 alignments, then taken at 2000
+    alignments of 500 columns, about a million columns, at 20 taxa;
+  - evaluations per fit are taken at the round caps (10 under `-S`, 99 under `-p`): the 10-set
+    fit's first round, then the mean of its later rounds for each remaining round, because NQC's
+    first round from LG is 10 to 20 times longer than its later ones;
+  - evaluation time only, with nuisance updates excluded;
+  - 32 cores are assumed to run at the 100-set's `-T 4` efficiency;
+  - memory scales linearly.
+- **Evidence for risk 18's fallbacks:** turtle's `+G4` against `+I+G4`, Level 1 against Level 2,
+  the thread windows, and the per-alignment cost.
+- **Thresholds,** unchanged.
+  - An NQC-to-NONREV ratio above 1.25 per evaluation, or above 2 per fit, is investigated and
+    explained in the gate record.
+  - Above 3 per fit (an asserted row), the gate is blocked until the cause is fixed inside NQC's
+    code or Peter accepts it. Under decision 039, Peter's acceptance is the only route for a
+    ratio that comes from round counts.
+  - No absolute time limit; verdicts at `-T 1` only.
 - **Fallbacks** if real-scale training is impractical (risk 18): more cores; Level 1 with
   nuisances from a cheaper reversible fit; `+G4` in place of `+I+G4`; subsampling alignments.
-- **Order.** A pilot first: turtle and the 10-set, 24 configurations each at `-T 1`. Then
-  re-estimate, and show Peter the cost before the 30- and 100-sets.
-  - Estimate, not measured: S2's aa_example NQC fits took 43 s (Level 1), 55 s (Level 2 `+G4`)
-    and 481 s (`+I+G4`).
-  - Scaling by sites × taxa, the sets cost about 8, 24 and 80 times aa_example, so the `-T 1`
-    matrix is roughly 70 hours and the pilot roughly 5.
-  - If the pilot confirms that order, S3c's plan proposes which configurations the 100-set
-    keeps.
-- **Settled in S3c's plan,** with these recommendations:
-  - `-p` data simulated on one shared tree with partition rates, rather than one tree per
-    alignment;
-  - Level 1 nuisances taken from the simulation's true values.
-- **Close.** Thresholds evaluated; risks 5 and 18 updated. A sanitizer build only if S3c changes
-  C++.
+- **Order.**
+  - Stage A from the clean commit, estimated at about 1 hour. Its results go to Peter with Stage
+    B's estimate recomputed from them.
+  - Then Stage B, estimated at 2.5 to 4 hours.
+  - The keep-awake helper runs for both.
+- **Close.** Thresholds evaluated; risks 5 and 18 updated. S-3's failure stays recorded, and
+  Peter states whether S3c closes with it under decision 039. A sanitizer build only if S3c
+  changes C++.
 
 Evidence for PLAN.md risk 22 (S3a's and S3b's single fits and warm starts, S3c's first part's
 converged peaks; `CHANGELOG.md`): settled by decision 007's revision on 2026-10-25. The

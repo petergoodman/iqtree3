@@ -111,6 +111,15 @@ cmake --build ~/iqtree3-build -j 4
   `test_scripts/fixedeq/manifest/manifest.py --out test_scripts/fixedeq/manifest --git git.exe`
   regenerates the G0 manifest. The manifest is the frozen record of S0: later decisions
   supersede it, and it is not regenerated when they change.
+- **Profiling driver** (S3c): `test_scripts/fixedeq/profile/profiling.py`, run as three steps,
+  each with `--git git.exe`:
+  1. `simulate --alisim ~/iqtree3-baseline/iqtree3 --out DATA`;
+  2. `windows --binary BIN --data DATA --out DIR`;
+  3. `fits --binary BIN --data DATA --windows DIR --out DIR2`.
+
+  It runs IQ-TREE under Debian's gdb 13.1, which finds functions in the stripped binary through
+  its dynamic symbols. gdb's shell start must stay on: with it off, gdb keeps the backslashes it
+  puts before braces, and IQ-TREE rejects `+G4{0.5}`.
 - **Long jobs need the laptop awake.** Windows Modern Standby pauses the WSL VM and every job in
   it; idle sleep is set to 3 minutes on battery and 15 minutes plugged in. A job that looks hung
   is usually paused. Compare IQ-TREE's CPU time with its wall-clock time, the VM's `uptime`, and

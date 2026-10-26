@@ -1,6 +1,7 @@
 """Decision 030's toy problem: 8 taxa and 3000 sites, simulated without rate variation by the frozen
 binary's AliSim from NQ.pfam's jump chain transferred to decision 023's target, on a rooted tree
-drawn from a fixed seed. Used by explore/toy_calibration.py and nqc/nqcchecks.py.
+drawn from a fixed seed. Used by explore/toy_calibration.py and nqc/nqcchecks.py; its tree and
+AliSim helpers also by nqc/twopart.py and profile/profiling.py.
 """
 import subprocess
 import sys
@@ -43,13 +44,13 @@ def truth(pi):
     return chart.transfer_seed(Q0, pi)
 
 
-def simulate(out, alisim, name, tree, Q, pi, sites, seed):
-    """Write NAME.nwk, NAME.qmat and NAME.phy, simulated by AliSim without rate variation, into the
-    existing directory out."""
+def simulate(out, alisim, name, tree, Q, pi, sites, seed, rate=""):
+    """Write NAME.nwk, NAME.qmat and NAME.phy, simulated by AliSim, into the existing directory out;
+    rate (such as "+G4{0.5}") is appended to the model, and the default adds no rate variation."""
     out = Path(out)
     write(out / f"{name}.nwk", tree)
     write_matrix(out / f"{name}.qmat", Q, pi)
-    argv = [str(alisim), "--alisim", name, "--seqtype", "AA", "-m", f"{name}.qmat", "-t", f"{name}.nwk",
+    argv = [str(alisim), "--alisim", name, "--seqtype", "AA", "-m", f"{name}.qmat{rate}", "-t", f"{name}.nwk",
             "--length", str(sites), "--seed", str(seed), "-af", "phy", "-nt", "1"]
     log = out / ("alisim.log" if name == "toy" else f"{name}.alisim.log")
     with open(log, "w", encoding="utf-8") as fh:
