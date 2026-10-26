@@ -38,8 +38,8 @@ public:
         (decision 032) */
     static void refuseAsMixtureComponent(ModelSubst *model);
 
-    /** print the end-of-run summary of tree's NQC model, or of each linked NQC model of a
-        partitioned tree (decision 010) */
+    /** for tree's NQC model, or each linked NQC model of a partitioned tree: write the export
+        files, run the first-order diagnostic and print the end-of-run summary (decisions 009, 010) */
     static void reportRun(IQTree &tree, ostream &out);
 
     /**
@@ -102,6 +102,7 @@ private:
     bool constructed;
 
     ModelsBlock *models;
+    string start_text;
     string target_text;
     Eigen::VectorXd target;
     double target_raw_sum;
@@ -134,8 +135,27 @@ private:
     void reportFit();
     void measureState();
     void writeState(ostream &out);
-    void writeSummary(ostream &out, int linked_partitions);
     void printMatrix(ostream &out, const double *m);
+
+    /** decision 009's central differences at export and the label they give */
+    struct ExportDiagnostic {
+        double f0;              // -lnL at the accepted coordinates
+        Eigen::VectorXd g;      // central differences of -lnL
+        int failed;             // probes that gave no valid matrix
+        int evaluations;
+        fixedeq::FirstOrder test;
+        string label, reason;
+    };
+
+    void exportRun(PhyloTree &tree, Optimization &objective, const std::vector<ModelNonrevFixedEq*> &objects,
+                   int linked_partitions, ostream &out);
+    void writeQmat(const string &file);
+    ExportDiagnostic exportDiagnostic(PhyloTree &tree, Optimization &objective,
+                                      const std::vector<ModelNonrevFixedEq*> &objects);
+    void writeSummary(ostream &out, int linked_partitions, const ExportDiagnostic &d, const string &qmat_file,
+                      const string &info_file);
+    void writeExportInfo(const string &file, int linked_partitions, const ExportDiagnostic &d,
+                         const string &qmat_file);
 };
 
 #endif /* MODELNONREVFIXEDEQ_H_ */

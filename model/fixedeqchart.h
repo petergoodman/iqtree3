@@ -107,6 +107,28 @@ Status parseTarget(const std::string &text, int count, double min_freq, Eigen::V
 */
 double scaledStep(double x, double upper, double eta = STEP_ETA, double scale = STEP_SCALE);
 
+/** the export's first-order test (decision 009): central step FIRST_ORDER_ETA max(1, |x|), and the
+    gtol NQC's fits receive */
+const double FIRST_ORDER_ETA = 1e-3;
+const double FIRST_ORDER_GTOL = 1e-4;
+
+struct FirstOrder {
+    double statistic;   // max_k s_k
+    int coordinate;     // its 0-based index, the lowest on a tie
+    int at_lower, at_upper, outside;
+    bool passed;        // statistic < gtol and no coordinate outside [lower, upper]
+};
+
+/**
+    Decision 009's export label from coordinates x and the gradient g of -lnL at them. The usable part
+    of g_k is |g_k| inside the box, max(0, -g_k) at the lower bound and max(0, g_k) at the upper, where
+    only a move into the box is possible; s_k = usable_k max(|x_k|, 1) / max(|f|, 1), the scaling of
+    dfpmin's gradient test. Unequal or empty sizes, a non-finite value, lower > upper or gtol <= 0 is
+    invalidInput.
+*/
+Status firstOrderTest(const Eigen::VectorXd &x, const Eigen::VectorXd &g, double lower, double upper,
+                      double f, double gtol, FirstOrder &out);
+
 }  // namespace fixedeq
 
 #endif /* FIXEDEQCHART_H_ */

@@ -11,8 +11,11 @@
 #include <cctype>
 #include <cmath>
 #include <cstring>
+#include <fstream>
 #include <limits>
 #include <sstream>
+
+#include <iqtree_config.h>
 
 #include "nclextra/modelsblock.h"
 #include "partitionmodel.h"
@@ -36,10 +39,10 @@ static string number17(double v) {
     return ss.str();
 }
 
-static string numbers17(const double *v, int n) {
+static string numbers17(const double *v, int n, const char *separator = ",") {
     string s;
     for (int i = 0; i < n; i++)
-        s += (i ? "," : "") + number17(v[i]);
+        s += (i ? separator : "") + number17(v[i]);
     return s;
 }
 
@@ -151,6 +154,9 @@ void ModelNonrevFixedEq::refuseUnsupported(const string &model_params, StateFreq
     // after the AliSim check, because AliSim also sets partition_file
     else if (params.partition_file && params.model_joint.empty() && !params.link_model)
         why = "is not supported with unlinked partitions (-p, -q or -S without --model-joint or --link-model)";
+    // cached transition matrices, keyed by branch length, would outlive a change of Q
+    else if (params.store_trans_matrix)
+        why = "is not supported with -mstore";
     if (why)
         outError(string("NQC ") + why);
 }
@@ -168,6 +174,7 @@ void ModelNonrevFixedEq::readSeed(MatrixXd &seed) {
     if (fixedeq::reversibleSeed(R, target, seed) != fixedeq::Status::ok)
         outError("NQC: LG cannot be rebuilt at the target");
     ref = fixedeq::references(seed);
+    start_text = "LG rebuilt at the target";
 
     const char *init = Params::getInstance().model_name_init;
     if (init) {
@@ -176,6 +183,8 @@ void ModelNonrevFixedEq::readSeed(MatrixXd &seed) {
             readParametersString(nxs->description, false);
         else
             readParameters(init, false);
+        start_text = string("--init-model ") + (nxs ? "model " : "file ") + init +
+                     (is_reversible ? ", rebuilt at the target" : ", its jump chain transferred to the target");
         fixedeq::Status status;
         if (is_reversible) {
             for (int i = 0, k = 0; i < num_states; i++)
@@ -595,29 +604,140 @@ void ModelNonrevFixedEq::printMatrix(ostream &out, const double *m) {
 
 void ModelNonrevFixedEq::reportRun(IQTree &tree, ostream &out) {
     // Partitioned NQC is always linked, since unlinked partitions are refused (decision 008), so a
-    // partitioned run gets one block per linked model, from its representative.
+    // partitioned run gets one export and one block per linked model, from its representative.
     if (!tree.isSuperTree()) {
         ModelNonrevFixedEq *model = dynamic_cast<ModelNonrevFixedEq*>(tree.getModel());
         if (model)
-            model->writeSummary(out, 0);
+            model->exportRun(tree, *model, {model}, 0, out);
         return;
     }
     PartitionModel *partition_model = dynamic_cast<PartitionModel*>(tree.getModelFactory());
     if (!partition_model)
         return;
     PhyloSuperTree &super_tree = (PhyloSuperTree&)tree;
+    if (super_tree.part_order.empty())
+        super_tree.computePartitionOrder();
     for (auto &linked : partition_model->linked_models) {
         ModelNonrevFixedEq *model = dynamic_cast<ModelNonrevFixedEq*>(linked.second);
         if (!model)
             continue;
-        int partitions = 0;
-        for (PhyloTree *part_tree : super_tree)
-            partitions += (part_tree->getModel()->getName() == linked.first);
-        model->writeSummary(out, partitions);
+        std::vector<ModelNonrevFixedEq*> objects;
+        for (int j = 0; j < (int)super_tree.size(); j++) {
+            ModelSubst *part_model = super_tree.at(super_tree.part_order[j])->getModel();
+            if (part_model->getName() == linked.first)
+                objects.push_back(dynamic_cast<ModelNonrevFixedEq*>(part_model));
+        }
+        // PartitionModel::targetFunk evaluates the partitions whose model has the name of its model
+        // member, a placeholder outside optimizeLinkedModels, which sets it as here
+        ModelSubst *saved_model = partition_model->model;
+        partition_model->model = model;
+        model->exportRun(tree, *partition_model, objects, (int)objects.size(), out);
+        partition_model->model = saved_model;
     }
 }
 
-void ModelNonrevFixedEq::writeSummary(ostream &out, int linked_partitions) {
+void ModelNonrevFixedEq::exportRun(PhyloTree &tree, Optimization &objective,
+                                   const std::vector<ModelNonrevFixedEq*> &objects, int linked_partitions,
+                                   ostream &out) {
+    string prefix = Params::getInstance().out_prefix;
+    string qmat_file = prefix + "." + NAME + ".qmat", info_file = prefix + "." + NAME + ".info";
+    // the matrix first, so that nothing the diagnostic does can lose the fit
+    writeQmat(qmat_file);
+    out << endl << "NQC first-order diagnostic at export: " << 2 * accepted.size() + 2
+        << " likelihood evaluations" << endl;
+    ExportDiagnostic d = exportDiagnostic(tree, objective, objects);
+    writeSummary(out, linked_partitions, d, qmat_file, info_file);
+    writeExportInfo(info_file, linked_partitions, d, qmat_file);
+}
+
+void ModelNonrevFixedEq::writeQmat(const string &file) {
+    // the matrix the likelihood used, normalized by the base decomposition, and pi*, in the -m FILE
+    // format; no header, since the reader takes the first token's sign to choose a full matrix
+    try {
+        ofstream out;
+        out.exceptions(ios::failbit | ios::badbit);
+        out.open(file.c_str());
+        for (int i = 0; i < num_states; i++)
+            out << numbers17(rate_matrix + i * num_states, num_states, " ") << '\n';
+        out << numbers17(state_freq, num_states, " ") << '\n';
+        out.close();
+    } catch (ios::failure &) {
+        outError(ERR_WRITE_OUTPUT, file);
+    }
+}
+
+ModelNonrevFixedEq::ExportDiagnostic ModelNonrevFixedEq::exportDiagnostic(
+        PhyloTree &tree, Optimization &objective, const std::vector<ModelNonrevFixedEq*> &objects) {
+    // Decision 009: central differences of -lnL through the objective the fits used, then the
+    // accepted state rebuilt. Sized by the coordinates, since getNDim is 0 for a fixed model.
+    const int n = (int)accepted.size();
+    const VectorXd x0 = accepted;
+    // the matrix the run ended with; every linked object holds the same one
+    const std::vector<double> matrix(rate_matrix, rate_matrix + num_states * num_states);
+    std::vector<int64_t> counts;
+    for (ModelNonrevFixedEq *m : objects) {
+        ASSERT(m);
+        if (!sameBits(m->accepted.data(), x0.data(), n))
+            outError("NQC: the linked partitions hold different coordinates at export");
+        counts.push_back(m->evaluations);
+        m->trial = x0;
+        m->decomposeRateMatrix();
+    }
+    // every evaluation below starts from cleared partials; the -b report re-reads the tree without
+    // reinitializing them, as optimizeConTree does after the same re-read
+    tree.initializeAllPartialLh();
+    tree.clearAllPartialLH();
+
+    ExportDiagnostic d;
+    d.g.resize(n);
+    d.failed = 0;
+    double *x = new double[n + 1];
+    memcpy(x + 1, x0.data(), n * sizeof(double));
+    d.f0 = objective.targetFunk(x);
+    for (int k = 1; k <= n; k++) {
+        double temp = x[k];
+        double h = fixedeq::FIRST_ORDER_ETA * max(1.0, fabs(temp));
+        x[k] = temp + h;
+        double up_step = x[k] - temp;
+        double up = objective.targetFunk(x);
+        x[k] = temp - h;
+        double down_step = temp - x[k];
+        double down = objective.targetFunk(x);
+        x[k] = temp;
+        d.failed += (up >= 1.0e+30) + (down >= 1.0e+30);
+        d.g[k - 1] = (up - down) / (up_step + down_step);
+    }
+    // the last probe moved a coordinate, so this rebuilds the accepted state
+    double restored = objective.targetFunk(x);
+    delete [] x;
+    d.evaluations = 2 * n + 2;
+    for (size_t i = 0; i < objects.size(); i++) {
+        objects[i]->evaluations = counts[i];
+        // the .iqtree prints this matrix, and -z evaluates with it
+        ASSERT(memcmp(objects[i]->rate_matrix, matrix.data(), sizeof(double) * matrix.size()) == 0);
+    }
+    ASSERT(restored == d.f0);
+
+    if (fixedeq::firstOrderTest(x0, d.g, lower, upper, d.f0, fixedeq::FIRST_ORDER_GTOL, d.test) !=
+        fixedeq::Status::ok) {
+        d.test = {std::numeric_limits<double>::quiet_NaN(), 0, 0, 0, 0, false};
+        d.reason = "the differences are not finite";
+    } else if (d.failed > 0) {
+        d.reason = "a probe gave no valid matrix";
+    } else if (d.test.outside > 0) {
+        d.reason = "coordinates lie outside the domain";
+    } else if (!d.test.passed) {
+        d.reason = "the projected gradient fails the optimizer's test";
+    } else {
+        d.reason = "the projected gradient passes the optimizer's test";
+    }
+    d.label = (d.test.passed && d.failed == 0) ? "first-order stationary at the optimizer's tolerance"
+                                                : "unclassified";
+    return d;
+}
+
+void ModelNonrevFixedEq::writeSummary(ostream &out, int linked_partitions, const ExportDiagnostic &d,
+                                      const string &qmat_file, const string &info_file) {
     string letters;
     for (int r : ref)
         letters += STATES[r];
@@ -633,4 +753,80 @@ void ModelNonrevFixedEq::writeSummary(ostream &out, int linked_partitions) {
         << ", re-scored lnL " << score17(rescored_lnl) << endl;
     writeState(out);
     out << "NQC likelihood evaluations: " << evaluations << endl;
+    out << "NQC stop: " << d.label << " (" << d.reason << "; largest scaled component "
+        << number17(d.test.statistic) << " at coordinate " << d.test.coordinate + 1 << ", line "
+        << number17(fixedeq::FIRST_ORDER_GTOL) << ")" << endl;
+    out << "NQC fitted matrix written to " << qmat_file << "; re-use it with -m " << qmat_file << endl;
+    out << "NQC export record written to " << info_file << endl;
+}
+
+void ModelNonrevFixedEq::writeExportInfo(const string &file, int linked_partitions, const ExportDiagnostic &d,
+                                         const string &qmat_file) {
+    // keys shared with the checkpoint are formatted as saveCheckpoint formats them
+    double domain[2] = {lower, upper};
+    double diagnostics[7] = {residuals.stationarity, residuals.row_sums, residuals.mean_rate_error,
+                             residuals.min_rate, residuals.min_flux, residuals.nu_residual,
+                             residuals.exit_rate_mismatch};
+    string letters;
+    for (int r : ref)
+        letters += STATES[r];
+    string command = "unknown";
+    if (checkpoint) {
+        checkpoint->startStruct("iqtree");
+        checkpoint->getString("command", command);
+        checkpoint->endStruct();
+        // the record begins with the space before the first argument
+        if (!command.empty() && command[0] == ' ')
+            command.erase(0, 1);
+    }
+    ostringstream version;
+    version << iqtree_VERSION_MAJOR << "." << iqtree_VERSION_MINOR << iqtree_VERSION_PATCH;
+    try {
+        ofstream out;
+        out.exceptions(ios::failbit | ios::badbit);
+        out.open(file.c_str());
+        out << "# NQC export record of " << qmat_file << " (decisions 009 and 010)" << '\n'
+            << "model: " << NAME << '\n'
+            << "state_order: " << STATES << '\n'
+            << "target_as_given: " << target_text << '\n'
+            << "target_sum: " << number17(target_raw_sum) << '\n'
+            << "target: " << numbers17(state_freq, num_states) << '\n'
+            << "chart: " << CHART << '\n'
+            << "chart_version: " << CHART_VERSION << '\n'
+            << "references: " << integers(ref) << '\n'
+            << "reference_letters: " << letters << '\n'
+            << "domain: " << numbers17(domain, 2) << '\n'
+            << "derivative: " << DERIVATIVE << '\n'
+            << "start: " << start_text << '\n'
+            << "random_seed: " << Params::getInstance().ran_seed << '\n'
+            << "command: " << command << '\n'
+            << "linked_partitions: " << linked_partitions << '\n'
+            << "fixed: " << (fixed_parameters ? "true" : "false") << '\n'
+            << "fits: " << fits << '\n'
+            << "evaluations: " << evaluations << '\n'
+            << "accepted_fit: " << accepted_fit << '\n'
+            << "start_score: " << score17(start_lnl) << '\n'
+            << "optimizer_score: " << score17(optimizer_lnl) << '\n'
+            << "accepted_score: " << score17(rescored_lnl) << '\n'
+            << "bounds: " << integers({at_lower, at_upper, outside}) << '\n'
+            << "residuals: " << numbers17(diagnostics, 7) << '\n'
+            << "residual_names: stationarity,row_sums,mean_rate_error,min_rate,min_flux,nu_residual,"
+               "exit_rate_mismatch" << '\n'
+            << "coordinates: " << numbers17(accepted.data(), (int)accepted.size()) << '\n'
+            << "export_lnl: " << number17(-d.f0) << '\n'
+            << "stop: " << d.label << '\n'
+            << "stop_reason: " << d.reason << '\n'
+            << "stop_statistic: " << number17(d.test.statistic) << '\n'
+            << "stop_coordinate: " << d.test.coordinate + 1 << '\n'
+            << "stop_line: " << number17(fixedeq::FIRST_ORDER_GTOL) << '\n'
+            << "stop_step: central differences, step 1e-3 max(1 |x|), over the probes' displacements" << '\n'
+            << "stop_failed_probes: " << d.failed << '\n'
+            << "stop_gradient: " << numbers17(d.g.data(), (int)d.g.size()) << '\n'
+            << "diagnostic_evaluations: " << d.evaluations << '\n'
+            << "qmat: " << qmat_file << '\n'
+            << "iqtree_version: " << version.str() << '\n';
+        out.close();
+    } catch (ios::failure &) {
+        outError(ERR_WRITE_OUTPUT, file);
+    }
 }

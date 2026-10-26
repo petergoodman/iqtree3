@@ -410,4 +410,37 @@ double scaledStep(double x, double upper, double eta, double scale) {
     return probe - x;
 }
 
+Status firstOrderTest(const VectorXd &x, const VectorXd &g, double lower, double upper, double f,
+                      double gtol, FirstOrder &out) {
+    if (x.size() == 0 || x.size() != g.size() || !x.allFinite() || !g.allFinite() || !std::isfinite(f) ||
+        !(lower <= upper) || !std::isfinite(gtol) || !(gtol > 0.0))
+        return Status::invalidInput;
+    // the operations of oracle/chart.py's first_order_test, in the same order
+    const double den = std::max(std::fabs(f), 1.0);
+    FirstOrder r = {-1.0, 0, 0, 0, 0, false};
+    for (int k = 0; k < x.size(); k++) {
+        double usable;
+        if (x(k) < lower || x(k) > upper) {
+            r.outside++;
+            usable = std::fabs(g(k));
+        } else if (x(k) == lower) {
+            r.at_lower++;
+            usable = std::max(0.0, -g(k));
+        } else if (x(k) == upper) {
+            r.at_upper++;
+            usable = std::max(0.0, g(k));
+        } else {
+            usable = std::fabs(g(k));
+        }
+        const double s = usable * std::max(std::fabs(x(k)), 1.0) / den;
+        if (s > r.statistic) {
+            r.statistic = s;
+            r.coordinate = k;
+        }
+    }
+    r.passed = r.statistic < gtol && r.outside == 0;
+    out = r;
+    return Status::ok;
+}
+
 }  // namespace fixedeq

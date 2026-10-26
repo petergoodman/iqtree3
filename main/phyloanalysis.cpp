@@ -162,7 +162,10 @@ void reportReferences(Params &params, ofstream &out) {
             << "https://doi.org/10.1093/bioinformatics/btad540" << endl << endl;
     }
 
-    if (params.model_joint != "" && params.model_joint.find("NONREV") == string::npos) {
+    // NQC also fits a non-reversible matrix in nQMaker's workflow
+    bool nonrev_joint = params.model_joint.find("NONREV") != string::npos ||
+        ModelNonrevFixedEq::isName(params.model_joint.substr(0, params.model_joint.find_first_of("+*{")));
+    if (params.model_joint != "" && !nonrev_joint) {
         out << "Since you used QMaker to estimate protein matrix please also cite: " << endl << endl
             << "Bui Quang Minh, Cuong Cao Dang, Le Sy Vinh, Robert Lanfear (2021)" << endl
             << "QMaker: Fast and Accurate Method to Estimate Empirical Models of Protein Evolution." << endl
@@ -170,7 +173,7 @@ void reportReferences(Params &params, ofstream &out) {
             << "https://doi.org/10.1093/sysbio/syab010" << endl << endl;
     }
 
-    if (params.model_joint != "" && params.model_joint.find("NONREV") != string::npos) {
+    if (params.model_joint != "" && nonrev_joint) {
         out << "Since you used nQMaker to estimate non-reversible Q matrix please also cite: " << endl << endl
             << "Cuong Cao Dang, Bui Quang Minh, Hanon McShea, Joanna Masel," << endl
             << "Jennifer E James, Le Sy Vinh, Robert Lanfear (2022)" << endl
@@ -1411,7 +1414,7 @@ void reportPhyloAnalysis(Params &params, IQTree &tree, ModelCheckpoint &model_in
     if (!MPIHelper::getInstance().isMaster()) {
         return;
     }
-    // the NQC model's end-of-run summary; nothing for other models
+    // the NQC model's export files and end-of-run summary; nothing for other models
     ModelNonrevFixedEq::reportRun(tree, cout);
     if (params.suppress_output_flags & OUT_IQTREE) {
         printOutfilesInfo(params, tree);

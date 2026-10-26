@@ -6010,6 +6010,8 @@ void usage_iqtree(char* argv[], bool full_command) {
     << "      Non-reversible:  STRSYM (strand symmetric model, equiv. WS6.6)," << endl
     << "                       NONREV, UNREST (unrestricted model, equiv. 12.12)" << endl
     << "                       NQ.pfam, NQ.bird, NQ.mammal, NQ.insect, NQ.plant, NQ.yeast" << endl
+    << "                       NQC+F{p1,...,p20} or NQC+F<name> (protein, stationary" << endl
+    << "                       distribution fixed to the target; <name> from --mdef)" << endl
     << "           Otherwise:  Name of file containing user-model parameters" << endl
     << "  --nqc-domain LO,HI   Bounds on each NQC jump-probability ratio (default: 1e-5,1e5)" << endl
     << endl << "STATE FREQUENCY:" << endl

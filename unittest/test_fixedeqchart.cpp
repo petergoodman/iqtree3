@@ -492,3 +492,76 @@ TEST(Diagnostics, ReportWhatTheyMeasure) {
     EXPECT_EQ(d.nu_residual, 0.0625);    // (nu K)_1 - nu_1 = (1/2)(5/8) + (1/2)(1/2) - 1/2
     EXPECT_EQ(d.exit_rate_mismatch, 0.0);
 }
+
+namespace {
+
+fq::FirstOrder firstOrder(std::vector<double> x, std::vector<double> g, double f, double gtol) {
+    fq::FirstOrder r = {-7.0, -7, -7, -7, -7, false};
+    EXPECT_EQ(fq::firstOrderTest(Eigen::Map<VectorXd>(x.data(), x.size()), Eigen::Map<VectorXd>(g.data(), g.size()),
+                                 -2.0, 4.0, f, gtol, r), Status::ok);
+    return r;
+}
+
+}  // namespace
+
+// decision 009's export label; every number is dyadic, so each statistic is exact
+TEST(FirstOrderTest, InsideTheBoxPassesOnlyBelowGtol) {
+    const double a = std::ldexp(1.0, -11);
+    fq::FirstOrder r = firstOrder({0.5, -1.0, 2.0}, {a / 2, -a, a / 4}, 1.0, 2 * a);
+    EXPECT_EQ(r.statistic, a);  // |x| = 2 doubles the third, a / 4 * 2 = a / 2
+    EXPECT_EQ(r.coordinate, 1);
+    EXPECT_EQ(r.at_lower + r.at_upper + r.outside, 0);
+    EXPECT_TRUE(r.passed);
+    EXPECT_FALSE(firstOrder({0.5, -1.0, 2.0}, {a / 2, -a, a / 4}, 1.0, a).passed);  // not strictly below
+}
+
+TEST(FirstOrderTest, AtABoundOnlyAGradientPointingIntoTheBoxCounts) {
+    // g is the derivative of -lnL: at the lower bound g < 0 asks to move up, into the box
+    fq::FirstOrder r = firstOrder({-2.0, 4.0, 0.0}, {1.0, -1.0, 0.0}, 1.0, 1e-4);
+    EXPECT_EQ(r.statistic, 0.0);
+    EXPECT_EQ(r.at_lower, 1);
+    EXPECT_EQ(r.at_upper, 1);
+    EXPECT_TRUE(r.passed);
+    r = firstOrder({-2.0, 4.0, 0.0}, {-0.25, 0.0, 0.0}, 1.0, 1e-4);
+    EXPECT_EQ(r.statistic, 0.5);
+    EXPECT_EQ(r.coordinate, 0);
+    EXPECT_FALSE(r.passed);
+    r = firstOrder({-2.0, 4.0, 0.0}, {0.0, 0.125, 0.0}, 1.0, 1e-4);
+    EXPECT_EQ(r.statistic, 0.5);
+    EXPECT_EQ(r.coordinate, 1);
+    EXPECT_FALSE(r.passed);
+}
+
+TEST(FirstOrderTest, ACoordinateOutsideTheBoxFailsWithAZeroGradient) {
+    fq::FirstOrder r = firstOrder({5.0, 0.0}, {0.0, 0.0}, 1.0, 1e-4);
+    EXPECT_EQ(r.outside, 1);
+    EXPECT_EQ(r.statistic, 0.0);
+    EXPECT_FALSE(r.passed);
+}
+
+TEST(FirstOrderTest, TiesGoToTheLowerIndexAndFScalesAboveOne) {
+    fq::FirstOrder r = firstOrder({0.0, 0.0, 0.0}, {0.0625, -0.125, 0.125}, -256.0, 1e-4);
+    EXPECT_EQ(r.coordinate, 1);
+    EXPECT_EQ(r.statistic, std::ldexp(1.0, -11));
+    EXPECT_EQ(firstOrder({0.0}, {0.125}, 0.5, 1e-4).statistic, 0.125);  // |f| < 1 divides by 1
+}
+
+TEST(FirstOrderTest, InvalidInputLeavesTheOutputUntouched) {
+    const double nan = std::numeric_limits<double>::quiet_NaN();
+    const double inf = std::numeric_limits<double>::infinity();
+    VectorXd one = VectorXd::Zero(1), two = VectorXd::Zero(2), empty(0), bad = VectorXd::Constant(1, nan),
+             huge = VectorXd::Constant(1, inf);
+    struct Case { const VectorXd &x, &g; double lower, upper, f, gtol; };
+    const Case cases[] = {
+        {empty, empty, -2, 4, 1, 1e-4}, {one, two, -2, 4, 1, 1e-4}, {bad, one, -2, 4, 1, 1e-4},
+        {one, huge, -2, 4, 1, 1e-4}, {one, one, -2, 4, nan, 1e-4}, {one, one, 4, -2, 1, 1e-4},
+        {one, one, -2, 4, 1, 0.0}, {one, one, -2, 4, 1, nan},
+    };
+    for (const Case &c : cases) {
+        fq::FirstOrder r = {-7.0, -7, -7, -7, -7, true};
+        EXPECT_EQ(fq::firstOrderTest(c.x, c.g, c.lower, c.upper, c.f, c.gtol, r), Status::invalidInput);
+        EXPECT_EQ(r.statistic, -7.0);
+        EXPECT_EQ(r.coordinate, -7);
+        EXPECT_TRUE(r.passed);
+    }
+}
