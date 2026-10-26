@@ -93,6 +93,7 @@ NAMED = "NQCTARGET"
 R4_GIVEN = (0.25, 0.125, 0.25, 0.625, 0.25, 1.125, 0.25, 2.125)
 R4 = "+R4{" + ",".join(f"{v:g}" for v in R4_GIVEN) + "}"
 WIDE = "1e-8,1e7"       # the nesting test's aa_example domain, reused for risk 22 (CODE_PLAN.md section 4)
+S2_DOMAIN = "1e-5,10"   # the first default domain, in which S2's gate checkpoint was written
 
 INITIAL = re.compile(r"^1\. Initial log-likelihood: (\S+)", re.M)
 SEED_Q = "NQC seed Q after rescaling (17 significant digits):"
@@ -683,7 +684,8 @@ def case_restart(r, c, ctx, older):
     """CODE_PLAN.md section 3.5, single alignment (S3a): NQC's restore refuses a checkpoint written
     with another target or domain, accepts the same command (exit 0 is all the keys can show, since
     IQ-TREE re-saves no model after this restore), and reads S2's checkpoint, which lacks S3a's
-    keys."""
+    keys. S2 ran in the first default domain, so that rerun names it: under the default since
+    0e9fb159 the restore refuses the checkpoint for its domain."""
     base = level1(r, c, ctx)
     if base.code != 0:
         return failed_run(base)
@@ -701,7 +703,7 @@ def case_restart(r, c, ctx, older):
     out.append(check("--undo with the same command: exit 0", run.code == 0, exit_code=run.code))
     out.append(check("--undo: summary against the original's (report)", None,
                      equal=summary(run.stdout()) == summary(base.stdout()), undo=summary(run.stdout())))
-    run = r.run("restart-older", args + ["--undo"], staged(older))
+    run = r.run("restart-older", args + ["--nqc-domain", S2_DOMAIN, "--undo"], staged(older))
     out.append(check("S2's checkpoint, --undo with this binary (report)", None, exit_code=run.code,
                      summary=summary(run.stdout()), error=nqc_error(run)))
     return out

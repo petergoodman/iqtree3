@@ -247,43 +247,46 @@ box of the records made in it; [log 1e-6, log 1e6], NONREV's ratio range; [log 1
 `CODE_PLAN.md` section 2.2, "Refusals": non-protein data, untargeted `+F`, `-optfromgiven`,
 `-jointopt`, mixtures (where `initMixture` makes a component), tree mixtures and HMM, GHOST `+H`
 (also in a partition's model string, S3b), site-specific frequencies, `--link-exchange-rates`,
-`--eigen`, ModelFinder in any form (detected at run time, S3a), AliSim, unlinked partitions (S3a).
+`--eigen`, ModelFinder in any form (detected at run time, S3a), AliSim, unlinked partitions (S3a),
+`-mstore` (S4).
 **Why.** Each path bypasses the invariants or is undesigned: `-optfromgiven` releases the
-equilibrium in the base decomposition (015), `-jointopt` clamps coordinates with rate bounds, and
-an `--mdef` mixture never shows "MIX" in the model string. Unlinked partitions lie outside the
-first release, so Peter chose refusing them over testing them (2026-10-22).
+equilibrium in the base decomposition (015), `-jointopt` clamps coordinates with rate bounds, an
+`--mdef` mixture never shows "MIX" in the model string, and `-mstore`'s cached transition matrices
+would be reused by the export's probes (009). Unlinked partitions lie outside the first release, so
+Peter chose refusing them over testing them (2026-10-22).
 **Not chosen.** Allowing them silently; supporting them now; detecting mixtures from the string.
-**Since** 2026-09-23; revised 2026-10-20 (032; 034 items 2, 4, 5), 2026-10-22 (S3 plan) and
-2026-10-23 (S3b: `--model-joint` and `--link-model` no longer refused).
+**Since** 2026-09-23; revised 2026-10-20 (032; 034 items 2, 4, 5), 2026-10-22 (S3 plan),
+2026-10-23 (S3b: `--model-joint` and `--link-model` no longer refused) and 2026-10-26 (`-mstore`).
 
 ### 009. Check every fit afterwards, report a fall below the start, restore nothing
 
 **Rule.** After each fit NQC re-evaluates the returned point, checks the invariants, records bound
 activity and reports any fall below the start, keeping the optimizer's point as every IQ-TREE
-model does. At export a central-difference first-order diagnostic in log-ratio coordinates labels
-the stop "unclassified" unless it passes. `utils/optimization.{h,cpp}` is never edited. A linked
-round that lowers the log-likelihood by more than 0.1 stops at IQ-TREE's `ASSERT`, as for NONREV.
-**Why.** A return from `dfpmin` does not certify convergence (synthesis section 5).
-`ModelMarkov::optimizeParameters` keeps the optimizer's point without comparing it with the
-start; the decks' "Final fit" row asks for a check, not a restore.
+model does. At export, central differences of −lnL in log-ratio coordinates (step 1e-3 max(1,
+|x_k|)), projected at active bounds, meet dfpmin's scaled gradient test at its gtol 1e-4 or the
+stop is "unclassified"; a pass with no coordinate outside the domain is "first-order stationary at
+the optimizer's tolerance", which certifies no peak (039). `utils/optimization.{h,cpp}` is never
+edited. A linked round losing more than 0.1 stops at IQ-TREE's `ASSERT`, as for NONREV.
+**Why.** A return from `dfpmin` does not certify convergence (synthesis section 5); the test is
+the optimizer's own, so a pass separates its gradient stop from a failed line search.
 **Not chosen.** Restoring the start; status fields in the shared optimizer; repairing the line
-search (a maintainer question).
-**Since** 2026-09-23; restore and optimizer fields removed by 029 (2026-10-07).
+search (a maintainer question); gtol 1e-6; numbers without a label (Peter, 2026-10-26).
+**Since** 2026-09-23; restore and optimizer fields removed by 029 (2026-10-07); test 2026-10-26.
 
 ### 010. Export the fitted matrix at 17 digits in the `-m FILE` format
 
-**Rule.** After the final model optimization, one call at the top of `reportPhyloAnalysis` in
-`main/phyloanalysis.cpp`, active only when an NQC model exists, prints NQC's end-of-run summary
-(S3a) and writes `<prefix>.NQC.qmat` (normalized Q and the π* row at 17 significant digits) and
-`<prefix>.NQC.info` (target, state order, chart and version, references, domain, derivative
-policy, residuals, bound activity, stop classification, seed, source commit) (S4). Re-import uses
-the existing `-m FILE` path, its equality tested at Level 1; the `.iqtree` block is unchanged.
-**Why.** The report prints Q at 6 digits, and re-import from it reproduced the log-likelihood only
-to 4e-4; the existing reader loads a full non-reversible Q with its π as root. No model prints its
-state on the `+I+G` path at default verbosity. At Level 1 `accepted_score` is the state's score.
-**Not chosen.** Raising the report's precision for every model; a NEXUS block; a line per fit at
-default verbosity; a final-score key (Peter, 2026-10-22).
-**Since** 2026-09-23; summary and test level 2026-10-22 (S3 plan).
+**Rule.** After the final model optimization, one call at the top of `reportPhyloAnalysis`, active
+only when an NQC model exists, prints NQC's summary (S3a) and writes `<prefix>.NQC.qmat` (normalized
+Q and the π* row at 17 significant digits, before 009's diagnostic) and `<prefix>.NQC.info` (target,
+state order, chart, references, domain, derivative policy, coordinates, scores, residuals, bounds,
+stop classification and gradient, start, seed, command, IQ-TREE's version) (S4). Re-import uses
+the existing `-m FILE` path, tested at Level 1; the `.iqtree` block is unchanged.
+**Why.** The report prints Q at 6 decimals; re-import from it matched only to 4e-4. The reader
+re-solves π from a full Q, using the file's π row only for a 1e-3 warning, so re-import matches to
+rounding. At Level 1 `accepted_score` is the state's score.
+**Not chosen.** Raising the report's precision for every model; a NEXUS block; a line per fit; a
+final-score key (Peter, 2026-10-22); the commit in the binary (2026-10-26: drivers record it).
+**Since** 2026-09-23; summary and test level 2026-10-22 (S3 plan); contents 2026-10-26 (Peter).
 
 ### 011. Every NQC object recomputes its reference destinations
 
@@ -379,6 +382,15 @@ only because no file holds them.
 | Toy problem (`CODE_PLAN.md` 3.3): compiled final score against the oracle's port (017) | max(10 × spread, 1e-8 × \|lnL\|); spread is the largest final-score difference among oracle fits differing only by rounding (every start coordinate moved one unit in the last place; an LU solve for ν in place of the pivoted QR), measured by a kept script before the comparison runs | 030 |
 | Level 1 accepted score against the oracle's re-evaluation of the checkpointed coordinates | ≤ 1e-8 × \|lnL\| | 030 |
 | π* in the checkpoint after every fit | bitwise equal to the parsed, normalized vector | 030 |
+| Export re-imported at Level 1 (`--show-lh`; `-S` partition lines summed; `-q` through the oracle's `file_model`) against `accepted_score` | ≤ 1e-8 × \|lnL\| | S4 (Peter) |
+| Export against the checkpoint: `.qmat` π row, `.info` fields shared with its keys; an `--undo` run's `.qmat` | bitwise; identical strings; byte-identical | S4 |
+| Export diagnostic: statistic, coordinate and label against the oracle's `first_order_test` of the C++ gradient | identical | S4 |
+| Export diagnostic: label against the oracle's from its own gradient | equal, unless \|s − 1e-4\| ≤ max_k 2 × 1e-12 × \|f\| / (h⁺_k + h⁻_k) × max(\|x_k\|, 1) / max(\|f\|, 1), then reported | S4 |
+| NQC outputs of the S4 binary against the S3c binary, same commands at `-T 1`, same toolchain | identical: layer 4's report sections, tree files, NQC checkpoint keys | S4 |
+
+S4 also applies the compiled-Q row to the exported Q, the residual row to the file's Q, and the
+same-rule gradient row to the export's central differences with h_k = h⁺_k + h⁻_k, the sum of the
+two probes' displacements.
 
 h_k is the step's displacement (`CODE_PLAN.md` section 2.1), and the oracle reports the spread of
 its three central differences. The step-size line allows more for rounding than the rounding it
@@ -389,7 +401,7 @@ derivation kept in the archive: 1e-10 is the synthesis's feasibility goal (secti
 κ-scaled Q line tracks the measured gap between two correct floating-point routes, and the
 gradient lines turn a likelihood difference into a gradient difference.
 **Since** 2026-10-04 (021), 2026-10-05 (026), 2026-10-20 (030, 034 item 7); a claim in 030's
-reasons withdrawn 2026-10-22 (036); thread row 2026-10-22 (038).
+reasons withdrawn 2026-10-22 (036); thread row 2026-10-22 (038); export rows 2026-10-26 (S4).
 
 ### 012. Test the pure module with googletest in a standalone CMake project
 

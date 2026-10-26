@@ -114,6 +114,28 @@ def central(f, z, s):
     return g, c
 
 
+def export_gradient(f, z, eta=chart.FIRST_ORDER_ETA):
+    """The export diagnostic's central differences (decision 009), probe for probe as the C++ takes
+    them: h = eta max(1, |z_k|), probes at z_k + h and z_k - h, g_k = (f+ - f-) / (h+ + h-) with h+-
+    the displacements the probes make. Returns f at z, g and the displacement sums h+ + h-."""
+    x = np.array(z, dtype=float)
+    f0 = f(x)
+    g, span = np.empty(len(x)), np.empty(len(x))
+    for k in range(len(x)):
+        temp = x[k]
+        h = eta * max(1.0, abs(temp))
+        x[k] = temp + h
+        up_step = x[k] - temp
+        up = f(x)
+        x[k] = temp - h
+        down_step = temp - x[k]
+        down = f(x)
+        x[k] = temp
+        span[k] = up_step + down_step
+        g[k] = (up - down) / span[k]
+    return f0, g, span
+
+
 def fit(f, z0):
     """One model fit as ModelMarkov::optimizeParameters makes it, with the scaled step and the
     benchmark box: the oracle's side of the decision 017 toy comparison, calibrated in that box."""

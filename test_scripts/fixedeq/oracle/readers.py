@@ -1,4 +1,5 @@
-"""Readers for the alignment, tree and partition files the oracle uses."""
+"""Readers for the alignment, tree and partition files the oracle uses, and for NQC's export."""
+import math
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -99,3 +100,27 @@ def parse_newick(text):
 
 def read_newick(path):
     return parse_newick(Path(path).read_text(encoding="utf-8"))
+
+
+def read_qmat(text):
+    """An exported <prefix>.NQC.qmat (decision 010): n rows of the full Q, then the frequency row,
+    whitespace-separated; returns (Q, pi) with all n(n + 1) numbers."""
+    values = np.array([float(v) for v in text.split()])
+    n = int(round((math.sqrt(1 + 4 * values.size) - 1) / 2))
+    if n < 2 or n * (n + 1) != values.size:
+        raise ValueError(f".qmat: {values.size} numbers do not make n rows of n and a row of n")
+    return values[:n * n].reshape(n, n), values[n * n:]
+
+
+def read_info(text):
+    """An exported <prefix>.NQC.info: one `key: value` per line, lines starting with # ignored;
+    returns the values as strings. A repeated key or a line without ': ' is an error."""
+    out = {}
+    for line in text.splitlines():
+        if not line.strip() or line.startswith("#"):
+            continue
+        key, sep, value = line.partition(": ")
+        if not sep or not key or key in out:
+            raise ValueError(f".info: bad or repeated line {line!r}")
+        out[key] = value
+    return out

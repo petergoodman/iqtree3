@@ -4,10 +4,14 @@ The coordinates are the n(n-2) log-ratios z_ij = log(K_ij / K_{i,r(i)}), for eac
 destination j other than i and its reference r(i), in row-major order with destinations
 increasing. K is the jump matrix, nu its stationary distribution, and q_ij = nu_i K_ij / pi_i.
 """
+import math
+
 import numpy as np
 from scipy.linalg import qr, solve_triangular
 
 PIN = 10.0  # the positive-ratio chart's pinned weight c (synthesis section 3.1)
+FIRST_ORDER_GTOL = 1e-4  # decision 009: the gtol NQC's fits receive
+FIRST_ORDER_ETA = 1e-3   # the export's central step eta max(1, |x|), decision 021's reference step
 
 
 class BuildError(ValueError):
@@ -152,6 +156,40 @@ def diagnostics(Q, pi, nu=None):
         d["nu_residual"] = float(np.max(np.abs(nu @ K - nu)))
         d["exit_rate_mismatch"] = float(np.max(np.abs(exit_rates - nu / pi) / (nu / pi)))
     return d
+
+
+def first_order_test(x, g, lower, upper, f, gtol=FIRST_ORDER_GTOL):
+    """Decision 009's export label, operation for operation as fixedeq::firstOrderTest, so that it
+    reproduces the C++ statistic bitwise from the same inputs. g is the gradient of -lnL; at a bound
+    only its part pointing into the box counts. s_k = usable_k max(|x_k|, 1) / max(|f|, 1), dfpmin's
+    scaling; the test passes when max s_k < gtol and no coordinate lies outside [lower, upper]. The
+    coordinate is 0-based, the lowest on a tie."""
+    x, g = np.asarray(x, dtype=float), np.asarray(g, dtype=float)
+    if (x.ndim != 1 or len(x) == 0 or x.shape != g.shape or not np.all(np.isfinite(x))
+            or not np.all(np.isfinite(g)) or not math.isfinite(f) or not lower <= upper
+            or not (math.isfinite(gtol) and gtol > 0)):
+        raise ValueError("first_order_test: invalid input")
+    den = max(abs(f), 1.0)
+    statistic, coordinate = -1.0, 0
+    at_lower = at_upper = outside = 0
+    for k in range(len(x)):
+        xk, gk = float(x[k]), float(g[k])
+        if xk < lower or xk > upper:
+            outside += 1
+            usable = abs(gk)
+        elif xk == lower:
+            at_lower += 1
+            usable = max(0.0, -gk)
+        elif xk == upper:
+            at_upper += 1
+            usable = max(0.0, gk)
+        else:
+            usable = abs(gk)
+        s = usable * max(abs(xk), 1.0) / den
+        if s > statistic:
+            statistic, coordinate = s, k
+    return {"statistic": statistic, "coordinate": coordinate, "at_lower": at_lower, "at_upper": at_upper,
+            "outside": outside, "passed": statistic < gtol and outside == 0}
 
 
 def derivative(z, pi, ref, dz):
