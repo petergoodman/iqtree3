@@ -579,7 +579,8 @@ later from the same frozen binary with run 8 rerun in each repeat to supply its 
 
 `test_scripts/fixedeq/sanitizer/sanitize.py` builds and runs it (decision 022), in a new
 directory for each slice (S0's `~/iqtree3-build-asan`, S2's `~/iqtree3-build-asan-s2`, then
-`-s3a` and `-s3b`; S3c builds one only if it changes C++).
+`-s3a` and `-s3b`; S3c built none, since its only C++ change was a default value and a help string,
+Peter, 2026-10-25).
 - **Build.** `-DCMAKE_BUILD_TYPE=Mem` (`-g -O1`) with clang 14;
   `-fsanitize=address,undefined -fno-omit-frame-pointer` in both `CMAKE_C_FLAGS` and
   `CMAKE_CXX_FLAGS`, and `-fsanitize=address,undefined` in `CMAKE_EXE_LINKER_FLAGS`; `-j 2`.
@@ -662,10 +663,9 @@ read it only where these lists are unclear.
     session. A slice that runs long stops after any commit, and the next session resumes from
     the CHANGELOG entry. The gate's long runs leave their outputs on disk and can be checked in
     a later session.
-  - S3c's session plans for real first: the per-evaluation measurement, then the pilot.
   - Before any run expected to last more than a few minutes (each gate's sanitizer step, S3c's
-    matrix), the agent gives the compute estimate, agrees the keep-awake method with Peter and
-    monitors the run.
+    profiling), the agent gives the compute estimate, starts the keep-awake helper (CLAUDE.md)
+    and monitors the run.
   - Read-only subagents help twice: a code review before the gate (S2's plan review found the
     rooting defect), and the records-against-gate check at the close.
   - Not used: parallel agents or worktrees, because CLAUDE.md allows one working copy and the
@@ -724,163 +724,13 @@ Monitoring, reported for every S3a and S3b fit and not asserted:
   (anchors in section 5). S2: none in the 183 fits of its three `aa_example` runs;
 - falls below the start, and the optimizer's score against the re-scored one.
 
-S3c's first part, approved by Peter on 2026-10-24 (PLAN.md risks 22 and 24): the stopping study
-and converged evidence for risk 22, by `test_scripts/fixedeq/explore/convergence.py`
-(exploratory; its checks and lines were set before any run).
-- **Cases,** Level 1 with every nuisance fixed, `-T 1 -seed 1`: A `aa_example` (`+G4{0.5}`, run 2's
-  rooted tree); B turtle `-S` (`+G4{0.5}`, run 9's trees); C turtle `-q` with the tree, shapes and
-  partition rates of an NQC `-p` Level 2 `+G4` fit in the box (decision 024). "The box" here is
-  [1e-5, 10], decision 007's first default, named on every run since the default changed.
-- **IQ-TREE runs:** NONREV, NQC in the box and NQC at `1e-8,1e7`, each at default settings
-  and relaxed (`-me 1e-6`, with `--loop-model` and `-nparam` allowing 300 rounds), and NQC relaxed
-  at `1e-5,1e5`. Each run's per-round trajectory, rounds and ending rule (round threshold or cap).
-- **Reference peaks:** the oracle's `lbfgsb_fit` (SciPy's L-BFGS-B with decision 005's forward
-  step, then central differences if needed, stopping at a projected gradient of 1e-3) climbs from
-  NQC's relaxed box endpoint through P0 [1e-5, 10], P1 [1e-5, 1e5], P1b [1e-6, 1e6], P2
-  [1e-8, 1e7] and P3 (±50 in log units), each from the last, and climbs P2's domain again from
-  NQC's relaxed endpoint there (P2w). It is a test reference in the same chart; IQ-TREE's
-  optimizer is unchanged (decision 009). P1b, with its NQC relaxed run, was added after case A's
-  pilot (Peter, 2026-10-24) and is reported as such: it is the smallest symmetric box holding
-  every within-row rate ratio NONREV's bounds [1e-4, 100] allow (1e-4/100 to 100/1e-4). Case A has
-  no P1b climb; its P1b peak, climbed from P1's, would be at least P1's.
-- **Asserted:** the oracle's −lnL at NQC's box endpoints equals the accepted score (decision 021).
-  S-1, NONREV's relaxed run ends above its default run by more than the case's round threshold
-  (0.01, or 0.1 under `-S`) in at least one case. S-2, P0 lies above NQC's box endpoint at default
-  settings by
-  more than that threshold. S-3, NQC's relaxed box run is not ended by its round threshold while
-  more than 0.01 below P0; such a stall would point to an NQC-specific obstacle.
-- **Reported:** both models' per-round gains; at each peak, the gain over the last (below −1e-6
-  flagged as not reached), coordinates at each bound by row and side, those whose gradient pushes
-  outward, rows with three or more at the upper bound (a collapsed reference), and the largest
-  change in log rate from P0; at P3, the coordinates leaving P2's domain and the log-likelihood
-  they add (below 1e-3, a flat direction); the six built-in NQ matrices placed against the domains.
-- **Risk 22's material line** (Peter, 2026-10-24, before any run): a box cost, the higher of P2 and
-  P2w minus P0, above 0.1 in any case. If material, the recommendation is the narrowest tested
-  domain within 0.1 of that peak in every case whose IQ-TREE runs show no new warnings, switches,
-  falls or ASSERTs; otherwise the default box stays.
-- **Order:** a pilot on case A (done, `CHANGELOG.md` 2026-10-24); then cases B and C, approved by
-  Peter on 2026-10-24 with P1b added (done 2026-10-25, `CHANGELOG.md`; the command, with
-  `--timeout 21600` added by Peter, is in the run's `results.json`; 85 minutes against the 4.5 to
-  6.5 hours estimated, since turtle's climbs took fewer iterations). The `reread` mode recomputes, from
-  the S3b gate's outputs, the numbers that corrected S3b's risk 22 record.
-- **Keep-awake for long runs:** a background PowerShell process that calls
-  `SetThreadExecutionState` while `wsl.exe -d Debian -- pgrep -fc PATTERN` counts above zero; a
-  pattern with no space; its `Out-File` log is UTF-16, read with `Get-Content`.
-- **Read** on 2026-10-25 (`CHANGELOG.md`) by lines fixed before the runs (W, the higher of P2 and
-  P2w; material if W − P0 exceeds 0.1 in any case; a domain qualifies if its peak lies within 0.1
-  of W in every case and its relaxed runs are clean): material in every case, P1 the narrowest
-  that qualifies. S-3 failed in case B (recorded as a failure, the check unchanged).
-- **Domain change** (Peter, 2026-10-25): default [1e-5, 1e5], `0e9fb159`, verified from the clean
-  commit (`CHANGELOG.md`, 2026-10-25); no sanitizer build, since only a default value and a help
-  string changed.
-
-S3c, profiling against NONREV (PLAN.md risks 5 and 18). The thresholds were approved by Peter on
-2026-10-22, before any measurement. On 2026-10-25 he approved a scaled design, the measurement and
-the simulation model in S3c's plan. They replace the recorded matrix of 24 configurations at `-T 1`
-on turtle and on 10, 30 and 100 alignments, estimated then at "roughly 70 hours"; by S3c's
-measured times its pilot alone would take 15 to 20 hours. The approach: code speed (time per
-evaluation) is timed over short windows at every size, and full fits run only where time per fit
-is needed.
-- **Driver.** `test_scripts/fixedeq/profile/profiling.py` (subcommands `simulate`, `windows`,
-  `fits`), tested by `tests/test_profiling.py`. It is not named `profile.py`, because that would
-  shadow the standard library's `profile`, which `cProfile` imports.
-- **Binary.** `81729f4b`, the binary of the default-domain verification, frozen in
-  `~/iqtree3-binaries/81729f4b/`. gdb sets breakpoints from its dynamic symbols (`-rdynamic`), so
-  no extra build is needed.
-- **Counter.**
-  - gdb runs in batch mode with its own command language, not its embedded Python, which is
-    Debian's system Python (decision 013).
-  - It stops at `PartitionModel::targetFunk`. That function is called once per linked evaluation
-    for both models under `-S`, `-p` and `-q`, and never for branch, rate or partition-rate
-    parameters. Inside it, each partition builds and decomposes its own matrix within the OpenMP
-    loop, for both models, so NQC's extra work runs in parallel exactly where NONREV's does.
-  - Window mode reads `/proc/uptime` at evaluation 1 and at evaluation 1001, then ends the run.
-    Time per evaluation is the difference divided by 1000.
-  - Count mode counts every evaluation of a full fit, and a second breakpoint, on
-    `PartitionModel::optimizeLinkedModel`, records the count at the start of each linked fit,
-    which gives the evaluations of each round.
-- **Asserted checks on the counter.**
-  - NQC's `evaluations` key equals gdb's hits in every counted NQC run.
-  - NONREV's `ModelMarkov::targetFunk` hits equal 3 times its linked hits on turtle (one round,
-    under `-S` and `-q`), one call per partition.
-  - Three plain and counted pairs of NQC's turtle `-S` Level 1 round end bitwise equal.
-  - **CPU guard,** set before any gate run: a timed run at `-T 1`, window or fit, must keep its
-    CPU time at or above 0.75 of its wall time. Normal runs keep 0.92 to 0.95; a development run
-    paused for 55 s kept 0.44. A run below the line was paused or shared the CPU; it fails its
-    row and is rerun, and the rerun is recorded. Windows read IQ-TREE's CPU ticks from `/proc`
-    beside each reading.
-- **Cost of a gdb stop, reported.** It was 0.37 ms in development (one pair): 9% of a turtle
-  evaluation and 1.4% of a 10-set one. Both models pay it, so it pulls ratios toward 1. Each ratio
-  is therefore also reported with it removed, and a verdict uses the worse of the two figures.
-- **Data.**
-  - Turtle, as in S3b. Its `-q` Level 1 inputs come from NQC's `-p` Level 2 `+G4` fit (decision
-    024).
-  - Simulated sets, made by the frozen binary's AliSim from NQ.pfam's jump chain at decision
-    023's target (`toy.truth`) with `+G4{0.5}`. Peter chose this on 2026-10-25 over the built-in
-    NQ.pfam composition, which would leave NQC fitting a misspecified target.
-  - Each simulated alignment has 20 taxa and 500 sites. Under `-S`, 100 alignments each on its
-    own seeded tree. Under `-p`, 100 alignments on one tree, each with a partition rate drawn
-    log-uniform on [0.5, 2] and normalized to mean 1. The 10-, 30- and 100-sets are the first
-    alignments of each collection.
-  - Level 1 nuisances are the true values, as the record recommended. `normalizePartRate`
-    rescales given rates to mean 1 without rescaling the tree, so a `-p` set of n alignments gets
-    the tree T × m_n and the rates r_k / m_n.
-- **Stage A, windows.** Level 1 `+G4` under `-S` and `-q`, both models, at `-T 1`. Turtle and the
-  10-set run 3 times; the 30- and 100-sets once. The 10- and 100-sets also run at `-T 2` and
-  `-T 4`, reported without a verdict, since gdb stops every thread.
-- **Stage B, full fits at default settings, counted.**
-  - Turtle: Level 1 `+G4` under `-S` and `-q`; Level 2 under `-S` and `-p` with `+G4`, `+I+G4`
-    and free `+R4`.
-  - 10-set: Level 1 `+G4` under `-S` and `-q`; Level 2 `+G4` under `-S` and `-p`.
-  - After turtle, the 10-set's cost is re-estimated, and Peter may trim it to its `-S` fits.
-- **Left out** (departures from the record, approved 2026-10-25):
-  - full fits on the 30- and 100-sets: their cost comes from the windows and the round caps;
-  - Level 1 `+I+G4` and `+R4`: fixed rate values change neither model's matrix code nor the
-    round rules, and none were recorded;
-  - the 10-set's Level 2 `+I+G4` and `+R4`: they add nuisance cost both models share;
-  - fit times at `-T 2` and `-T 4`: at more than one thread a fit does not repeat (decision 038).
-- **Reported for each run:**
-  - time per evaluation;
-  - IQ-TREE's wall and CPU time;
-  - rounds and the ending rule;
-  - evaluations and time per round;
-  - final log-likelihoods, and NQC's accepted score;
-  - free parameters, with NONREV's count minus NQC's (19 expected);
-  - IQ-TREE's memory estimate;
-  - bound activity by row and side, for both models;
-  - the monitors.
-- **Reported for each configuration:** the per-fit ratio split into the per-evaluation ratio and
-  the evaluation-count ratio, and each model's time outside its evaluations. Expected, stated
-  before the runs: the per-evaluation ratio is about equal at 10, 30 and 100 alignments, and
-  largest on turtle.
-- **Extrapolation,** labelled as one, for both models:
-  - time per evaluation is fitted linearly over 10, 30 and 100 alignments, then taken at 2000
-    alignments of 500 columns, about a million columns, at 20 taxa;
-  - evaluations per fit are taken at the round caps (10 under `-S`, 99 under `-p`): the 10-set
-    fit's first round, then the mean of its later rounds for each remaining round, because NQC's
-    first round from LG is 10 to 20 times longer than its later ones;
-  - evaluation time only, with nuisance updates excluded;
-  - 32 cores are assumed to run at the 100-set's `-T 4` efficiency;
-  - memory scales linearly.
-- **Evidence for risk 18's fallbacks:** turtle's `+G4` against `+I+G4`, Level 1 against Level 2,
-  the thread windows, and the per-alignment cost.
-- **Thresholds,** unchanged.
-  - An NQC-to-NONREV ratio above 1.25 per evaluation, or above 2 per fit, is investigated and
-    explained in the gate record.
-  - Above 3 per fit (an asserted row), the gate is blocked until the cause is fixed inside NQC's
-    code or Peter accepts it. Under decision 039, Peter's acceptance is the only route for a
-    ratio that comes from round counts.
-  - No absolute time limit; verdicts at `-T 1` only.
-- **Fallbacks** if real-scale training is impractical (risk 18): more cores; Level 1 with
-  nuisances from a cheaper reversible fit; `+G4` in place of `+I+G4`; subsampling alignments.
-- **Order.**
-  - Stage A from the clean commit, estimated at about 1 hour. Its results go to Peter with Stage
-    B's estimate recomputed from them.
-  - Then Stage B, estimated at 2.5 to 4 hours.
-  - The keep-awake helper runs for both.
-- **Close.** Thresholds evaluated; risks 5 and 18 updated. S-3's failure stays recorded, and
-  Peter states whether S3c closes with it under decision 039. A sanitizer build only if S3c
-  changes C++.
+S3c (done 2026-10-26; first part 2026-10-24 to 2026-10-25, profiling gate at `0b0048af`; gate
+record in `CHANGELOG.md`, S3c entry, and the entries of 2026-10-24 and 2026-10-25): the stopping
+study and risk 22's converged evidence (`explore/convergence.py`, the oracle's `lbfgsb_fit`); the
+default domain [1e-5, 1e5] (decision 007); profiling against NONREV by `profile/profiling.py`, with
+gdb-timed windows of 1000 evaluations and counted full fits, under the scaled design Peter
+approved on 2026-10-25 (its departures and checks are in `0b0048af`'s commit message and this
+section at that commit). S-3 stays recorded as failed (case B).
 
 Evidence for PLAN.md risk 22 (S3a's and S3b's single fits and warm starts, S3c's first part's
 converged peaks; `CHANGELOG.md`): settled by decision 007's revision on 2026-10-25. The

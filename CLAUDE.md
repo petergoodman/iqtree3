@@ -124,6 +124,15 @@ cmake --build ~/iqtree3-build -j 4
   it; idle sleep is set to 3 minutes on battery and 15 minutes plugged in. A job that looks hung
   is usually paused. Compare IQ-TREE's CPU time with its wall-clock time, the VM's `uptime`, and
   Windows Kernel-Power events 506 and 507 before assuming a fault.
+  - **Keep-awake helper.** For any job longer than a few minutes, start
+    `powershell.exe -NoProfile -ExecutionPolicy Bypass -File C:/Users/peter/.claude/keepawake/keepawake.ps1 PATTERN`
+    in the background, written exactly so, with forward slashes and no quotes. Peter's gitignored
+    `.claude/settings.local.json` allows that command.
+  - **How it works.** The helper holds the machine awake (`SetThreadExecutionState`) while
+    `pgrep -fc PATTERN` in Debian finds the job, waiting up to 5 minutes for the job to appear,
+    and releases when the job ends. The pattern must contain no space. A monitor whose command
+    line matches the pattern keeps the helper holding.
+  - **Its log.** `keepawake.log` beside the script is UTF-16: read it with `Get-Content`.
 - **GitHub from the agent** (Windows `gh` 2.102.0, set up 2026-10-20): Peter's fine-grained
   token, read-only on `petergoodman/iqtree3` (Actions and Administration); `gh repo set-default`
   points at the fork. `.claude/settings.json` allows `gh run list`, `gh run view ID --log-failed`

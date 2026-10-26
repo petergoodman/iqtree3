@@ -11,6 +11,26 @@ lines: tool and model, operator, up to five "what it did" bullets, files touched
 No AI-generated scientific claim, numerical result, or citation in this project has been accepted
 without human verification against source.
 
+## 2026-10-26: S3c milestone
+
+**Tool:** Claude Code (VS Code extension). **Model:** Claude Opus 5.5, 1M context, model id
+`claude-opus-5-5[1m]`. **Operator:** Peter Goodman.
+
+**What it did.**
+- **Plan.** It planned the stopping study and the profiling. The operator chose the default domain,
+  decision 039, and the profiling's scaled design, measurement and simulation model.
+- **Code.** It wrote `explore/convergence.py`, the oracle's reference climber, the domain change in
+  `utils/tools.{h,cpp}` and the oracle, and `profile/profiling.py`, with their tests.
+- **Validation.** It ran each study and gate from clean commits under a keep-awake helper. Subagents
+  reviewed the profiling plan and driver, and their findings were fixed before the gate.
+- **Records.** It updated the plan documents, the changelog and CLAUDE.md. A stray command opened
+  the Windows system Python as an empty prompt; no code ran.
+
+**Files touched.** `utils/tools.{h,cpp}`, `unittest/test_fixedeqchart.cpp`;
+`test_scripts/fixedeq/`: `explore/convergence.py`, `explore/skewed_targets.py`, `make_fixtures.py`,
+`nqc/{nqcchecks,toy}.py`, `oracle/{nqc,optimize}.py`, `profile/profiling.py`,
+`tests/test_{lbfgsb,profiling}.py`.
+
 ## 2026-10-23: S3b milestone
 
 **Tool:** Claude Code (VS Code extension). **Model:** Claude Opus 5.5, 1M context, model id

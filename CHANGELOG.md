@@ -8,6 +8,34 @@ gate record and may run to 25 lines. The next session starts from the top entry.
 This is a fork of `iqtree/iqtree3`. Entries here describe work on the fork, not upstream
 development.
 
+## 2026-10-26: S3c, profiling against NONREV (gate G3, close)
+
+- **Done.** Profiling by the scaled design Peter approved on 2026-10-25 (`0b0048af`, its message):
+  `profile/profiling.py`, 31 tests (227 pass); gdb counts `PartitionModel::targetFunk` in the
+  frozen `81729f4b`. This commit closes S3c; S-3 stays failed, accepted by Peter under 039.
+- **Gate** at `0b0048af` (`~/iqtree3-runs/s3c-profile/20261026T080239Z-0b0048af/`), keep-awake
+  helper on, tree clean throughout: windows 52 min, 97 asserted passed; turtle fits 38 min, 49;
+  10-set fits 2 h 53 min, 25; none failed. NQC's key equals gdb's hits in every counted NQC run;
+  NONREV's per-partition calls are 3 × its linked ones; plain and counted runs bitwise equal; a
+  gdb stop 0.31 ms (8% of a turtle evaluation); every timed run kept CPU ≥ 0.93 of wall time.
+- **Per evaluation**, NQC to NONREV at `-T 1`: turtle 0.97 and 1.00; 10, 30, 100 alignments 0.98
+  to 1.02; all within 1.25. Linear, 2.52 to 2.57 ms per 500-column alignment; `-T 4` on the
+  100-set 2.5 to 2.6×. Stated beforehand: equal across set sizes (held), largest on turtle (not).
+- **Per fit:** turtle 0.26 to 0.94 (8 configurations); 10-set 0.39, 0.94 (L1 `-S`, `-q`), 0.34,
+  1.09 (L2 `-S`, `-p`); none above 2. Each follows the evaluation-count ratio (0.27 to 1.08),
+  except turtle L2 `-S` `+I+G4`: 0.65 against 1.08, NONREV 172 s outside evaluations, NQC 81 s.
+  NONREV ended at the `-S` 10-round cap in all 6 `-S` runs, NQC by threshold in 2 to 9 rounds; on
+  the 10-set NQC's `-q`, `-p` fits hit the 99-round cap, NONREV's stopped at 44, 39 (risk 24).
+- **Reported:** NONREV +19 free parameters everywhere; no fall, switch, ASSERT or abort; NONREV's
+  rates at its 1e-4 bound, 201 to 239 of 380 (turtle), 33 to 36 (10-set). Final lnL, not a model
+  comparison (039): NONREV 8 to 22 above NQC on the 10-set, below on turtle `-S` (its cap).
+- **Extrapolation** (labelled; a million columns, 20 taxa, `+G4`, evaluation time only, 32 cores
+  at `-T 4`'s efficiency 0.64 to 0.66): 5.0 to 5.1 s an evaluation; a `-S` fit at its cap 0.8 h
+  (NQC), 1.9 h (NONREV); a `-p` fit at 99 rounds 5.6 h, 13 h; about 10.6 GB. Risks 5, 18 retired.
+- **Failed or fixed before the gate:** a development run lost 55 s to a pause (now a CPU guard);
+  stop-cost ratios; per-round counts (review). A stray command opened Windows' system Python,
+  empty; no code ran. **Next.** S4 (PLAN.md next step).
+
 ## 2026-10-25 (continued): default domain [1e-5, 1e5]; decision 039
 
 - **Domain** (`0e9fb159`; decisions 007, D03, 025): `nqc_domain_hi` defaults to 1e5 and the oracle
