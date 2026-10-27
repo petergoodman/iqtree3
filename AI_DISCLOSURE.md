@@ -11,6 +11,26 @@ lines: tool and model, operator, up to five "what it did" bullets, files touched
 No AI-generated scientific claim, numerical result, or citation in this project has been accepted
 without human verification against source.
 
+## 2026-10-27: S4 milestone, gate G3 and the first release candidate
+
+**Tool:** Claude Code (VS Code extension). **Model:** Claude Opus 5.5, 1M context, model id
+`claude-opus-5-5[1m]`. **Operator:** Peter Goodman.
+
+**What it did.**
+- **Plan.** It planned S4 after three read-only surveys and an adversarial review against the
+  source; the operator made ten choices, among them the stop label's test and the re-import line.
+- **Code.** It wrote the export, its diagnostic and `fixedeq::firstOrderTest`, the citation and help
+  changes, the oracle's mirrors and readers, and the export check cases, with their tests.
+- **Validation.** It ran the gate from a clean commit under a keep-awake helper; a subagent reviewed
+  the code before the gate, and its findings were fixed. Two stray commands ran a system Python on
+  empty or no-op input; no project code ran.
+- **Records.** It corrected decision 010's reason and a check the domain default had changed, and
+  wrote the plan records, the changelog with the release audit, and this entry.
+
+**Files touched.** `model/fixedeqchart.{h,cpp}`, `model/modelnonrevfixedeq.{h,cpp}`,
+`main/phyloanalysis.cpp`, `utils/tools.cpp`, `unittest/test_fixedeqchart.cpp`, `model/CLAUDE.md`;
+`test_scripts/fixedeq/`: `nqc/nqcchecks.py`, `oracle/{chart,nqc,readers}.py`, `tests/test_export.py`.
+
 ## 2026-10-26: S3c milestone
 
 **Tool:** Claude Code (VS Code extension). **Model:** Claude Opus 5.5, 1M context, model id

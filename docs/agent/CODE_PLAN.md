@@ -21,7 +21,7 @@ Labels are those of PLAN.md. Source anchors refer to `63c330d9` and were verifie
 | `model/modelnonrevfixedeq.{h,cpp}` | S2 to S4 | Class `ModelNonrevFixedEq : public ModelProtein`, public name "NQC" held in one constant (decision 002; section 2.2); from S3b also `public LinkedModelHooks`, listed second |
 | `model/linkedmodelhooks.h` | S3b | Header only: the abstract `LinkedModelHooks` through which `PartitionModel::optimizeLinkedModel` lets a linked model check, differentiate and record its fits (decision 005; section 2.2, "Linked hooks"). A separate header because NQC's header is included by `model/modelmixture.cpp` and `partitionmodel.h` pulls in the super tree, so putting the interface in either would create an include cycle |
 | `unittest/` | S1 | Standalone CMake project that compiles `model/fixedeqchart.cpp` directly, with IQ-TREE's clang Release flags and the `model` target's SSE flags (verified, `CMakeLists.txt:420`, `711-718`, `984`), and fetches googletest 1.12.1 at cmaple's pinned commit, checked by the archive's SHA-256 (verified, `cmaple/CMakeLists.txt:283-293`; decision 012); `fixtures/`, 27 chart cases and `targets.txt` in plain text at 17 significant digits with a provenance header (section 3.2); its own `.gitattributes` (decision 014) |
-| `test_scripts/fixedeq/` | S0 onward | `environment.yml` and lock (decision 013); `oracle/`; `tests/`; drivers `regression/`, `differential/`, `probes/`, `sanitizer/`, `unittests/`, `nqc/` and `design_rerun.py`; `manifest/` (G0 manifest); `explore/` (exploratory measurements behind decisions 007, 021, 023, 025 and 038); `make_fixtures.py`; `.gitattributes` and `.gitignore`. Added in S3: `nqc/twopart.py`, the two-partition data (S3b); `explore/convergence.py`, the stopping study and risk 22's converged evidence, with `oracle/optimize.py`'s reference climber `lbfgsb_fit` (S3c's first part); `profile/profiling.py`, the profiling driver (S3c) |
+| `test_scripts/fixedeq/` | S0 onward | `environment.yml` and lock (decision 013); `oracle/`; `tests/`; drivers `regression/`, `differential/`, `probes/`, `sanitizer/`, `unittests/`, `nqc/` and `design_rerun.py`; `manifest/` (G0 manifest); `explore/` (exploratory measurements behind decisions 007, 021, 023, 025 and 038); `make_fixtures.py`; `.gitattributes` and `.gitignore`. Added in S3: `nqc/twopart.py`, the two-partition data (S3b); `explore/convergence.py`, the stopping study and risk 22's converged evidence, with `oracle/optimize.py`'s reference climber `lbfgsb_fit` (S3c's first part); `profile/profiling.py`, the profiling driver (S3c). Added in S4: the oracle's export functions (`chart.first_order_test`, `nqc.export_gradient`, `readers.read_qmat`, `readers.read_info`) and `tests/test_export.py` |
 | `.github/workflows/fixedeq.yaml` | S1 | Fork-only workflow that builds and runs the unit tests and the oracle's tests on Linux, and from S2 a short NQC run |
 
 Run outputs never go into the working copy; they go under `~/iqtree3-runs/` in WSL. Fixtures and
@@ -671,7 +671,7 @@ later from the same frozen binary with run 8 rerun in each repeat to supply its 
 `test_scripts/fixedeq/sanitizer/sanitize.py` builds and runs it (decision 022), in a new
 directory for each slice (S0's `~/iqtree3-build-asan`, S2's `~/iqtree3-build-asan-s2`, then
 `-s3a` and `-s3b`; S3c built none, since its only C++ change was a default value and a help string,
-Peter, 2026-10-25).
+Peter, 2026-10-25; then `-s4`, whose short cases add the export checks and a `-b 2` run).
 - **Build.** `-DCMAKE_BUILD_TYPE=Mem` (`-g -O1`) with clang 14;
   `-fsanitize=address,undefined -fno-omit-frame-pointer` in both `CMAKE_C_FLAGS` and
   `CMAKE_CXX_FLAGS`, and `-fsanitize=address,undefined` in `CMAKE_EXE_LINKER_FLAGS`; `-j 2`.
@@ -795,8 +795,12 @@ fit checked and reported once; the oracle's linked objective, `nqc/twopart.py`, 
 linked, thread, permuted, restart, risk 22 and warm-start cases (sections 1.2, 2.2, 3.1, 3.5,
 3.6).
 
-Known and left alone after S3b:
-- a linked NQC run prints QMaker's citation, because the test matches "NONREV" (S4);
+Known and left alone after S3b and S4 (S3b's citation item was fixed in S4):
+- `-b 1` reports, and so exports, the single bootstrap replicate's model; `-b N` exports the
+  original's at the re-read tree's rounded branch lengths, and is untested with `-p`, `-q` or
+  `-S`;
+- the report lines that cannot re-run an NQC fit (PLAN.md maintainer question 8);
+- the export diagnostic's evaluations (section 2.2), with no switch to skip them unless S7 needs one;
 - `--link-alpha` is neither refused nor tested; nor is `-Q` with `--model-joint`, which takes
   `-S`'s `PartitionModel` path;
 - after a tree search IQ-TREE checkpoints no final model (`main/phyloanalysis.cpp:3896-3899`), so
@@ -828,34 +832,25 @@ converged peaks; `CHANGELOG.md`): settled by decision 007's revision on 2026-10-
 `nqcchecks.py` cases `risk22`, `risk22-turtle` and `warm-starts` still report the default against
 `1e-8,1e7`.
 
-S4, planned and approved 2026-10-26, with ten choices by Peter recorded where they apply
-(decisions 008, 009, 010, 021; sections 2.2, 3.5). The plan was checked by three surveys and an
-adversarial review against the source.
-- **Found while planning.** Decision 010's reason said the `-m FILE` reader keeps the file's π as
-  root; it re-solves π from Q (corrected in place). Since `0e9fb159` the `restart` case's rerun of
-  S2's checkpoint was refused by the domain check, so it now passes S2's `--nqc-domain 1e-5,10`.
-  `upstream/master` had not moved from v3.1.4 on 2026-10-26.
-- **Files.**
-  - `model/fixedeqchart.{h,cpp}`: `firstOrderTest` (section 2.1), with unit tests.
-  - `model/modelnonrevfixedeq.{h,cpp}`: the export, diagnostic and label in `reportRun` (section
-    2.2), the start's description recorded at construction, and the `-mstore` refusal.
-  - `main/phyloanalysis.cpp`: the citation flag; the call's comment.
-  - `utils/tools.cpp`: the help line.
-  - The oracle: `chart.first_order_test`, `nqc.export_gradient`, and `readers.read_qmat` and
-    `read_info`, each with pytest.
-  - `nqc/nqcchecks.py`: cases `export` and `linked-export`, the export checks in `short` and
-    `linked-short` (sanitizer), the `-mstore` refusal, the `-b 2` run, and `--previous-binary`
-    (`~/iqtree3-binaries/81729f4b/iqtree3`, the S3c binary).
-- **Tests** (section 3.5): re-import; content; diagnostic; restore; refusal. Printed output is
-  reported, which changes two items this list carried before planning (the π-mismatch warning and
-  the citation text). Layers: regression 12 of 12 with no `.NQC.*` file in any regression run;
-  unit tests in both variants; pytest; the sanitizer build `~/iqtree3-build-asan-s4`, run with the
-  S0 list and the short cases, `-b 2` included.
-- **Release candidate** (Peter): the close's gate record carries an audit of each PLAN.md software
-  success criterion against its evidence, residual maxima included; NQC appears in `-h`.
-- **Commits:** records and oracle; C++; driver cases; review fixes; the close.
+S4 (done 2026-10-27, gate at `a0ebf5cf`; gate record and release audit in `CHANGELOG.md`, S4
+entry): the export, its first-order diagnostic and label, the `-mstore` refusal, the nQMaker
+citation and the help line, with the oracle's export functions and the driver's `export` and
+`linked-export` cases (sections 2.1, 2.2, 3.5); ten choices by Peter, recorded in decisions 008 to
+010 and 021 and in sections 1.2, 2.2 and 3.5; printed output reported, not asserted. Every fitted
+Level 1 export was labelled stationary, so section 3.5's fallback was not needed. Found while
+planning and corrected:
+decision 010's reason (`-m FILE` re-solves π from Q) and the `restart` case's older checkpoint,
+refused by the domain check since `0e9fb159`, now rerun in S2's domain.
 
-S5 to S7: lists written when S4 is done; S7's starts from decision 039's convergence protocol.
+S5, an outline to be planned in full in its own session (PLAN.md, next step):
+- D10's direct balanced-flux fit, f = f0 + Zy with a feasible constrained solver, in the oracle
+  (section 3.1), on small problems: few taxa and sites, and the small real set of PLAN.md risk 9 if
+  Peter supplies it.
+- Its agreement with NQC's fits at the same data, nuisances, target and domain, under pass lines
+  set before the comparison (decision 021); decision 039 governs how the endpoints are compared.
+- A comparison report.
+
+S6 and S7: lists written when S5 is done; S7's starts from decision 039's convergence protocol.
 
 ## 5. Source anchors
 
@@ -863,9 +858,11 @@ Verified at `63c330d9` on 2026-09-23; HEAD `4c5f061f` matched it outside documen
 marked as added 2026-10-03 were read at HEAD `4c5f061f` that day. Since S2 (`cd4c6823`) the
 branch differs from `63c330d9` in `model/CMakeLists.txt`, `model/modelmixture.cpp`,
 `model/modelprotein.{h,cpp}` and `utils/tools.{h,cpp}`; anchors in those files still refer to
-`63c330d9`, and at HEAD the lines after S2's insertions are offset by up to 15. Since S3a
-(`bb89e2d9`) `main/phyloanalysis.cpp` differs too, its anchors still at `63c330d9`: at HEAD, lines
-after 60 are offset by 1 and lines after 1412 by 3. Since S3b (`7388dd52`) so do
+`63c330d9`, and at HEAD the lines after S2's insertions are offset by up to 15 (in
+`utils/tools.cpp` up to 17 since S4's help line: after 3166 by 12, after 6000 by 14, after 6001 by
+15, after 7263 by 17). Since S3a (`bb89e2d9`) `main/phyloanalysis.cpp` differs too, its anchors
+still at `63c330d9`: at HEAD, lines after 60 are offset by 1, after 164 by 4 and after 1412 by 6
+(since S4). Since S3b (`7388dd52`) so do
 `model/partitionmodel.{h,cpp}`, anchors likewise at `63c330d9`: at HEAD, in the `.cpp` lines after
 25 are offset by 1, after 752 by 9, after 784 by 24, after 788 by 25 and after 825 by 27; in the
 `.h` lines after 165 by 1.
@@ -938,3 +935,4 @@ after 60 are offset by 1 and lines after 1412 by 3. Since S3b (`7388dd52`) so do
 | `main/phyloanalysis.cpp:86-267, 164, 172`; `main/phyloanalysis.cpp:3532, 4677-4678, 4730-4738`; `utils/tools.cpp:3507-3510` | `reportReferences`, written to the `.iqtree` only, and its QMaker and nQMaker conditions; `optimizeConTree` reinitializing after a re-read; the `-b 1` report of the single replicate; the `-b N` report after `copyTree` and `readTreeString` with no reinitialization; `-b 1` turns off the original-alignment tree (added 2026-10-26) |
 | `model/partitionmodel.cpp:842-868`; `model/modelfactory.h:224`; `main/main.cpp:2473, 2494-2500` | `optimizeLinkedModels` sets the public `model` member to the linked model, unfixes, fits, refixes and restores it; the `iqtree` checkpoint struct and its `command` record (added 2026-10-26) |
 | `utils/tools.cpp:3064, 7254`; `model/modelfactory.cpp:1582, 1756, 1800-1817` | `-mstore`, off by default; transition-matrix storing stopped at the start of each model optimization and started at its end; the cache keyed by branch length (added 2026-10-26) |
+| `alignment/alignment.cpp:4125`; `main/phyloanalysis.cpp:4598` | `createBootstrapAlignment` copies the source alignment's unset `pomo_sampling_method`; `runStandardBootstrap` calls it for each `-b` replicate (PLAN.md maintainer question 10; added 2026-10-27) |

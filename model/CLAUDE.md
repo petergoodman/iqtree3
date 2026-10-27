@@ -53,7 +53,7 @@ derived from Q.
 
 NQC has no `writeInfo` override, so IQ-TREE's own model prints show nothing for it, as for NONREV.
 Its `-v` record of each fit comes from `checkFit`, or for a linked fit from `endLinkedFit` on the
-representative (`LinkedModelHooks`, called by `PartitionModel::optimizeLinkedModel`), and its
-end-of-run summary from the static `reportRun`, called once from `reportPhyloAnalysis`, one block
-per linked model. Asserted checks read its checkpoint keys; the record and summary are read only
-by reported checks.
+representative (`LinkedModelHooks`). The static `reportRun`, called once from `reportPhyloAnalysis`,
+writes `<prefix>.NQC.qmat`, runs the export's first-order diagnostic (after which the accepted
+state is rebuilt bitwise), prints the summary and writes `<prefix>.NQC.info`, once per linked
+model. Asserted checks read the checkpoint keys and export files; printed lines are reported.

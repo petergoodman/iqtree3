@@ -8,6 +8,34 @@ gate record and may run to 25 lines. The next session starts from the top entry.
 This is a fork of `iqtree/iqtree3`. Entries here describe work on the fork, not upstream
 development.
 
+## 2026-10-26 to 2026-10-27: S4, export, re-import and report (gate G3, close; first release candidate)
+
+- **Done.** S4 planned and approved with ten choices by Peter (decisions 008 to 010, 021; CODE_PLAN
+  1.2, 2.2, 3.5): `fa025168` records, oracle; `4fb8df00` C++; `c46366e4` driver; `a0ebf5cf` review
+  fixes. Corrected while planning: 010's reason (`-m FILE` re-solves π) and `restart`'s older run.
+- **Gate** at `a0ebf5cf` (`~/iqtree3-runs/s4-gate/20261027T043226Z-a0ebf5cf/`, keep-awake on, binary
+  `e31974dd`): `nqcchecks.py` 21 cases, 275 asserted passed, none failed, 210 reported (4632 s); its
+  default list leaves out `short` and `linked-short`, run after it from the same commit and binary
+  (47 passed, 32 reported); regression 12 of 12, no `.NQC.*` file; unit tests 49 of 49 twice; pytest
+  240; sanitizer build 881 s, run 6048 s (NQC cases passed), scan: question 4's report (65) and an
+  upstream finding on the `-b` path, reproduced unmodified with LG (maintainer question 10).
+- **Asserted, export:** Level 1 re-import within 7.8e-16 of `accepted_score` (aa_example; the frozen
+  v3.1.4 binary prints the same) and 3.4e-16 (`-S`); `-q` via the oracle 3.5e-16; file residuals
+  ≤ 4.3e-16; π row bitwise, `.info` equal to the checkpoint; gradients within 021's line (worst 1.0e-3
+  of it); labels as the oracle's; `--undo` `.qmat` byte-identical; outputs equal to S3c's binary's.
+- **Labels:** the three fitted exports "first-order stationary at the optimizer's tolerance" (3.4e-5
+  to 3.8e-5 against 1e-4), the no-fit start "unclassified" (5.4e-3), so CODE_PLAN 3.5's fallback was
+  not needed. Reported: no "does not match" line; π solved from the file within 1.5e-15 of π*.
+- **Fixed before the gate:** the linked export's `fixed` (development runs); a review's one-line
+  `.info` values, non-finite scores, toolchain rule. The laptop restarted during a development run
+  (rerun). Two stray commands ran a system Python on empty or no-op input (Windows `python`,
+  stopped; Debian `python3 -c 1`); no project code ran.
+- **Release audit** (PLAN.md software criteria, all met): residual maxima 5.9e-16 (S1), 6.7e-16
+  (S2), 6.2e-16 (S3b), 4.2e-16 (S4); fixed-Q lnL against the oracle ≤ 1.06e-15 (S2), 1.7e-16 linked
+  (S3b); nesting from GTR20, first lnL 2.4e-11 above, final 60.46 above (S3a); 360 counted once
+  (S3b); π* bitwise to export (S3a, S3b, S4); Level 1 re-import (S4); regression 12 of 12 after every
+  C++ change; cost 0.97 to 1.02 per evaluation (S3c). **Next.** Peter pushes; plan S5.
+
 ## 2026-10-26: S3c, profiling against NONREV (gate G3, close)
 
 - **Done.** Profiling by the scaled design Peter approved on 2026-10-25 (`0b0048af`, its message):

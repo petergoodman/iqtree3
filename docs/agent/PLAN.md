@@ -1,10 +1,10 @@
 # Plan: π-constrained non-reversible amino-acid models
 
-> **Status, 2026-10-26: S3c complete (gate G3, second part): an NQC evaluation costs what a NONREV
-> one does (0.97 to 1.02) and a linked NQC fit 0.26 to 1.09 of NONREV's time, the spread mostly
-> set by where IQ-TREE's round rules stop each fit; default domain [1e-5, 1e5] and decision 039 for
-> comparing fits; S4 (export, re-import, report) next; approach accepted by the IQ-TREE
-> maintainers (reported by Peter, 2026-10-01).** Peter owns this document.
+> **Status, 2026-10-27: S4 complete, so gates G0 to G3 are met and the branch is the first release
+> candidate: NQC writes its fitted matrix at 17 significant digits (`<prefix>.NQC.qmat`, which
+> re-imports through `-m FILE` within 7.8e-16 of the fit) and an export record with a first-order
+> stop label; S5 (independent reference) next; approach accepted by the IQ-TREE maintainers
+> (reported by Peter, 2026-10-01).** Peter owns this document.
 
 This is the project's living core document: what we are building and why, the constraints the
 work must satisfy, where it stands, and the next step. It is read at the start of every task and
@@ -73,6 +73,9 @@ synthesis are met with this evidence:
 - a linked NQC fit takes time comparable to NONREV's on the same data and settings (thresholds,
   set 2026-10-22: 1.25 per evaluation and 2 per fit to investigate, 3 per fit to block; met in
   S3c, `CHANGELOG.md`).
+
+All eight were met by S4's close; the audit, with each criterion's evidence, is in the S4 entry of
+`CHANGELOG.md`.
 
 Scientific success criterion (proposed placeholder). Frozen matrices are evaluated on the same
 held-out genes under one declared nuisance policy across the D08 arms, with uncertainty from
@@ -191,7 +194,7 @@ validation.
 | S3a | G2 | One alignment complete | S3-1 done for one alignment (fit record once under `-v`, end-of-run summary at default verbosity, full checkpoint record and restore, ModelFinder and unlinked partitions refused); GTR20-seeded nesting in the widened domain (decision 025); the skewed-target fit (023) and aa_example's risk 22 runs reported; `+R4` seed against the oracle and a Level 2 fit; incompatible restarts refused; regression reproduces; sanitizers clean for new code | done 2026-10-22 (`4749f222`) |
 | S3b | G3 | Linked training and lifecycle | two partitions with different compositions under `-S` and `-p`, one target and one Q in every object; each linked fit checked and reported once (S3-1's linked half); 360 counted once; the linked gradient uses the scaled step; thread counts compared at a fixed point (decision 038); permuted order; mid-run and `--undo` restarts, incompatible ones refused; turtle's risk 22 runs and the warm starts from the box fits reported; regression reproduces; sanitizers clean for new code | done 2026-10-23 (`054914de`, reruns at `fb5bf76d`) |
 | S3c | G3 | Stopping, risk 22's evidence, cost against NONREV | first part: the stopping study's asserted checks and the converged risk 22 evidence (`CODE_PLAN.md` section 4); then profiling against NONREV within its blocking threshold, or, above 3 per fit, fixed in NQC's code or accepted by Peter; any ratio above 1.25 per evaluation or 2 per fit explained (risks 5, 18, 24) | done 2026-10-26 (first part 2026-10-25, domain `0e9fb159`; profiling gate at `0b0048af`) |
-| S4 | G3 | Export, re-import and report | export then `-m FILE` reproduces the log-likelihood of a Level 1 fit; metadata complete; first release candidate | not started |
+| S4 | G3 | Export, re-import and report | export then `-m FILE` reproduces the log-likelihood of a Level 1 fit; metadata complete; first release candidate | done 2026-10-27 (`a0ebf5cf`); first release candidate |
 | S5 | G4, as reduced by D01 | Independent reference | D10's direct balanced-flux fit in Python agrees with NQC fits on small problems; comparison report | not started |
 | S6 | G5 | Workflow | candidate-set and mixing-guard tests; G5 conditions | not started |
 | S7 | G6 | Science | the confirmatory plan's checks, with decision 039's convergence protocol; G6 conditions | not started |
@@ -249,22 +252,42 @@ Peter relays these if and when he chooses; no agent contacts the maintainers (`C
    rounds gaining 2.9e-3 and 5.1e-3; on `aa_example` it ran to the cap still gaining. In S3c's
    profiling (binary `81729f4b`, NONREV's path unchanged) its `-S` fits ended at the 10-round cap
    in all six turtle and 10-set configurations. Cause not investigated.
+8. NQC's report lines (the `.iqtree` "Model of substitution", a partitioned run's
+   `.best_model.nex`, the `.iqtree` AliSim command) carry neither the target nor the fitted matrix,
+   so none re-runs the fit; the fork points to `<prefix>.NQC.qmat` instead (Peter, 2026-10-26).
+   Would the maintainers prefer the model string to carry the target, or the report a
+   full-precision matrix?
+9. Not verified: with `-mstore`, `ModelFactory` serves transition matrices cached by branch length
+   from the end of each model optimization, so a linked fit that follows a partition's own update
+   may evaluate stale matrices, for NONREV as for any linked model. NQC refuses `-mstore`
+   (decision 008).
+10. Upstream finding, S4's sanitizer run: `Alignment::createBootstrapAlignment`, which
+    `runStandardBootstrap` calls for each `-b` replicate, copies a `pomo_sampling_method` the
+    source alignment never set (UndefinedBehaviorSanitizer: "load of value 3200171710, which is not
+    a valid value for type 'SamplingType'", reported once per run). Reproduced on the unmodified
+    sanitizer binary with `-m LG -b 2`; its effect on results was not investigated.
 
 ## Current state
 
-S0 to S3 are complete; S3 ran as three slices, S3a, S3b and S3c, each with its own gate (the
-approved plan is frozen in `docs/agent/archive/S3_plan_2026-10-22.md`). S3c's profiling gate ran
-from the clean tree at `0b0048af` on 2026-10-26
-(`~/iqtree3-runs/s3c-profile/20261026T080239Z-0b0048af/`); its record is the S3c entry of
+S0 to S4 are complete, so gates G0 to G3 and the first release's scope are met, and the branch is
+the first release candidate. S3 ran as three slices (the approved plan is frozen in
+`docs/agent/archive/S3_plan_2026-10-22.md`). S4's gate ran from the clean tree at `a0ebf5cf` on
+2026-10-27 (`~/iqtree3-runs/s4-gate/20261027T043226Z-a0ebf5cf/`, binary frozen in
+`~/iqtree3-binaries/e31974dd/`); its record and the release audit are the S4 entry of
 `CHANGELOG.md`.
 
 - **In the repository:** the NQC class `model/modelnonrevfixedeq.{h,cpp}`, with its 17-digit
-  checkpoint record, its fit records and end-of-run summary, its linked hooks
-  (`model/linkedmodelhooks.h`, two calls in `PartitionModel::optimizeLinkedModel` and its
-  `derivativeFunk`), and its hooks in other shared files; the pure module `model/fixedeqchart.*`
-  and its unit tests (S1); the oracle with its linked objective and reference climber, the
-  drivers (S3c added `explore/convergence.py` and `profile/profiling.py`), the two-partition
-  data, regression baseline, probes, frozen binaries and G0 manifest (S0).
+  checkpoint record, its fit records, its linked hooks (`model/linkedmodelhooks.h`, two calls in
+  `PartitionModel::optimizeLinkedModel` and its `derivativeFunk`), its export (`reportRun`:
+  `<prefix>.NQC.qmat`, the first-order diagnostic and stop label, the end-of-run summary and
+  `<prefix>.NQC.info`; S4), and its hooks in other shared files; the pure module
+  `model/fixedeqchart.*` and its unit tests (S1); the oracle with its linked objective, reference
+  climber and export functions, the drivers, the two-partition data, regression baseline, probes,
+  frozen binaries and G0 manifest (S0).
+- **Export (S4):** the re-import reproduces a Level 1 fit to rounding, under one alignment, `-S`
+  and `-q`; the fitted Level 1 exports are labelled "first-order stationary at the optimizer's
+  tolerance", which certifies no peak (decision 039); all other outputs are as S3c's binary wrote
+  them. The diagnostic's evaluations (`CODE_PLAN.md` section 2.2) add to every NQC run.
 - **Domain and comparisons:** default domain [1e-5, 1e5] (decision 007, `0e9fb159`); compared fits
   follow decision 039's protocol (risk 24). S3c's first part left S-3 recorded as failed in case
   B (relaxed `-S` run stopped by its round threshold 0.479 below the box's peak, not shown
@@ -280,13 +303,14 @@ from the clean tree at `0b0048af` on 2026-10-26
 
 ## Next step
 
-1. Plan and implement S4 in a new session, started in plan mode with this prompt:
+1. Peter pushes S4's commits; the fork workflow runs on the push.
+2. Plan and implement S5 in a new session, started in plan mode with this prompt:
 
-   > Plan and implement S4, export, re-import and report, the last slice of gate G3. Read the
-   > start-of-session files, then `CODE_PLAN.md` sections 2.2, 3.5 ("Export and re-import"), 4
-   > (S4) and 5, and `DECISIONS.md`, decisions 003, 009 and 010 in particular. S4's list in
-   > section 4 is an outline: plan it in full first, setting each test's pass line before the
-   > test is written (decision 021), and ask me where the records leave a choice. Use the
-   > keep-awake helper for any run longer than a few minutes (CLAUDE.md).
+   > Plan and implement S5, the independent reference of gate G4 as reduced by D01. Read the
+   > start-of-session files, then `CODE_PLAN.md` sections 3.1 and 4 (S5) and `DECISIONS.md`, D10,
+   > 009 and 021 in particular. S5's list in section 4 is an outline: plan it in full first,
+   > setting each test's pass line before the test is written (decision 021), and ask me where
+   > the records leave a choice, including the small real data set of risk 9. Use the keep-awake
+   > helper for any run longer than a few minutes (CLAUDE.md).
 
    The working rules are in `CODE_PLAN.md` section 4, "Implementation".

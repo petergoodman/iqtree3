@@ -243,20 +243,18 @@ box of the records made in it; [log 1e-6, log 1e6], NONREV's ratio range; [log 1
 
 ### 008. Refuse every combination the first release does not support
 
-**Rule.** NQC stops with a message for every input outside the first release; the full list is
+**Rule.** NQC stops with a message for every input outside the first release, listed in
 `CODE_PLAN.md` section 2.2, "Refusals": non-protein data, untargeted `+F`, `-optfromgiven`,
-`-jointopt`, mixtures (where `initMixture` makes a component), tree mixtures and HMM, GHOST `+H`
-(also in a partition's model string, S3b), site-specific frequencies, `--link-exchange-rates`,
-`--eigen`, ModelFinder in any form (detected at run time, S3a), AliSim, unlinked partitions (S3a),
-`-mstore` (S4).
+`-jointopt`, mixtures, tree mixtures and HMM, GHOST `+H` (a partition's string included),
+site-specific frequencies, `--link-exchange-rates`, `--eigen`, ModelFinder in any form (detected at
+run time), AliSim, unlinked partitions, `-mstore`.
 **Why.** Each path bypasses the invariants or is undesigned: `-optfromgiven` releases the
 equilibrium in the base decomposition (015), `-jointopt` clamps coordinates with rate bounds, an
-`--mdef` mixture never shows "MIX" in the model string, and `-mstore`'s cached transition matrices
-would be reused by the export's probes (009). Unlinked partitions lie outside the first release, so
-Peter chose refusing them over testing them (2026-10-22).
+`--mdef` mixture never shows "MIX", and the export's probes would reuse `-mstore`'s cached
+matrices (009). Peter chose refusing unlinked partitions over testing them (2026-10-22).
 **Not chosen.** Allowing them silently; supporting them now; detecting mixtures from the string.
-**Since** 2026-09-23; revised 2026-10-20 (032; 034 items 2, 4, 5), 2026-10-22 (S3 plan),
-2026-10-23 (S3b: `--model-joint` and `--link-model` no longer refused) and 2026-10-26 (`-mstore`).
+**Since** 2026-09-23; revised 2026-10-20 (032; 034 items 2, 4, 5), 2026-10-22 (S3 plan), 2026-10-23
+(`--model-joint`, `--link-model` allowed) and 2026-10-26 (`-mstore`).
 
 ### 009. Check every fit afterwards, report a fall below the start, restore nothing
 
@@ -357,10 +355,9 @@ default box the first line search clamped the start's 146 of 360 outside coordin
 ### 021. Pass lines are set before their tests and never loosened
 
 **Rule.** The lines below are fixed before the tests that use them are written, and none is
-loosened after a failure. The class's own state (final coordinates, π*, references, accepted
-score) is read from its 17-digit checkpoint keys, not from the log; IQ-TREE's printed final score
-is reported, not compared. The class prints the seed Q (`-v`) and its first gradient (`-vv`)
-only because no file holds them.
+loosened after a failure. The class's state is read from its 17-digit checkpoint keys and export
+files, not from the log, and IQ-TREE's printed final score is reported, not compared; the seed Q
+(`-v`) and first gradient (`-vv`) are printed only because no file holds them.
 
 | Check | Line | Set by |
 |---|---|---|
@@ -388,20 +385,14 @@ only because no file holds them.
 | Export diagnostic: label against the oracle's from its own gradient | equal, unless \|s − 1e-4\| ≤ max_k 2 × 1e-12 × \|f\| / (h⁺_k + h⁻_k) × max(\|x_k\|, 1) / max(\|f\|, 1), then reported | S4 |
 | NQC outputs of the S4 binary against the S3c binary, same commands at `-T 1`, same toolchain | identical: layer 4's report sections, tree files, NQC checkpoint keys | S4 |
 
-S4 also applies the compiled-Q row to the exported Q, the residual row to the file's Q, and the
-same-rule gradient row to the export's central differences with h_k = h⁺_k + h⁻_k, the sum of the
-two probes' displacements.
-
-h_k is the step's displacement (`CODE_PLAN.md` section 2.1), and the oracle reports the spread of
-its three central differences. The step-size line allows more for rounding than the rounding it
-bounds at every h, so it cannot show that a small step fails; D02's point is measured instead by
-|g − g_ref| / max(1, |g_ref|), reported at a near-zero start.
-**Why.** A line chosen after seeing results is not a test. Each line rests on a measurement or
-derivation kept in the archive: 1e-10 is the synthesis's feasibility goal (section 4.3), the
-κ-scaled Q line tracks the measured gap between two correct floating-point routes, and the
-gradient lines turn a likelihood difference into a gradient difference.
-**Since** 2026-10-04 (021), 2026-10-05 (026), 2026-10-20 (030, 034 item 7); a claim in 030's
-reasons withdrawn 2026-10-22 (036); thread row 2026-10-22 (038); export rows 2026-10-26 (S4).
+h_k is the step's displacement (`CODE_PLAN.md` section 2.1); for the export's central differences,
+h⁺_k + h⁻_k. S4 applies the compiled-Q row to the exported Q and the residual row to its file. The
+step-size line cannot show that a small step fails, so D02's point is measured by |g − g_ref| /
+max(1, |g_ref|), reported at a near-zero start; the oracle reports its central differences' spread.
+**Why.** A line chosen after seeing results is not a test; each rests on a measurement or derivation
+in the archive (1e-10: the synthesis's goal, section 4.3; the κ-scaled Q line: two correct routes).
+**Since** 2026-10-04 (021), 2026-10-05 (026), 2026-10-20 (030, 034 item 7), 2026-10-22 (036's
+withdrawn claim, 038's thread row), 2026-10-26 (S4's export rows).
 
 ### 012. Test the pure module with googletest in a standalone CMake project
 
