@@ -303,7 +303,9 @@ the first release candidate. S3 ran as three slices (the approved plan is frozen
 
 ## Next step
 
-1. Peter pushes S4's commits; the fork workflow runs on the push.
+1. The non-NQC output change found by the audit of S4's close (`CHANGELOG.md`, 2026-10-27, second
+   session): `reportRun` builds the partition order before it finds an NQC model (constraint 4).
+   Peter chooses the remedy before S5 starts.
 2. Plan and implement S5 in a new session, started in plan mode with this prompt:
 
    > Plan and implement S5, the independent reference of gate G4 as reduced by D01. Read the

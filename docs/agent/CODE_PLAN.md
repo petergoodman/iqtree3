@@ -303,10 +303,10 @@ per NQC model at default verbosity:
   number of partitions, not one per partition object.
 
 It is called once per analysis from the top of `reportPhyloAnalysis` (section 1.2). With `-b 1`
-IQ-TREE reports the single replicate and then the original (callers 4678 and 4738, section 5),
-so a summary follows each of the two reports. A run that stops at the linked `ASSERT`
-never reaches it; for that case the fall line printed before the `ASSERT` and the checkpoint keys
-are the record (accepted).
+IQ-TREE reports only the single replicate, since `-b 1` turns off the original-alignment analysis
+(caller 4678, section 5); with `-b N` it reports the original once (caller 4738). A run that
+stops at the linked `ASSERT` never reaches it; for that case the fall line printed before the
+`ASSERT` and the checkpoint keys are the record (accepted).
 
 S4 adds the export and the stop classification to `reportRun`, in this order (decisions 009,
 010):

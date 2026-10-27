@@ -8,6 +8,19 @@ gate record and may run to 25 lines. The next session starts from the top entry.
 This is a fork of `iqtree/iqtree3`. Entries here describe work on the fork, not upstream
 development.
 
+## 2026-10-27 (second session): S4 close audited; one record and the driver's default fixed
+
+- **Audit** of the S4 close against the gate's outputs and git: every number in the S4 entry
+  reproduces (485 checks, 275 asserted and 210 reported; re-imports; labels; both sanitizer findings
+  upstream); budgets and section 5's offsets hold; upstream still at v3.1.4. A read-only review of
+  S4's C++ found no high or medium defect. Findings and lower-priority items: this commit's message.
+- **Found, not fixed:** `reportRun` builds the partition order before it finds an NQC model, so a
+  non-NQC partitioned run at `-v` whose final tree computed no likelihood (`--runs`; read, not run)
+  prints IQ-TREE's partition-order block, against PLAN.md constraint 4. Peter chooses the remedy.
+- **Fixed:** CODE_PLAN 2.2's `-b 1` statement; `nqcchecks.py` now runs every case by default,
+  `short` and `linked-short` included (about 85 s more; first full default run at S5's gate, Peter).
+- **Next.** The fork workflow on this push; then the `reportRun` issue; then S5.
+
 ## 2026-10-26 to 2026-10-27: S4, export, re-import and report (gate G3, close; first release candidate)
 
 - **Done.** S4 planned and approved with ten choices by Peter (decisions 008 to 010, 021; CODE_PLAN

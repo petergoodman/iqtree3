@@ -23,7 +23,7 @@ Cases:
   toy       the compiled optimizer against the oracle's port (decisions 017, 021), using the
             line measured by explore/toy_calibration.py (needs --alisim and --calibration)
   short     a Level 1 and a +I+G4 Level 2 fit on 300 sites of the toy data, one round each, with
-            their exports, the Level 1 re-import and a -b 2 run, for the sanitizer build
+            their exports, the Level 1 re-import and a -b 2 run, cut down for the sanitizer build
             (CODE_PLAN.md section 3.6; needs --alisim)
   export    S4 on aa_example's Level 1 fit: the export's files against the checkpoint and the
             oracle, the diagnostic against the oracle, re-import by this build and the frozen
@@ -52,7 +52,7 @@ S3b's linked cases (CODE_PLAN.md section 3.5, "Linked fits" and after), on nqc/t
   warm-starts      two Level 1 continuations, in the box and at 1e-8,1e7, from the final state of
                    each default-box fit of risk22, nesting and risk22-turtle, reported
   linked-short     a Level 1 -S and a Level 2 -p +G4 fit on 150 sites of each twopart partition, with
-                   their exports, for the sanitizer build
+                   their exports, cut down for the sanitizer build
   linked-export    S4 on the -S and -q Level 1 fits: files and diagnostic as for export, the -S
                    re-import, the -q export through the oracle, outputs against the S3c binary, and
                    the citation (report)
@@ -1794,7 +1794,6 @@ def markdown(prov, results):
 CASES = ("root", "seed", "gradient", "target", "refusals", "fits", "nesting", "skewed", "restart", "risk22", "toy",
          "short", "linked-seed", "linked-fits", "linked-refusals", "permuted", "threads", "linked-restart",
          "risk22-turtle", "warm-starts", "linked-short", "export", "linked-export")
-SANITIZER_ONLY = ("short", "linked-short")
 
 
 def main():
@@ -1806,7 +1805,7 @@ def main():
     ap.add_argument("--previous-binary", help="the S3c binary, for the export cases' before-and-after comparison")
     ap.add_argument("--out", required=True, help="new directory outside the repository")
     ap.add_argument("--cases", help="comma-separated, from " + ",".join(CASES) +
-                    " (default: all but short and linked-short)")
+                    " (default: all)")
     ap.add_argument("--git", default="git", help="git executable (git.exe under WSL)")
     ap.add_argument("--allow-dirty", action="store_true")
     ap.add_argument("--timeout", type=float, default=7200, help="seconds per run")
@@ -1818,7 +1817,7 @@ def main():
     prov = provenance(a, binary, out)
     if not prov["git_clean"] and not a.allow_dirty:
         sys.exit(f"the repository is not clean ({prov['git_commit']}); commit first or pass --allow-dirty")
-    keys = a.cases.split(",") if a.cases else [k for k in CASES if k not in SANITIZER_ONLY]
+    keys = a.cases.split(",") if a.cases else list(CASES)
     if set(keys) - set(CASES):
         sys.exit(f"unknown cases: {sorted(set(keys) - set(CASES))}")
     if {"toy", "short", *LINKED_CASES} & set(keys) and not a.alisim or "toy" in keys and not a.calibration:
