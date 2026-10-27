@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""S2, S3a and S3b checks of the compiled NQC model (docs/agent/CODE_PLAN.md section 4; decision 021).
+"""S2 to S4 checks of the compiled NQC model (docs/agent/CODE_PLAN.md section 4; decision 021).
 
   python nqcchecks.py --binary ~/iqtree3-build/iqtree3 --alisim ~/iqtree3-baseline/iqtree3 \
-      --calibration CALIBRATION/results.json --older-run S2_GATE/nqc/fit-level1 --out DIR \
-      [--cases root,seed,...] [--git git.exe]
+      --calibration CALIBRATION/results.json --older-run S2_GATE/nqc/fit-level1 \
+      --previous-binary ~/iqtree3-binaries/81729f4b/iqtree3 --out DIR [--cases root,seed,...] [--git git.exe]
 
 Cases:
   root      a rooted input tree keeps its root and an unrooted one is rooted at the midpoint
@@ -22,8 +22,13 @@ Cases:
             risk 22), reported
   toy       the compiled optimizer against the oracle's port (decisions 017, 021), using the
             line measured by explore/toy_calibration.py (needs --alisim and --calibration)
-  short     a Level 1 and a +I+G4 Level 2 fit on 300 sites of the toy data, one round each, for
-            the sanitizer build (CODE_PLAN.md section 3.6; needs --alisim)
+  short     a Level 1 and a +I+G4 Level 2 fit on 300 sites of the toy data, one round each, with
+            their exports, the Level 1 re-import and a -b 2 run, for the sanitizer build
+            (CODE_PLAN.md section 3.6; needs --alisim)
+  export    S4 on aa_example's Level 1 fit: the export's files against the checkpoint and the
+            oracle, the diagnostic against the oracle, re-import by this build and the frozen
+            v3.1.4 binary (--alisim), a no-fit export, --undo, and outputs against the S3c binary
+            (--previous-binary)
 
 S3b's linked cases (CODE_PLAN.md section 3.5, "Linked fits" and after), on nqc/twopart.py's data
 (needs --alisim) unless they name turtle:
@@ -46,8 +51,11 @@ S3b's linked cases (CODE_PLAN.md section 3.5, "Linked fits" and after), on nqc/t
                    and at --nqc-domain 1e-8,1e7, reported (PLAN.md risk 22)
   warm-starts      two Level 1 continuations, in the box and at 1e-8,1e7, from the final state of
                    each default-box fit of risk22, nesting and risk22-turtle, reported
-  linked-short     a Level 1 -S and a Level 2 -p +G4 fit on 150 sites of each twopart partition, for
-                   the sanitizer build
+  linked-short     a Level 1 -S and a Level 2 -p +G4 fit on 150 sites of each twopart partition, with
+                   their exports, for the sanitizer build
+  linked-export    S4 on the -S and -q Level 1 fits: files and diagnostic as for export, the -S
+                   re-import, the -q export through the oracle, outputs against the S3c binary, and
+                   the citation (report)
 
 Every run has its own directory under DIR and uses -seed 1 and -T 1 unless a case says otherwise.
 Final states are read from the class's checkpoint keys; the seed Q and the first gradient from its
@@ -75,7 +83,7 @@ from probes import (AA, NEX, PREFIX, TURTLE, Runner, baseline_runs, first_taxa, 
                     paml_rows, read_checkpoint, tree_comparison, tree_text, turtle_target, unrooted_text,
                     with_charpartition)
 from differential import datasets, significant_digits, write_matrix  # noqa: E402
-from regress import REPO, SCALARS, capture, read, sha256, write  # noqa: E402
+from regress import REPO, SCALARS, capture, read, sha256, split_sections, write  # noqa: E402
 import toy  # noqa: E402
 import twopart  # noqa: E402
 
@@ -109,6 +117,21 @@ FALL = re.compile(r"WARNING: NQC fit (\d+): the re-scored lnL is below the start
 BUG_ABORT = "BUG: Tree logl gets worse after model optimization"
 SUMMARY = "NQC summary of the final model (17 significant digits):"
 RESTORE_REFUSAL = "the checkpoint was written with a different"
+EXPORT_MARK = "NQC first-order diagnostic at export"
+STATIONARY = "first-order stationary at the optimizer's tolerance"
+MISMATCH = "does not match"   # IQ-TREE's print when a file's pi row and the pi it solves differ by 1e-3
+PARTITION_INITIAL = re.compile(r"^Initial log-likelihood: (\S+)", re.M)   # -p and -q, 3 decimals
+# the .info fields written with the checkpoint's own strings (CODE_PLAN.md section 2.2, item 6)
+SHARED_KEYS = ("target", "chart", "chart_version", "references", "domain", "derivative", "coordinates", "fixed",
+               "fits", "evaluations", "accepted_fit", "start_score", "optimizer_score", "accepted_score", "bounds",
+               "residuals")
+INFO_FIELDS = SHARED_KEYS + ("model", "state_order", "target_as_given", "target_sum", "reference_letters", "start",
+                             "random_seed", "command", "linked_partitions", "residual_names", "export_lnl", "stop",
+                             "stop_reason", "stop_statistic", "stop_coordinate", "stop_line", "stop_step",
+                             "stop_failed_probes", "stop_gradient", "diagnostic_evaluations", "qmat",
+                             "iqtree_version")
+INFO_COUNTS = {"target": 20, "references": 20, "domain": 2, "coordinates": 360, "bounds": 3, "residuals": 7,
+               "stop_gradient": 360}
 
 
 # ---------------------------------------------------------------- pass lines (decisions 026 and 030)
@@ -435,6 +458,8 @@ def case_refusals(r, c):
         ("unlinked-p", ["-s", TURTLE, "-p", NEX, "-m", c.model, "-nparam", "2"], {}),
         ("unlinked-q", ["-s", TURTLE, "-q", NEX, "-m", c.model, "-nparam", "2"], {}),
         ("unlinked-S", ["-s", TURTLE, "-S", NEX, "-m", c.model, "-nparam", "2"], {}),
+        # S4: cached transition matrices would outlive a change of Q (decision 008)
+        ("mstore", aa + ["-m", c.model, "-mstore"], tree),
     ]
     out = []
     for name, args, files in runs:
@@ -509,10 +534,19 @@ def key_checks(label, ck, pi):
     ]
 
 
+def fit_text(text):
+    """A run's output before the export diagnostic, whose probes may print switch and rejection
+    lines of their own (CODE_PLAN.md section 2.2, item 2)."""
+    i = text.find(EXPORT_MARK)
+    return text if i < 0 else text[:i]
+
+
 def monitoring(label, run, ck):
     """CODE_PLAN.md section 4's monitoring, reported: the fit record, falls below the start, the
-    optimizer's score against the re-scored one, IQ-TREE's hard stops and scaling-squaring."""
-    text = run.stdout()
+    optimizer's score against the re-scored one, IQ-TREE's hard stops and scaling-squaring, all
+    counted before the export's diagnostic."""
+    full = run.stdout()
+    text = fit_text(full)
     fits = FIT.findall(text)  # printed under -v only
     gaps = [abs(float(f[2]) - float(f[3])) for f in fits]
     return [
@@ -521,10 +555,11 @@ def monitoring(label, run, ck):
               falls=FALL.findall(text)),
         check(f"{label}: optimizer score against the re-scored point, largest gap over printed records (report)",
               None, largest=max(gaps) if gaps else None),
-        check(f"{label}: summary printed (report)", None, lines=summary(text)),
-        check(f"{label}: scaling-squaring switches (report)", None, count=text.count(SWITCH)),
+        check(f"{label}: summary printed (report)", None, lines=summary(full)),
+        check(f"{label}: scaling-squaring switches (report)", None, count=text.count(SWITCH),
+              in_export_diagnostic=full.count(SWITCH) - text.count(SWITCH)),
         check(f"{label}: IQ-TREE's ASSERT or 'Tree logl gets worse' abort (report)", None,
-              assertion="Assertion" in text or "ASSERT" in text, bug_abort=BUG_ABORT in text, exit_code=run.code),
+              assertion="Assertion" in full or "ASSERT" in full, bug_abort=BUG_ABORT in full, exit_code=run.code),
     ]
 
 
@@ -795,7 +830,234 @@ def case_short(r, c, alisim):
         if suffix:
             out.append(restore_check(label, run.stdout()))
         ck = single_checkpoint(run)
-        out += key_checks(label, ck, c.pi) + monitoring(label, run, ck)
+        out += key_checks(label, ck, c.pi) + monitoring(label, run, ck) + export_checks(label, run, ck, c, 0)
+        files = export_files(run)
+        if not suffix and files is not None and ck is not None:
+            rerun = r.run("short-reimport", ["-s", data / "short.phy", "-m", "fit.qmat", "-te", data / "toy.nwk",
+                                             "--show-lh"], {"fit.qmat": files[0]})
+            out += reimport_checks(f"{label} re-import", rerun, float(ck["accepted_score"]), 1)
+    # -b N reports after re-reading the tree, which the export's diagnostic must reinitialize
+    run = r.run("short-bootstrap", ["-s", data / "short.phy", "-m", c.model, "-te", data / "toy.nwk", "-blfix",
+                                    "-nparam", "3", "-b", "2"])
+    out.append(check("-b 2 Level 1: exit 0 with its export", export_files(run) is not None, exit_code=run.code))
+    return out
+
+
+# ---------------------------------------------------------------- export (S4)
+
+def export_files(run):
+    """A finished run's .qmat text and .info record, or None if either is missing."""
+    q, i = run.file(".NQC.qmat"), run.file(".NQC.info")
+    if run.code != 0 or not (q.exists() and i.exists()):
+        return None
+    return read(q), readers.read_info(read(i))
+
+
+def export_checks(label, run, ck, c, partitions):
+    """Decision 021's export rows on a run's files: the .qmat's form and pi row, its Q against the
+    oracle's build at the checkpointed coordinates, its residuals, and the .info's completeness and
+    agreement with the checkpoint (CODE_PLAN.md section 3.5)."""
+    files = export_files(run)
+    if files is None or ck is None:
+        return [check(f"{label}: export files and the checkpoint struct present", False, exit_code=run.code)]
+    text, info = files
+    rows = [line.split() for line in text.splitlines()]
+    Q, pi = readers.read_qmat(text)
+    off = ~np.eye(len(pi), dtype=bool)
+    Q_or = chart.build(floats(ck["coordinates"]), c.pi, c.ref)[0]
+    kappa = chart.nu_condition(chart.jump_of(Q_or))
+    rel = float(np.max(np.abs(Q - Q_or) / np.abs(Q_or)))
+    d = chart.diagnostics(Q, c.pi)
+    worst = max(d["stationarity"], d["row_sums"], d["mean_rate_error"])
+    missing = [k for k in INFO_FIELDS if k not in info]
+    wrong = sorted(k for k, n in INFO_COUNTS.items() if k in info and len(info[k].split(",")) != n)
+    # a score the checkpoint does not hold is written "unknown" (CODE_PLAN.md section 2.2, item 6)
+    differ = [k for k in SHARED_KEYS if info.get(k) != ck.get(k, "unknown" if k.endswith("_score") else None)]
+    return [
+        check(f"{label}: .qmat holds 20 rows of 20 and a pi row, a negative first entry and positive rates",
+              len(rows) == 21 and all(len(r) == 20 for r in rows) and Q[0, 0] < 0 and bool(np.all(Q[off] > 0))),
+        check(f"{label}: .qmat pi row bitwise equal to the target key (decision 021)",
+              bool(np.array_equal(pi, floats(ck["target"])) and np.array_equal(pi, c.pi))),
+        check(f"{label}: .qmat Q against the oracle's build at the checkpointed coordinates (decision 021)",
+              rel <= q_line(kappa), max_relative=rel, line=q_line(kappa), kappa=kappa),
+        check(f"{label}: residuals of the .qmat's Q at most {RESIDUAL:g} (decision 021)", worst <= RESIDUAL,
+              **{k: d[k] for k in ("stationarity", "row_sums", "mean_rate_error")}),
+        check(f"{label}: .info complete, with its value counts", not missing and not wrong, missing=missing,
+              wrong_counts=wrong),
+        check(f"{label}: .info fields shared with the checkpoint identical to its keys (decision 021)", not differ,
+              differing=differ),
+        check(f"{label}: .info state order, seed, partitions and file name", info.get("state_order") == lk.AMINO and
+              info.get("random_seed") == "1" and info.get("linked_partitions") == str(partitions) and
+              info.get("qmat") == f"{PREFIX}.NQC.qmat", state_order=info.get("state_order"),
+              random_seed=info.get("random_seed"), linked_partitions=info.get("linked_partitions"),
+              qmat=info.get("qmat")),
+        check(f"{label}: .info start, version, diagnostic evaluations (report)", None, start=info.get("start"),
+              iqtree_version=info.get("iqtree_version"), evaluations=info.get("diagnostic_evaluations")),
+    ]
+
+
+def diagnostic_checks(label, info, objective):
+    """Decision 009's export diagnostic against the oracle (decision 021): the C++ statistic,
+    coordinate and label recomputed exactly from the C++ gradient; -lnL at the point and the gradient
+    against the oracle's own central differences; the label against the oracle's, unless the oracle's
+    statistic lies within its rounding band of the line. Returns the rows and the oracle's label."""
+    z, g = floats(info["coordinates"]), floats(info["stop_gradient"])
+    lo, hi = floats(info["domain"])
+    f0 = -float(info["export_lnl"])
+    mine = chart.first_order_test(z, g, lo, hi, f0)
+    expected = STATIONARY if mine["passed"] and info["stop_failed_probes"] == "0" else "unclassified"
+    f_or, g_or, span = nqc.export_gradient(objective, z)
+    line = same_rule_bound(f_or, span)
+    ratio = np.abs(g - g_or) / line
+    theirs = chart.first_order_test(z, g_or, lo, hi, f_or)
+    oracle_label = STATIONARY if theirs["passed"] else "unclassified"
+    band = float(np.max(line * np.maximum(np.abs(z), 1.0) / max(abs(f_or), 1.0)))
+    near = abs(theirs["statistic"] - chart.FIRST_ORDER_GTOL) <= band
+    rows = [
+        check(f"{label}: statistic, coordinate and label recomputed from the C++ gradient (decision 021)",
+              float(info["stop_statistic"]) == mine["statistic"] and
+              int(info["stop_coordinate"]) == mine["coordinate"] + 1 and info["stop"] == expected,
+              stop=info["stop"], expected=expected, statistic=info["stop_statistic"], recomputed=mine["statistic"]),
+        check(f"{label}: -lnL at the exported point against the oracle (decision 021)",
+              abs(f0 - f_or) <= TOL_LNL * abs(f_or), export=f0, oracle=f_or),
+        check(f"{label}: gradient against the oracle's central differences, |g - g_oracle| / line (decision 021)",
+              bool(np.all(ratio <= 1)), worst=float(ratio.max()), worst_index=int(ratio.argmax())),
+        check(f"{label}: label against the oracle's from its own gradient" +
+              (" (report: within the rounding band)" if near else ""), None if near else oracle_label == info["stop"],
+              oracle_label=oracle_label, oracle_statistic=theirs["statistic"], band=band),
+        check(f"{label}: stop (report)", None, stop=info["stop"], reason=info["stop_reason"],
+              statistic=info["stop_statistic"], coordinate=info["stop_coordinate"],
+              at_bounds=[mine["at_lower"], mine["at_upper"]], outside=mine["outside"]),
+    ]
+    return rows, oracle_label
+
+
+def reimport_checks(label, run, accepted, partitions):
+    """A re-import through -m FILE with --show-lh against the fit's accepted_score (decision 021):
+    the 17-decimal first log-likelihood, or under -S each partition's, summed."""
+    text = run.stdout()
+    values = INITIAL.findall(text)
+    ok = run.code == 0 and len(values) == partitions and all(significant_digits(v) >= 10 for v in values)
+    total = sum(float(v) for v in values) if ok else None
+    return [
+        check(f"{label}: first log-likelihood against accepted_score (decision 021)",
+              ok and abs(total - accepted) <= TOL_LNL * abs(accepted), exit_code=run.code, printed=values,
+              accepted=accepted, relative=abs(total - accepted) / abs(accepted) if ok else None),
+        check(f"{label}: IQ-TREE's 'does not match' line on reading the file (report)", None,
+              count=text.count(MISMATCH)),
+    ]
+
+
+def toolchain_changes(binary):
+    """dpkg's install, upgrade and remove lines since binary was built: decision 021's before-and-after
+    row is asserted only when there are none."""
+    built = datetime.datetime.fromtimestamp(binary.stat().st_mtime)
+    changes = []
+    for log in (Path("/var/log/dpkg.log"), Path("/var/log/dpkg.log.1")):
+        if not log.exists():
+            continue
+        for line in log.read_text(encoding="utf-8", errors="replace").splitlines():
+            parts = line.split()
+            if len(parts) > 3 and parts[2] in ("install", "upgrade", "remove"):
+                when = datetime.datetime.strptime(f"{parts[0]} {parts[1]}", "%Y-%m-%d %H:%M:%S")
+                if when >= built:
+                    changes.append(line)
+    return changes
+
+
+def same_outputs(label, previous, run, args, files, changes):
+    """Decision 021's before-and-after row: the same command run by the S3c binary gives the same
+    report sections (layer 4's rules; REFERENCES left out under --model-joint, where S4 changes the
+    citation), tree file and NQC checkpoint keys."""
+    old = previous.run("previous-" + run.name, args, files)
+    a, b = run.extract()["items"], old.extract()["items"]
+    skip = {"REFERENCES"} if "--model-joint" in args else set()
+    differ = sorted(k for k in set(a) | set(b) if k not in skip and a.get(k) != b.get(k))
+    keys_equal = nqc_checkpoint(run) == nqc_checkpoint(old)
+    ok = run.code == 0 and old.code == 0 and not differ and keys_equal
+    return check(f"{label}: outputs identical to the S3c binary's (decision 021)" + (" (report: the toolchain "
+                 "changed since that build)" if changes else ""), None if changes else ok, exit_codes=[run.code, old.code],
+                 differing=differ, keys_equal=keys_equal, references_differ=a.get("REFERENCES") != b.get("REFERENCES"))
+
+
+def level1_command(c):
+    return level1_args(c.model), {"input.tree": c.t02}
+
+
+def case_export(r, c, ctx, frozen, previous, changes):
+    """S4 on aa_example's Level 1 fit (CODE_PLAN.md section 3.5, "Export and re-import")."""
+    base = level1(r, c, ctx)
+    if base.code != 0:
+        return failed_run(base)
+    ck = single_checkpoint(base)
+    out = export_checks("Level 1", base, ck, c, 0)
+    files = export_files(base)
+    if files is None:
+        return out
+    qmat, info = files
+    objective = nqc.Objective(c.aa, c.tree02, c.pi, c.ref, shape=ALPHA)
+    out += diagnostic_checks("Level 1", info, objective)[0]
+    accepted = float(ck["accepted_score"])
+    inputs = {"fit.qmat": qmat, "input.tree": c.t02}
+    args = ["-s", AA, "-m", f"fit.qmat+G4{{{ALPHA}}}", "-te", "input.tree", "--show-lh"]
+    out += reimport_checks("Level 1 re-import", r.run("export-reimport", args, inputs), accepted, 1)
+    out += reimport_checks("Level 1 re-import by the frozen v3.1.4 binary",
+                           frozen.run("export-reimport-frozen", args, inputs), accepted, 1)
+    Q = readers.read_qmat(qmat)[0]
+    out.append(check("Level 1 re-import: the pi IQ-TREE solves from the file against pi* (report)", None,
+                     max_abs=float(np.max(np.abs(lk.file_model(Q)[1] - c.pi)))))
+    run = r.run("export-reimport-pi", ["-s", AA, "-m", f"fit.qmat+F{{{c.target_text}}}+G4{{{ALPHA}}}", "-te",
+                                       "input.tree", "--show-lh"], inputs)
+    m = INITIAL.search(run.stdout())
+    out.append(check("Level 1 re-import with +F{pi*}, rooted at pi*/sum(pi*) (report)", None, exit_code=run.code,
+                     printed=m.group(1) if m else None, minus_accepted=float(m.group(1)) - accepted if m else None))
+    out.append(check("Level 1 export_lnl against the printed final log-likelihood (report)", None,
+                     export_lnl=info["export_lnl"], printed=(re.search(SCALARS["log_likelihood"], base.report(), re.M)
+                                                             or [None, None])[1]))
+
+    # the start, with no fit: unclassified, the oracle's label checked first
+    run = r.run("export-nofit", ["-s", AA, "-m", c.model + f"+G4{{{ALPHA}}}", "-te", "input.tree", "-blfix", "-nparam",
+                                 "2"], {"input.tree": c.t02})
+    nofit = export_files(run)
+    if nofit is None:
+        out += failed_run(run)
+    else:
+        out += export_checks("no fit", run, single_checkpoint(run), c, 0)
+        rows, oracle_label = diagnostic_checks("no fit", nofit[1], objective)
+        if oracle_label != "unclassified":
+            out.append(check("no fit: the oracle labels the LG start unclassified (the test's premise; stop for "
+                             "Peter)", False, oracle_label=oracle_label))
+        out += rows + [check("no fit: the export at the LG start is unclassified", nofit[1]["stop"] == "unclassified",
+                             stop=nofit[1]["stop"], fits=nofit[1]["fits"])]
+
+    # --undo restores the model from the checkpoint: the same export (the S3 review's proposal)
+    run = r.run("export-undo", level1_args(c.model) + ["--undo"], staged(base.dir))
+    undo = export_files(run)
+    if undo is None:
+        out += failed_run(run)
+    else:
+        diagnostic = {"export_lnl", "stop_statistic", "stop_gradient"}
+        differ = sorted(k for k in set(info) | set(undo[1]) if info.get(k) != undo[1].get(k) and k != "command")
+        f, f_undo = -float(info["export_lnl"]), -float(undo[1]["export_lnl"])
+        span = np.array([((x + h) - x) + (x - (x - h)) for x in floats(info["coordinates"])
+                         for h in [chart.FIRST_ORDER_ETA * max(1.0, abs(x))]])
+        g_ratio = float(np.max(np.abs(floats(info["stop_gradient"]) - floats(undo[1]["stop_gradient"])) /
+                               same_rule_bound(f, span)))
+        out.append(check("--undo: .qmat byte-identical to the original's (decision 021)",
+                         run.file(".NQC.qmat").read_bytes() == base.file(".NQC.qmat").read_bytes()))
+        out.append(check("--undo: .info as the original's apart from the command, the diagnostic within decision "
+                         "021's lnL and same-rule lines", not set(differ) - diagnostic and
+                         abs(f - f_undo) <= TOL_LNL * abs(f) and g_ratio <= 1, differing=differ,
+                         export_lnl=[f, f_undo], gradient_worst=g_ratio))
+
+    # the restore leaves every later output as it was, -z's evaluations included
+    out.append(same_outputs("Level 1", previous, base, *level1_command(c), changes))
+    zargs = level1_args(c.model) + ["-z", "two.trees"]
+    zfiles = {"input.tree": c.t02, "two.trees": (c.t02.strip() + "\n") * 2}
+    run = r.run("export-z", zargs, zfiles)
+    out.append(same_outputs("Level 1 with -z", previous, run, zargs, zfiles, changes))
+    out.append(check("Level 1 with -z: user trees evaluated (report)", None, exit_code=run.code,
+                     user_trees="USER TREES" in run.report()))
     return out
 
 
@@ -815,7 +1077,8 @@ TURTLE_SEED = {"-p": ("run08", 4), "-S": ("run09", 3)}   # decision 038's trees 
 TWOPART_COUNTS = {("-S", "seed"): 360, ("-p", "seed"): 384, ("-S", "Level 1"): 360, ("-q", "Level 1"): 383,
                   ("-S", "+G4"): 406, ("-S", "+I+G4"): 408, ("-S", "+R4"): 416,
                   ("-p", "+G4"): 386, ("-p", "+I+G4"): 388, ("-p", "+R4"): 396}
-LINKED_CASES = ("linked-seed", "linked-fits", "linked-refusals", "permuted", "linked-restart", "linked-short")
+LINKED_CASES = ("linked-seed", "linked-fits", "linked-refusals", "permuted", "linked-restart", "linked-short",
+                "linked-export")
 
 
 def numbered_checkpoints(run):
@@ -1049,13 +1312,46 @@ def case_linked_seed(r, c, ctx, alisim):
     return out
 
 
+def linked_level1_command(c, tp):
+    return (joint_args(tp.phy, "-S", tp.nex, c.model, f"+G4{{{ALPHA}}}", tree_name("-S"), "-blfix", "-vv",
+                       *LINKED_CKP), tp.files("-S"))
+
+
 def linked_level1(r, c, ctx, tp):
-    """The -S Level 1 fit that the fits, permuted and restart cases share."""
+    """The -S Level 1 fit that the fits, permuted, restart and export cases share."""
     if "linked-level1" not in ctx:
-        ctx["linked-level1"] = r.run("linked-fit-s-level1", joint_args(
-            tp.phy, "-S", tp.nex, c.model, f"+G4{{{ALPHA}}}", tree_name("-S"), "-blfix", "-vv", *LINKED_CKP),
-            tp.files("-S"))
+        ctx["linked-level1"] = r.run("linked-fit-s-level1", *linked_level1_command(c, tp))
     return ctx["linked-level1"]
+
+
+def linked_q_level1(r, c, ctx, tp):
+    """The -q Level 1 fit (decision 024) that the linked-fits and linked-export cases share, as
+    (run, args, files, route); all None if the -p Level 2 +G4 fit left out its tree, shapes or
+    partition rates."""
+    if "linked-q" not in ctx:
+        names = list(tp.charsets)
+        route = q_route(linked_level2(r, c, ctx, tp, "-p", "+G4"), names)
+        if route is None:
+            ctx["linked-q"] = (None, None, None, None)
+        else:
+            args = ["-s", tp.phy, "-q", "parts.nex", "--model-joint", c.model, "-te", "input.tree", "-blfix", "-v",
+                    *LINKED_CKP]
+            files = {"parts.nex": q_charpartition(read(tp.nex), names, route), "input.tree": route["tree"]}
+            ctx["linked-q"] = (r.run("linked-fit-q-level1", args, files), args, files, route)
+    return ctx["linked-q"]
+
+
+def q_objective(c, tp, route, pi=None, ref=None):
+    """The -q fit's linked objective in the oracle, its partition rates normalized as IQ-TREE does;
+    with pi given, its parts are rooted there instead of at pi* (the -m FILE convention)."""
+    rates = nqc.normalize_part_rates([float(x) for x in route["rates"]], [len(s) for s in tp.charsets.values()])
+    shapes = [float(a) for a in route["shapes"]]
+    if pi is None:
+        return tp.objective(c, shapes, rates=rates, tree=route["tree"]), rates
+    tree = readers.parse_newick(route["tree"])
+    return nqc.LinkedObjective([nqc.Objective(part_alignment(tp.aln, sites), tree, pi, ref, shape=shapes[k],
+                                              part_rate=rates[k])
+                                for k, sites in enumerate(tp.charsets.values())]), rates
 
 
 def linked_level2(r, c, ctx, tp, mode, name):
@@ -1081,18 +1377,14 @@ def case_linked_fits(r, c, ctx, alisim):
         for name in ("+G4", "+I+G4", "+R4"):
             out += linked_fit_checks(f"{mode} Level 2 {name}", linked_level2(r, c, ctx, tp, mode, name), c, 2,
                                      TWOPART_COUNTS[(mode, name)])
-    route = q_route(linked_level2(r, c, ctx, tp, "-p", "+G4"), names)
-    if route is None:
+    run, _, _, route = linked_q_level1(r, c, ctx, tp)
+    if run is None:
         out.append(check("-q Level 1: the -p Level 2 +G4 fit's tree, shapes and partition rates", False))
     else:
-        run = r.run("linked-fit-q-level1", ["-s", tp.phy, "-q", "parts.nex", "--model-joint", c.model, "-te",
-                                            "input.tree", "-blfix", "-v", *LINKED_CKP],
-                    {"parts.nex": q_charpartition(read(tp.nex), names, route), "input.tree": route["tree"]})
         out += linked_fit_checks("-q Level 1", run, c, 2, TWOPART_COUNTS[("-q", "Level 1")])
         if run.code == 0:
-            rates = nqc.normalize_part_rates([float(x) for x in route["rates"]], [len(s) for s in tp.charsets.values()])
-            out += oracle_score_check("-q Level 1", run, tp.objective(c, [float(a) for a in route["shapes"]],
-                                                                      rates=rates, tree=route["tree"]))
+            objective, rates = q_objective(c, tp, route)
+            out += oracle_score_check("-q Level 1", run, objective)
             out.append(check("-q Level 1: inputs from the -p Level 2 +G4 fit (report)", None, shapes=route["shapes"],
                              rates=route["rates"], normalized=rates))
     parts = with_charpartition(read(tp.nex), [(c.model + f"+G4{{{ALPHA}}}", n, None) for n in names])
@@ -1406,7 +1698,58 @@ def case_linked_short(r, c, ctx, alisim):
         if run.code != 0:
             out += failed_run(run)
             continue
-        out += linked_invariants(label, run, c, 2) + monitoring(label, run, linked_struct(nqc_checkpoint(run)))
+        ck = linked_struct(nqc_checkpoint(run))
+        out += linked_invariants(label, run, c, 2) + monitoring(label, run, ck) + export_checks(label, run, ck, c, 2)
+    return out
+
+
+def case_linked_export(r, c, ctx, alisim, previous, changes):
+    """S4 on the twopart -S and -q Level 1 fits (CODE_PLAN.md section 3.5, "Export and re-import"):
+    -S re-imported by IQ-TREE, whose -S output prints each partition's first log-likelihood to 17
+    decimals; -q through the oracle's -m FILE convention, since -q and -p print it to 3."""
+    tp = twopart_data(r, c, ctx, alisim)
+    names = list(tp.charsets)
+    out = []
+    run = linked_level1(r, c, ctx, tp)
+    ck = linked_struct(nqc_checkpoint(run)) if run.code == 0 else None
+    out += export_checks("-S Level 1", run, ck, c, 2)
+    files = export_files(run)
+    if files is not None and ck is not None:
+        qmat, info = files
+        out += diagnostic_checks("-S Level 1", info, tp.objective(c, ALPHA))[0]
+        rerun = r.run("linked-export-reimport-s", ["-s", tp.phy, "-S", tp.nex, "-m", f"fit.qmat+G4{{{ALPHA}}}", "-te",
+                                                   tree_name("-S"), "--show-lh"], {"fit.qmat": qmat, **tp.files("-S")})
+        out += reimport_checks("-S Level 1 re-import", rerun, float(ck["accepted_score"]), 2)
+        refs = split_sections(run.report()).get("REFERENCES", "")
+        out.append(check("-S Level 1 (--model-joint): citation (report)", None, nqmaker="nQMaker" in refs,
+                         qmaker="QMaker: Fast" in refs))
+    out.append(same_outputs("-S Level 1", previous, run, *linked_level1_command(c, tp), changes))
+
+    qrun, qargs, qfiles, route = linked_q_level1(r, c, ctx, tp)
+    if qrun is None:
+        return out + [check("-q Level 1: the -p Level 2 +G4 fit's tree, shapes and partition rates", False)]
+    ck = linked_struct(nqc_checkpoint(qrun)) if qrun.code == 0 else None
+    out += export_checks("-q Level 1", qrun, ck, c, 2)
+    files = export_files(qrun)
+    if files is not None and ck is not None:
+        qmat, info = files
+        out += diagnostic_checks("-q Level 1", info, q_objective(c, tp, route)[0])[0]
+        Qn, root = lk.file_model(readers.read_qmat(qmat)[0])
+        bridge = q_objective(c, tp, route, pi=root, ref=c.ref)[0]
+        lnl = sum(part.log_likelihood(Qn) for part in bridge.parts)
+        accepted = float(ck["accepted_score"])
+        out.append(check("-q Level 1 export through the oracle's -m FILE convention, against accepted_score "
+                         "(decision 021)", abs(lnl - accepted) <= TOL_LNL * abs(accepted), oracle=lnl,
+                         accepted=accepted, relative=abs(lnl - accepted) / abs(accepted)))
+        parts = with_charpartition(read(tp.nex), [(f"fit.qmat+G4{{{a}}}", n, x)
+                                                  for n, a, x in zip(names, route["shapes"], route["rates"])])
+        rerun = r.run("linked-export-reimport-q", ["-s", tp.phy, "-q", "parts.nex", "-te", "input.tree", "--show-lh"],
+                      {"parts.nex": parts, "input.tree": route["tree"], "fit.qmat": qmat})
+        m = PARTITION_INITIAL.search(rerun.stdout())
+        out.append(check("-q Level 1 re-import by IQ-TREE, printed to 3 decimals (report)", None,
+                         exit_code=rerun.code, printed=m.group(1) if m else None, accepted=accepted,
+                         difference=float(m.group(1)) - accepted if m else None))
+    out.append(same_outputs("-q Level 1", previous, qrun, qargs, qfiles, changes))
     return out
 
 
@@ -1444,7 +1787,7 @@ def markdown(prov, results):
 
 CASES = ("root", "seed", "gradient", "target", "refusals", "fits", "nesting", "skewed", "restart", "risk22", "toy",
          "short", "linked-seed", "linked-fits", "linked-refusals", "permuted", "threads", "linked-restart",
-         "risk22-turtle", "warm-starts", "linked-short")
+         "risk22-turtle", "warm-starts", "linked-short", "export", "linked-export")
 SANITIZER_ONLY = ("short", "linked-short")
 
 
@@ -1454,6 +1797,7 @@ def main():
     ap.add_argument("--alisim", help="the frozen unmodified binary, which simulates the toy data")
     ap.add_argument("--calibration", help="results.json of explore/toy_calibration.py")
     ap.add_argument("--older-run", help="S2's gate run fit-level1, whose checkpoint lacks S3a's keys")
+    ap.add_argument("--previous-binary", help="the S3c binary, for the export cases' before-and-after comparison")
     ap.add_argument("--out", required=True, help="new directory outside the repository")
     ap.add_argument("--cases", help="comma-separated, from " + ",".join(CASES) +
                     " (default: all but short and linked-short)")
@@ -1477,6 +1821,9 @@ def main():
     older = Path(a.older_run).expanduser().resolve() if a.older_run else None
     if "restart" in keys and not (older and (older / f"{PREFIX}.ckp.gz").exists()):
         sys.exit(f"the restart case needs --older-run, a run directory holding {PREFIX}.ckp.gz")
+    previous = Path(a.previous_binary).expanduser().resolve() if a.previous_binary else None
+    if {"export", "linked-export"} & set(keys) and not (previous and previous.exists() and a.alisim):
+        sys.exit("the export cases need --previous-binary and --alisim (the frozen v3.1.4 binary)")
     out.mkdir(parents=True)
     alisim = Path(a.alisim).expanduser().resolve() if a.alisim else None
     calibration = Path(a.calibration).expanduser().resolve() if a.calibration else None
@@ -1485,6 +1832,15 @@ def main():
     if older:
         prov["older_run"] = {"path": str(older), "checkpoint_sha256": sha256(older / f"{PREFIX}.ckp.gz")}
     r = Runner(binary, out, a.timeout)
+    # the other binaries' runs share the run record
+    frozen = Runner(alisim, out, a.timeout) if alisim else None
+    prior = Runner(previous, out, a.timeout) if previous else None
+    for other in (frozen, prior):
+        if other:
+            other.runs = r.runs
+    changes = toolchain_changes(previous) if previous else []
+    if previous:
+        prov["previous_binary"] = {"path": str(previous), "sha256": sha256(previous), "toolchain_changes": changes}
     c = Context(out)
     ctx, results = {}, {}
     for key in keys:
@@ -1532,6 +1888,10 @@ def main():
                 results[key] = case_warm_starts(r, c, ctx)
             elif key == "linked-short":
                 results[key] = case_linked_short(r, c, ctx, alisim)
+            elif key == "export":
+                results[key] = case_export(r, c, ctx, frozen, prior, changes)
+            elif key == "linked-export":
+                results[key] = case_linked_export(r, c, ctx, alisim, prior, changes)
         except Exception:  # a crash in one case is recorded, and the other cases still run
             results[key] = [check("case ran", False, exception=traceback.format_exc())]
         for row in results[key]:
