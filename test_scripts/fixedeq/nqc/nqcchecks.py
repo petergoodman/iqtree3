@@ -83,7 +83,7 @@ from probes import (AA, NEX, PREFIX, TURTLE, Runner, baseline_runs, first_taxa, 
                     paml_rows, read_checkpoint, tree_comparison, tree_text, turtle_target, unrooted_text,
                     with_charpartition)
 from differential import datasets, significant_digits, write_matrix  # noqa: E402
-from regress import REPO, SCALARS, capture, read, sha256, split_sections, write  # noqa: E402
+from regress import PACKAGES, REPO, SCALARS, capture, read, sha256, split_sections, write  # noqa: E402
 import toy  # noqa: E402
 import twopart  # noqa: E402
 
@@ -948,9 +948,14 @@ def reimport_checks(label, run, accepted, partitions):
     ]
 
 
+# the packages a build compiles or links against: regress.py's list, and the header-only libraries
+TOOLCHAIN = tuple(PACKAGES) + ("libeigen3-dev", "libboost-dev")
+
+
 def toolchain_changes(binary):
-    """dpkg's install, upgrade and remove lines since binary was built: decision 021's before-and-after
-    row is asserted only when there are none."""
+    """dpkg's install, upgrade and remove lines for the toolchain's packages since binary was built
+    (its copy keeps the build's time): decision 021's before-and-after row is asserted only when
+    there are none."""
     built = datetime.datetime.fromtimestamp(binary.stat().st_mtime)
     changes = []
     for log in (Path("/var/log/dpkg.log"), Path("/var/log/dpkg.log.1")):
@@ -958,7 +963,8 @@ def toolchain_changes(binary):
             continue
         for line in log.read_text(encoding="utf-8", errors="replace").splitlines():
             parts = line.split()
-            if len(parts) > 3 and parts[2] in ("install", "upgrade", "remove"):
+            if (len(parts) > 3 and parts[2] in ("install", "upgrade", "remove") and
+                    parts[3].split(":")[0] in TOOLCHAIN):
                 when = datetime.datetime.strptime(f"{parts[0]} {parts[1]}", "%Y-%m-%d %H:%M:%S")
                 if when >= built:
                     changes.append(line)
@@ -1520,7 +1526,7 @@ def case_threads(r, c, ctx):
                      "(report; decision 038, NONREV's pL2 spread)", None, t4=states, t1=fit_state(one),
                      t4_spread=max(finals) - min(finals) if finals else None,
                      hard_stops=[("ASSERT" in run.stdout() or BUG_ABORT in run.stdout()) for run in fits + [one]],
-                     switches=[run.stdout().count(SWITCH) for run in fits + [one]]))
+                     switches=[fit_text(run.stdout()).count(SWITCH) for run in fits + [one]]))
     return out
 
 
@@ -1627,7 +1633,7 @@ def continuations(r, c, label, box, args, files):
         values[name] = {"exit_code": run.code, "first_lnl": -got[0] if got else None,
                         "accepted_score": (end or {}).get("accepted_score"), "bounds": (end or {}).get("bounds"),
                         "fits": (end or {}).get("fits"), "falls": len(FALL.findall(run.stdout())),
-                        "switches": run.stdout().count(SWITCH)}
+                        "switches": fit_text(run.stdout()).count(SWITCH)}
     return [check(f"{label}: Level 1 continuations from the default-box fit (report; PLAN.md risk 22)", None,
                   **values)]
 

@@ -628,11 +628,14 @@ later from the same frozen binary with run 8 rerun in each repeat to supply its 
   - Diagnostic at the one-alignment, `-S` and `-q` Level 1 exports: the gradient against the
     oracle's central differences; the statistic, coordinate and label recomputed by the oracle's
     `first_order_test` from the C++ gradient; the label against the oracle's own. The no-fit export
-    at the LG start (the `root` case's run) is "unclassified", the oracle's label checked first.
+    at the LG start (a run of its own, with the `root` case's command) is "unclassified", the
+    oracle's label checked first.
     If no export is "first-order stationary", that is reported, and S5 revisits a positive
     control (Peter, 2026-10-26).
   - Restore: an `--undo` rerun of `fit-level1`'s copied checkpoint writes a byte-identical
-    `.qmat` and the same `.info` apart from `command`; the S4 binary and the S3c binary give
+    `.qmat` and the same `.info` apart from `command`, with `export_lnl`, `stop_statistic` and
+    `stop_gradient` allowed to differ within decision 021's lnL and same-rule lines (the restored
+    tree is read back from the checkpoint); the S4 binary and the S3c binary give
     identical outputs on `fit-level1`, `linked-fit-s-level1` and a one-alignment Level 1 run with
     `-z`, the only likelihood computed after `reportRun`; a `-b 2` Level 1 run on the short data
     exits 0 with its export.

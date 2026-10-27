@@ -55,7 +55,24 @@ static string integers(const std::vector<int> &v) {
 
 /** a score, or "unknown" for NaN, which marks a score an older checkpoint did not hold */
 static string score17(double v) {
-    return std::isnan(v) ? "unknown" : number17(v);
+    // saveCheckpoint writes only finite scores
+    return std::isfinite(v) ? number17(v) : "unknown";
+}
+
+/** text on one line, each run of whitespace one space: a target defined over several lines of an
+    --mdef file keeps its line breaks */
+static string oneLine(const string &text) {
+    string s;
+    for (char c : text) {
+        bool space = isspace((unsigned char)c);
+        if (!space)
+            s += c;
+        else if (!s.empty() && s.back() != ' ')
+            s += ' ';
+    }
+    if (!s.empty() && s.back() == ' ')
+        s.pop_back();
+    return s;
 }
 
 bool ModelNonrevFixedEq::isName(const string &model_name) {
@@ -628,10 +645,14 @@ void ModelNonrevFixedEq::reportRun(IQTree &tree, ostream &out) {
                 objects.push_back(dynamic_cast<ModelNonrevFixedEq*>(part_model));
         }
         // PartitionModel::targetFunk evaluates the partitions whose model has the name of its model
-        // member, a placeholder outside optimizeLinkedModels, which sets it as here
+        // member, a placeholder outside optimizeLinkedModels, which sets it as here. A linked model
+        // stays fixed between its fits; it is reported unfixed, as PartitionModel saves and
+        // reportPhyloAnalysis prints it, so that the export record matches its checkpoint.
         ModelSubst *saved_model = partition_model->model;
         partition_model->model = model;
+        bool fixed = model->fixParameters(false);
         model->exportRun(tree, *partition_model, objects, (int)objects.size(), out);
+        model->fixParameters(fixed);
         partition_model->model = saved_model;
     }
 }
@@ -788,7 +809,7 @@ void ModelNonrevFixedEq::writeExportInfo(const string &file, int linked_partitio
         out << "# NQC export record of " << qmat_file << " (decisions 009 and 010)" << '\n'
             << "model: " << NAME << '\n'
             << "state_order: " << STATES << '\n'
-            << "target_as_given: " << target_text << '\n'
+            << "target_as_given: " << oneLine(target_text) << '\n'
             << "target_sum: " << number17(target_raw_sum) << '\n'
             << "target: " << numbers17(state_freq, num_states) << '\n'
             << "chart: " << CHART << '\n'
@@ -799,7 +820,7 @@ void ModelNonrevFixedEq::writeExportInfo(const string &file, int linked_partitio
             << "derivative: " << DERIVATIVE << '\n'
             << "start: " << start_text << '\n'
             << "random_seed: " << Params::getInstance().ran_seed << '\n'
-            << "command: " << command << '\n'
+            << "command: " << oneLine(command) << '\n'
             << "linked_partitions: " << linked_partitions << '\n'
             << "fixed: " << (fixed_parameters ? "true" : "false") << '\n'
             << "fits: " << fits << '\n'
