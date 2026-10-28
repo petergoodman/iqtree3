@@ -266,6 +266,14 @@ Peter relays these if and when he chooses; no agent contacts the maintainers (`C
     source alignment never set (UndefinedBehaviorSanitizer: "load of value 3200171710, which is not
     a valid value for type 'SamplingType'", reported once per run). Reproduced on the unmodified
     sanitizer binary with `-m LG -b 2`; its effect on results was not investigated.
+11. Upstream finding, 2026-10-28, unmodified binary: `--runs` with `-S` crashes. On the
+    two-partition data with `NONREV -te -blfix --runs 2` both runs finish and the crash comes as
+    the best run is restored; a backtrace of the same crash with NQC shows
+    `PhyloSuperTreeUnlinked::printResultTree`, called by `runMultipleTreeReconstruction`. On turtle
+    with `LG+G4 --runs 2` and a tree search it comes in run 1's parsimony start tree
+    (`PhyloTree::computeParsimonyTree`). By reading, not verified: `runMultipleTreeReconstruction`
+    builds each run's tree as a `PhyloSuperTreePlen` for every partition type but `-p`, `-S`
+    included.
 
 ## Current state
 
@@ -299,13 +307,18 @@ the first release candidate. S3 ran as three slices (the approved plan is frozen
   run's cost is set by its first fit and its round count.
 - **Continuous integration:** Actions is back on since 2026-10-22. Upstream's Build workflow is
   switched off on the fork's Actions page (`ci.yaml` unchanged), so the fork no longer checks the
-  macOS, Windows or ARM builds. fixedeq's first run (39817703469, `76dd4301`) passed all jobs.
+  macOS, Windows or ARM builds. fixedeq's first run (39817703469, `76dd4301`) passed all jobs, as
+  did the run on S4 and its audit (40550150265, `548dad20`).
 
 ## Next step
 
-1. The non-NQC output change found by the audit of S4's close (`CHANGELOG.md`, 2026-10-27, second
-   session): `reportRun` builds the partition order before it finds an NQC model (constraint 4).
-   Peter chooses the remedy before S5 starts.
+1. NQC with `--runs` crashes in its export diagnostic, under one alignment, `-p`, `-q` and `-Q`
+   (`CHANGELOG.md`, 2026-10-28): `runMultipleTreeReconstruction` restores the best run into a tree
+   whose likelihood kernel it never sets (NONREV's `-Q --runs 2` run on the unmodified binary
+   finishes). The `.NQC.qmat` is written; the `.NQC.info` and the reports are not. Peter chooses
+   the remedy before S5 starts:
+   refuse `--runs` with NQC's other unsupported options, or set the kernel before the diagnostic,
+   in NQC's file and NQC runs only.
 2. Plan and implement S5 in a new session, started in plan mode with this prompt:
 
    > Plan and implement S5, the independent reference of gate G4 as reduced by D01. Read the

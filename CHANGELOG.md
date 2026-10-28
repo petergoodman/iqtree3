@@ -8,6 +8,20 @@ gate record and may run to 25 lines. The next session starts from the top entry.
 This is a fork of `iqtree/iqtree3`. Entries here describe work on the fork, not upstream
 development.
 
+## 2026-10-28: `reportRun` fixed for runs without NQC; NQC crashes under `--runs`
+
+- **Fixed** (`807b2306`): `reportRun` builds the partition order only once it finds an NQC model.
+  Before (turtle `LG+G4 -v`, four partition modes, with and without `--runs 2`) only `-Q --runs 2`
+  differed: one extra order block from S4's binary; trees and reports equal to v3.1.4's.
+- **Verified** at `807b2306` (`~/iqtree3-runs/reportrun-fix/20261028-verify-807b2306/`, binary
+  `22f736c0`): all eight runs equal v3.1.4's; regression 12 of 12; `linked-short,linked-export` 50
+  asserted passed, none failed, outputs and exports equal to S4's binary's.
+- **Found, not fixed:** NQC with `--runs` crashes in its export diagnostic (one alignment, `-p`,
+  `-q`, `-Q`; S4's binary too): upstream leaves the restored tree without a likelihood kernel.
+  `.qmat` is written, `.info` and reports are not. `-S --runs` crashes earlier in upstream code
+  for every model (maintainer question 11). Commands and backtraces: this commit's message.
+- **Next.** Peter chooses the `--runs` remedy (PLAN.md next step 1); then S5.
+
 ## 2026-10-27 (second session): S4 close audited; one record and the driver's default fixed
 
 - **Audit** of the S4 close against the gate's outputs and git: every number in the S4 entry
