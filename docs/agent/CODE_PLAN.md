@@ -302,7 +302,9 @@ per NQC model at default verbosity:
 - for a linked model (S3b), one block per linked model, from its representative and with the
   number of partitions, not one per partition object.
 
-It is called once per analysis from the top of `reportPhyloAnalysis` (section 1.2). With `-b 1`
+It is called once per analysis from the top of `reportPhyloAnalysis` (section 1.2). In a run
+without an NQC model it only reads and returns; for a partitioned run it builds the partition
+order only after finding an NQC model, since at `-v` building the order prints it. With `-b 1`
 IQ-TREE reports only the single replicate, since `-b 1` turns off the original-alignment analysis
 (caller 4678, section 5); with `-b N` it reports the original once (caller 4738). A run that
 stops at the linked `ASSERT` never reaches it; for that case the fall line printed before the
@@ -502,9 +504,10 @@ five times to measure their spread:
 Compared per run: every section of the `.iqtree` report except the opening header, "ALISIM
 COMMAND" and "TIME STAMP", which hold paths, the build date and clock times; the tree file; and
 the exit code. These contain the log-likelihood, the number of free parameters, the tree length
-and the Q block. Wall time is recorded, not compared. An item identical in every baseline repeat
-must reproduce exactly; one whose repeats differ only in their numbers is held to the observed
-spread; one whose text differs otherwise cannot be compared. Run 11 is judged by decision 018
+and the Q block. Wall time is recorded, not compared. The runs use default verbosity and no
+`--runs`, so the baseline cannot show output printed only at `-v` or under `--runs`. An item
+identical in every baseline repeat must reproduce exactly; one whose repeats differ only in their
+numbers is held to the observed spread; one whose text differs otherwise cannot be compared. Run 11 is judged by decision 018
 instead; the driver applies that rule when comparing, so the stored baseline keeps run 11's items
 as recorded. The driver is `test_scripts/fixedeq/regression/regress.py`. The baseline of runs 1 to
 11 and its provenance are in `test_scripts/fixedeq/regression/baseline/`; run 12's, recorded

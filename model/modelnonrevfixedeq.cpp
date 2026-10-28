@@ -632,12 +632,14 @@ void ModelNonrevFixedEq::reportRun(IQTree &tree, ostream &out) {
     if (!partition_model)
         return;
     PhyloSuperTree &super_tree = (PhyloSuperTree&)tree;
-    if (super_tree.part_order.empty())
-        super_tree.computePartitionOrder();
     for (auto &linked : partition_model->linked_models) {
         ModelNonrevFixedEq *model = dynamic_cast<ModelNonrevFixedEq*>(linked.second);
         if (!model)
             continue;
+        // built only once an NQC model is found, since at -v building the order prints it, and a
+        // run without NQC must print nothing new (PLAN.md constraint 4)
+        if (super_tree.part_order.empty())
+            super_tree.computePartitionOrder();
         std::vector<ModelNonrevFixedEq*> objects;
         for (int j = 0; j < (int)super_tree.size(); j++) {
             ModelSubst *part_model = super_tree.at(super_tree.part_order[j])->getModel();
