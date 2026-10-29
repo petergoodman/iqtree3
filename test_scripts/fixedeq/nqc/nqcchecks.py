@@ -11,7 +11,8 @@ Cases:
   gradient  the first gradient against the oracle, by the same rule and against a central
             reference, at the LG seed and at a start near zero (decision 021)
   target    targets refused for their sum and for an entry below the minimum
-  refusals  every combination decision 008 refuses
+  refusals  every combination decision 008 refuses, and --runs 1 accepted with the outputs of the
+            same Level 1 fit without it
   fits      Level 1 and Level 2 fits on aa_example, +I+G4 and free +R4 included, and the domain
             option
   nesting   NQC seeded at a fitted GTR20+F{pi*}+G4 in a widened domain (decision 025)
@@ -39,7 +40,8 @@ S3b's linked cases (CODE_PLAN.md section 3.5, "Linked fits" and after), on nqc/t
                    --link-model (-S); Level 2 under -S and -p with +G4, +I+G4 and free +R4; at every
                    numbered checkpoint pi*, coordinates, references and residuals in every struct
   linked-refusals  --link-model with another target and with the target at 8 decimals, refused at
-                   the first linked fit; a charset without a model and no -m; a charset with +H4
+                   the first linked fit; a charset without a model and no -m; a charset with +H4;
+                   --model-joint with --runs 2 under -p, -q, -Q and -S
   permuted         twopart -S Level 1 with the charsets reversed, bitwise; turtle at the seed under -p
                    and -S with the charsets (and -S trees) reversed, by decision 038's lines
   threads          turtle at the seed, -p at -T 4 and -S at -T 3, 10 runs each against -T 1 (decision
@@ -416,7 +418,7 @@ def case_target(r, c):
     return out
 
 
-def case_refusals(r, c):
+def case_refusals(r, c, ctx):
     t = c.target_text
     two = c.t02.strip() + "\n" + c.t02.strip() + "\n"
     named = c.named_files()
@@ -467,12 +469,37 @@ def case_refusals(r, c):
         message = nqc_error(run)
         out.append(check(f"refused: {name}", run.code not in (0, "timeout") and message is not None,
                          exit_code=run.code, message=message))
+    # --runs above 1 (decision 008), from the first run and from the first bootstrap replicate
+    for name, extra in (("runs", ["--runs", "2"]), ("runs-bootstrap", ["-b", "2", "--runs", "2"])):
+        out.append(runs_refused(name, r.run(f"refuse-{name}", aa + ["-m", c.model] + extra, tree)))
+    # --runs 1 takes the ordinary path, so the Level 1 fit with it equals the one without it
+    base = level1(r, c, ctx)
+    one = r.run("runs-one", level1_args(c.model) + ["--runs", "1"], {"input.tree": c.t02})
+    a, b = export_files(base), export_files(one)
+    items = [run.extract()["items"] for run in (base, one)]
+    differ = sorted(k for k in set(items[0]) | set(items[1]) if items[0].get(k) != items[1].get(k))
+    info_differ = sorted(k for k in set(a[1]) | set(b[1]) if a[1].get(k) != b[1].get(k) and k != "command") \
+        if a and b else None
+    ok = (a is not None and b is not None and info_differ == [] and not differ and
+          one.file(".NQC.qmat").read_bytes() == base.file(".NQC.qmat").read_bytes() and
+          nqc_checkpoint(one) == nqc_checkpoint(base))
+    out.append(check("--runs 1: accepted, with outputs identical to the same Level 1 fit without it", ok,
+                     exit_codes=[base.code, one.code], differing=differ, info_differing=info_differ))
     return out
 
 
 def nqc_error(run):
     """The first error line that names NQC, or None."""
     return next((l for l in run.stdout().splitlines() if "NQC" in l and "ERROR" in l), None)
+
+
+def runs_refused(label, run):
+    """A --runs refusal names its reason and comes before the export, where --runs used to crash."""
+    message = nqc_error(run)
+    return check(f"refused: {label}, naming --runs, with no export",
+                 run.code not in (0, "timeout") and message is not None and "--runs" in message and
+                 not run.file(".NQC.qmat").exists(), exit_code=run.code, message=message, wall_s=run.wall,
+                 runs_started=run.stdout().count("START RUN NUMBER"))
 
 
 START_LNL = re.compile(r"Init pinv, alpha: \S+ \S+ / Estimate: \S+ \S+ / LogL: (\S+)")
@@ -1434,6 +1461,13 @@ def case_linked_refusals(r, c, ctx, alisim):
         out.append(check(f"refused: --link-model with {name}, for {why}",
                          run.code not in (0, "timeout") and message is not None and why in message,
                          exit_code=run.code, message=message))
+    # --runs above 1 under every partition type (decision 008); -Q crashed at the export before
+    for mode in ("-p", "-q", "-Q", "-S"):
+        # slug would name -Q's directory as -q's
+        name = "linked-refuse-runs" + ("-edge-unlinked" if mode == "-Q" else slug(mode))
+        run = r.run(name, joint_args(tp.phy, mode, tp.nex, c.model, f"+G4{{{ALPHA}}}", tree_name(mode), "-blfix",
+                                     "--runs", "2"), tp.files(mode))
+        out.append(runs_refused(f"--model-joint {mode} --runs 2", run))
     return out
 
 
@@ -1860,7 +1894,7 @@ def main():
             elif key == "target":
                 results[key] = case_target(r, c)
             elif key == "refusals":
-                results[key] = case_refusals(r, c)
+                results[key] = case_refusals(r, c, ctx)
             elif key == "fits":
                 results[key] = case_fits(r, c, ctx)
             elif key == "nesting":

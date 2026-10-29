@@ -174,6 +174,10 @@ void ModelNonrevFixedEq::refuseUnsupported(const string &model_params, StateFreq
     // cached transition matrices, keyed by branch length, would outlive a change of Q
     else if (params.store_trans_matrix)
         why = "is not supported with -mstore";
+    // --runs restores the best run into a tree that cannot compute a likelihood, which the
+    // export's diagnostic needs
+    else if (params.num_runs > 1)
+        why = "is not supported with --runs; for independent runs, run IQ-TREE once per -seed";
     if (why)
         outError(string("NQC ") + why);
 }

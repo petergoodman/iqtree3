@@ -243,18 +243,18 @@ box of the records made in it; [log 1e-6, log 1e6], NONREV's ratio range; [log 1
 
 ### 008. Refuse every combination the first release does not support
 
-**Rule.** NQC stops with a message for every input outside the first release, listed in
-`CODE_PLAN.md` section 2.2, "Refusals": non-protein data, untargeted `+F`, `-optfromgiven`,
-`-jointopt`, mixtures, tree mixtures and HMM, GHOST `+H` (a partition's string included),
-site-specific frequencies, `--link-exchange-rates`, `--eigen`, ModelFinder in any form (detected at
-run time), AliSim, unlinked partitions, `-mstore`.
+**Rule.** NQC stops with a message for every input outside the first release (`CODE_PLAN.md` section
+2.2, "Refusals"): non-protein data, untargeted `+F`, `-optfromgiven`, `-jointopt`, mixtures, tree
+mixtures and HMM, GHOST `+H`, site-specific frequencies, `--link-exchange-rates`, `--eigen`,
+ModelFinder in any form, AliSim, unlinked partitions, `-mstore`, `--runs` above 1.
 **Why.** Each path bypasses the invariants or is undesigned: `-optfromgiven` releases the
 equilibrium in the base decomposition (015), `-jointopt` clamps coordinates with rate bounds, an
-`--mdef` mixture never shows "MIX", and the export's probes would reuse `-mstore`'s cached
-matrices (009). Peter chose refusing unlinked partitions over testing them (2026-10-22).
+`--mdef` mixture never shows "MIX", the export's probes would reuse `-mstore`'s cached matrices
+(009) and fail on the tree `--runs` restores. Peter chose refusal over testing unlinked partitions
+(2026-10-22) and over readying that tree (2026-10-28).
 **Not chosen.** Allowing them silently; supporting them now; detecting mixtures from the string.
-**Since** 2026-09-23; revised 2026-10-20 (032; 034 items 2, 4, 5), 2026-10-22 (S3 plan), 2026-10-23
-(`--model-joint`, `--link-model` allowed) and 2026-10-26 (`-mstore`).
+**Since** 2026-09-23; revised 2026-10-20 (032; 034 items 2, 4, 5), 2026-10-22, 2026-10-23
+(`--model-joint`, `--link-model` allowed), 2026-10-26 (`-mstore`) and 2026-10-28 (`--runs`).
 
 ### 009. Check every fit afterwards, report a fall below the start, restore nothing
 

@@ -202,6 +202,11 @@ Refusals (decision 008; this is the full list):
 - `-mstore` (from S4): from the end of each model optimization `ModelFactory` serves transition
   matrices from a cache keyed by branch length, which the export's probes would reuse, and which
   linked fits may reuse after each partition's own update (not verified; maintainer question 9);
+- `--runs` above 1 (from 2026-10-28): `runMultipleTreeReconstruction` restores the best run into
+  a tree whose likelihood kernel it never sets, and the export's diagnostic computes likelihoods
+  there (S4's binary crashed). The model is first built in run 1, after its starting tree and
+  before any fit; under `-S` with a tree search, upstream's crash in that starting tree comes
+  first (PLAN.md maintainer question 11);
 - in `initMixture`, any mixture component.
 
 IQ-TREE's parser rewrites `+FO{...}` and `+FU{...}` to `+F{...}` for every model (verified,
@@ -593,6 +598,11 @@ later from the same frozen binary with run 8 rerun in each repeat to supply its 
   - Refused: `--link-model` with charsets at two targets, or at the same target written to 8
     decimals, at the first linked fit; a charset without a model and no `-m` (ModelFinder runs;
     with `--model-joint` it would not); a charset `NQC+F{...}+H4`.
+- `--runs` (from 2026-10-28): `--runs 2` refused, with no `.NQC.qmat` written, on aa_example
+  (also with `-b 2`, refused at the first replicate) and on the two-partition data with
+  `--model-joint -te -blfix` under `-p`, `-q`, `-Q` and `-S`. The Level 1 fit with `--runs 1`
+  has the same `.qmat` bytes, `.info` apart from its command, report sections, tree file and
+  checkpoint keys as without it.
 - Determinism (decision 038), on turtle: the linked log-likelihood at the seed and the first
   gradient at `-T 1` against `-p` at `-T 4` and `-S` at `-T 3`, 10 runs of each, within decision
   021's lines, never bitwise. Under `-p`, `SuperAlignment(Params&)` caps the threads at the sum
@@ -777,7 +787,8 @@ read it only where these lists are unclear.
     - a refusal, asserted as a non-zero exit with an "NQC" error line; a restart refusal also
       needs the restore's own error ("the checkpoint was written with a different"), the only
       sign that the restore refused it (S3a); from S3b the linked refusals name their reason too
-      ("linked partitions must share one model", "ModelFinder", "heterotachy");
+      ("linked partitions must share one model", "ModelFinder", "heterotachy"), as do the
+      `--runs` refusals from 2026-10-28 ("--runs");
     - the free-parameter count, read from the report;
     - the `+I+G` restore check: the restored model scores as the best start, from the printed
       start scores at IQ-TREE's 3 decimals (S2's `restore_check`, missing from this list until
