@@ -312,20 +312,13 @@ the first release candidate. S3 ran as three slices (the approved plan is frozen
 
 ## Next step
 
-1. NQC with `--runs` crashes in its export diagnostic, under one alignment, `-p`, `-q` and `-Q`
-   (`CHANGELOG.md`, 2026-10-28): `runMultipleTreeReconstruction` restores the best run into a tree
-   whose likelihood kernel it never sets (NONREV's `-Q --runs 2` run on the unmodified binary
-   finishes). The `.NQC.qmat` is written; the `.NQC.info` and the reports are not. Peter chooses
-   the remedy before S5 starts:
-   refuse `--runs` with NQC's other unsupported options, or set the kernel before the diagnostic,
-   in NQC's file and NQC runs only.
-2. Plan and implement S5 in a new session, started in plan mode with this prompt:
+Plan and implement S5 in a new session, started in plan mode with this prompt:
 
-   > Plan and implement S5, the independent reference of gate G4 as reduced by D01. Read the
-   > start-of-session files, then `CODE_PLAN.md` sections 3.1 and 4 (S5) and `DECISIONS.md`, D10,
-   > 009 and 021 in particular. S5's list in section 4 is an outline: plan it in full first,
-   > setting each test's pass line before the test is written (decision 021), and ask me where
-   > the records leave a choice, including the small real data set of risk 9. Use the keep-awake
-   > helper for any run longer than a few minutes (CLAUDE.md).
+> Plan and implement S5, the independent reference of gate G4 as reduced by D01. Read the
+> start-of-session files, then `CODE_PLAN.md` sections 3.1 and 4 (S5) and `DECISIONS.md`, D10,
+> 009 and 021 in particular. S5's list in section 4 is an outline: plan it in full first,
+> setting each test's pass line before the test is written (decision 021), and ask me where
+> the records leave a choice, including the small real data set of risk 9. Use the keep-awake
+> helper for any run longer than a few minutes (CLAUDE.md).
 
-   The working rules are in `CODE_PLAN.md` section 4, "Implementation".
+The working rules are in `CODE_PLAN.md` section 4, "Implementation".

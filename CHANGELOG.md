@@ -8,6 +8,19 @@ gate record and may run to 25 lines. The next session starts from the top entry.
 This is a fork of `iqtree/iqtree3`. Entries here describe work on the fork, not upstream
 development.
 
+## 2026-10-28 (second session): NQC refuses `--runs` above 1
+
+- **Changed** (`10fe190f`): NQC's constructor refuses `--runs` above 1 (decision 008), so such a
+  run stops in run 1 before any fit. No shared file changed.
+- **Verified** at `10fe190f` (`~/iqtree3-runs/runs-refusal/20261028-verify-10fe190f/`, binary
+  `91ea7d14`): every nqcchecks case, 329 asserted passed, none failed, 242 reported (78 min). The
+  six new refusals exit 2 in 0.1 s or less with no export; `--runs 1` equals the run without it;
+  the four Level 1 rows equal `22f736c0`'s outputs. Regression 12 of 12; the previous entry's five
+  crash commands are refused at once (exit 2, no export).
+- **Unchanged:** `-S --runs` with a tree search still crashes in upstream's parsimony start tree,
+  before NQC's model is built (maintainer question 11).
+- **Next.** S5 (PLAN.md, next step).
+
 ## 2026-10-28: `reportRun` fixed for runs without NQC; NQC crashes under `--runs`
 
 - **Fixed** (`807b2306`): `reportRun` builds the partition order only once it finds an NQC model.
