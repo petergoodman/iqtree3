@@ -31,6 +31,8 @@ static const char *const CHART = "jump-chain log-ratio";
 static const int CHART_VERSION = 1;
 static const char *const DERIVATIVE = "forward difference, step 1e-4 max(1 |x|), backward at the upper bound";
 static const char *const STATES = "ARNDCQEGHILKMFPSTWYV";
+/** decision 038's line for one -lnL evaluated twice at the same point */
+static const double RECHECK_LNL = 1e-8;
 
 static string number17(double v) {
     ostringstream ss;
@@ -743,7 +745,9 @@ ModelNonrevFixedEq::ExportDiagnostic ModelNonrevFixedEq::exportDiagnostic(
         // the .iqtree prints this matrix, and -z evaluates with it
         ASSERT(memcmp(objects[i]->rate_matrix, matrix.data(), sizeof(double) * matrix.size()) == 0);
     }
-    ASSERT(restored == d.f0);
+    // bitwise equal at one thread only: above it the non-reversible kernel adds its packets' sums in
+    // the order the threads finish them, so a second evaluation can differ by rounding
+    ASSERT(fabs(restored - d.f0) <= RECHECK_LNL * fabs(d.f0));
 
     if (fixedeq::firstOrderTest(x0, d.g, lower, upper, d.f0, fixedeq::FIRST_ORDER_GTOL, d.test) !=
         fixedeq::Status::ok) {

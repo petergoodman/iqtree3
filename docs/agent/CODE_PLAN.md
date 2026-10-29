@@ -338,8 +338,10 @@ S4 adds the export and the stop classification to `reportRun`, in this order (de
      central-reference step; g_k = (f⁺ − f⁻) / (h⁺ + h⁻), h± the probes' displacements. A probe
      that returns 1e30 is a failed probe.
    - After: targetFunk(x0), then the counters are put back, so `evaluations` counts fits only.
-     An `ASSERT` checks that this value equals f0 and that `rate_matrix` equals its earlier copy,
-     both bitwise: the `.iqtree` prints that matrix and `-z` reuses the model.
+     An `ASSERT` checks that `rate_matrix` equals its earlier copy bitwise (the `.iqtree` prints
+     that matrix and `-z` reuses the model) and that this value lies within decision 038's line of
+     f0. It is bitwise equal at one thread; at more, the non-reversible kernel adds its packets'
+     sums in the order threads finish them, so it can differ by rounding (2026-10-29).
    - 722 evaluations: 6 to 14 percent of a first linked fit's.
 4. **The label**, from `fixedeq::firstOrderTest` with gtol 1e-4, the gtol NQC's fits receive
    (`gradient_epsilon` defaults to 1e-4, and `TOL_RATE` is 1e-4). Per coordinate the usable part
@@ -648,10 +650,29 @@ later from the same frozen binary with run 8 rerun in each repeat to supply its 
   - Restore: an `--undo` rerun of `fit-level1`'s copied checkpoint writes a byte-identical
     `.qmat` and the same `.info` apart from `command`, with `export_lnl`, `stop_statistic` and
     `stop_gradient` allowed to differ within decision 021's lnL and same-rule lines (the restored
-    tree is read back from the checkpoint); the S4 binary and the S3c binary give
-    identical outputs on `fit-level1`, `linked-fit-s-level1` and a one-alignment Level 1 run with
-    `-z`, the only likelihood computed after `reportRun`; a `-b 2` Level 1 run on the short data
-    exits 0 with its export.
+    tree is read back from the checkpoint); a build and the previous build (at S4, the S3c
+    binary) give identical outputs on `fit-level1`, `linked-fit-s-level1`, the `-q` Level 1 fit and
+    a one-alignment Level 1 run with `-z`, the only likelihood computed after `reportRun`, export
+    files included from 2026-10-29 (`.qmat` bytes, `.info` apart from `command`); a `-b 2` Level 1
+    run on the short data exits 0 with its export.
+- Export at more threads (2026-10-29; decision 038), case `export-threads`, after `linked-export`
+  and reusing its fits:
+  - aa_example's no-fit export (the `export` case's command) at `-T 2`, `-T 4` and `-T 8`, 20, 100
+    and 20 runs, against the same command at `-T 1`; the fitted Level 1 export by `--undo` of its
+    copied checkpoint at `-T 4`, 10 runs; twopart's `-S` and `-q` Level 1 exports the same way. Each
+    `--undo` reference is a `-T 1` `--undo` of the same copy, so the checkpoint's read-back is common
+    to both sides. Asserted per configuration by decision 021's thread-export row; aborts counted.
+  - Premises, asserted first, a failure stopping for Peter: each `-T 1` reference exits 0 with its
+    export; under `-q` IQ-TREE's thread cap, computed from twopart's distinct columns per charset as
+    `SuperAlignment` does, is at least 4, so each of the two partitions runs on all four threads
+    (`PhyloSuperTree::setNumThreads`). `-S` has no cap.
+  - Five aa_example Level 2 `+G4` fits at `-T 4`: exit 0 with both export files asserted; scores,
+    labels, falls, `ASSERT` and "BUG" lines reported.
+  - Reported: the largest relative `export_lnl` deviation, the distinct `export_lnl` values among
+    same-`-T` runs (the rounding exercised), runs bitwise equal to the reference, CPU-to-wall ratios
+    and IQ-TREE's kernel line.
+  - 100 runs at `-T 4`: before the fix 2 of 5 aborted (95% interval 0.053 to 0.853), so the unfixed
+    build passes all 100 with probability about 0.004.
   - Reported: the citation; the "does not match" line, beside the oracle's max |π̂ − π*|; a
     `+F{π*}` re-import, whose root is π*/Σπ* through `getStateFrequency`; IQ-TREE's 3-decimal `-q`
     re-import; every export's label; export_lnl against the printed final score; the diagnostic's
@@ -684,7 +705,8 @@ later from the same frozen binary with run 8 rerun in each repeat to supply its 
 `test_scripts/fixedeq/sanitizer/sanitize.py` builds and runs it (decision 022), in a new
 directory for each slice (S0's `~/iqtree3-build-asan`, S2's `~/iqtree3-build-asan-s2`, then
 `-s3a` and `-s3b`; S3c built none, since its only C++ change was a default value and a help string,
-Peter, 2026-10-25; then `-s4`, whose short cases add the export checks and a `-b 2` run).
+Peter, 2026-10-25; then `-s4`, whose short cases add the export checks and a `-b 2` run; then
+`-thread-export` for the 2026-10-29 fix, S4's coverage plus three no-fit exports at `-T 4`).
 - **Build.** `-DCMAKE_BUILD_TYPE=Mem` (`-g -O1`) with clang 14;
   `-fsanitize=address,undefined -fno-omit-frame-pointer` in both `CMAKE_C_FLAGS` and
   `CMAKE_CXX_FLAGS`, and `-fsanitize=address,undefined` in `CMAKE_EXE_LINKER_FLAGS`; `-j 2`.
@@ -950,3 +972,4 @@ still at `63c330d9`: at HEAD, lines after 60 are offset by 1, after 164 by 4 and
 | `model/partitionmodel.cpp:842-868`; `model/modelfactory.h:224`; `main/main.cpp:2473, 2494-2500` | `optimizeLinkedModels` sets the public `model` member to the linked model, unfixes, fits, refixes and restores it; the `iqtree` checkpoint struct and its `command` record (added 2026-10-26) |
 | `utils/tools.cpp:3064, 7254`; `model/modelfactory.cpp:1582, 1756, 1800-1817` | `-mstore`, off by default; transition-matrix storing stopped at the start of each model optimization and started at its end; the cache keyed by branch length (added 2026-10-26) |
 | `alignment/alignment.cpp:4125`; `main/phyloanalysis.cpp:4598` | `createBootstrapAlignment` copies the source alignment's unset `pomo_sampling_method`; `runStandardBootstrap` calls it for each `-b` replicate (PLAN.md maintainer question 10; added 2026-10-27) |
+| `tree/phylokernelnonrev.h:1180, 1330`; `tree/phylokernelnew.h:3151-3160`; `tree/phylotreesse.cpp:43-49`; `alignment/superalignment.cpp:68-85`; `utils/tools.h:51-57` | the non-reversible tree likelihood adds packets' sums under `schedule(dynamic,1)` with a `reduction`, the reversible one stores them and adds them in packet order; 2 packets per thread above one thread; `-p` and `-q` cap the threads at the sum over partitions of max(1, patterns × states / `mf_thread_factor`, 4000); `ASSERT` calls `abort()` (PLAN.md maintainer question 12; added 2026-10-29) |

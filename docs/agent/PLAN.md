@@ -274,6 +274,13 @@ Peter relays these if and when he chooses; no agent contacts the maintainers (`C
     (`PhyloTree::computeParsimonyTree`). By reading, not verified: `runMultipleTreeReconstruction`
     builds each run's tree as a `PhyloSuperTreePlen` for every partition type but `-p`, `-S`
     included.
+12. Upstream observation, 2026-10-29 audit: at more than one thread the non-reversible tree
+    log-likelihood is not bitwise reproducible from one call to the next, for NONREV as for NQC.
+    `computeNonrevLikelihoodBranchSIMD` adds its packets' sums under `schedule(dynamic,1)` with an
+    OpenMP `reduction`, while the reversible kernel stores each packet's sum and adds them in packet
+    order. The differences are rounding (1.3e-16 relative at `-T 4`, decision 038), but a bitwise
+    recheck in NQC's export aborted 3 of 8 runs at `-T 4`; NQC now compares within decision 038's
+    line. Would the maintainers want the non-reversible kernel to add its packets in order?
 
 ## Current state
 

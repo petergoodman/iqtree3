@@ -383,7 +383,9 @@ files, not from the log, and IQ-TREE's printed final score is reported, not comp
 | Export against the checkpoint: `.qmat` π row, `.info` fields shared with its keys; an `--undo` run's `.qmat` | bitwise; identical strings; byte-identical | S4 |
 | Export diagnostic: statistic, coordinate and label against the oracle's `first_order_test` of the C++ gradient | identical | S4 |
 | Export diagnostic: label against the oracle's from its own gradient | equal, unless \|s − 1e-4\| ≤ max_k 2 × 1e-12 × \|f\| / (h⁺_k + h⁻_k) × max(\|x_k\|, 1) / max(\|f\|, 1), then reported | S4 |
-| NQC outputs of the S4 binary against the S3c binary, same commands at `-T 1`, same toolchain | identical: layer 4's report sections, tree files, NQC checkpoint keys | S4 |
+| NQC outputs of a build against the previous build (at S4, the S3c binary), same commands at `-T 1`, same toolchain | identical: layer 4's report sections, tree files, NQC checkpoint keys; from 2026-10-29 also `.qmat` bytes and `.info` apart from `command` | S4, 038 |
+| Export recheck in one run (the C++ `ASSERT`): rate matrix; −lnL at the restored point against f0 | bitwise; ≤ 1e-8 × \|lnL\| | 038 |
+| Export at more threads against `-T 1`, same command or same staged checkpoint: `.qmat`; `.info` apart from `command`, `export_lnl`, `stop_statistic`, `stop_gradient`; `export_lnl`; `stop_gradient`; `stop` | byte-identical; identical; ≤ 1e-8 × \|lnL\|; the same-rule line; equal, unless the reference's statistic lies within the band of the label row above, then reported | 038 |
 
 h_k is the step's displacement (`CODE_PLAN.md` section 2.1); for the export's central differences,
 h⁺_k + h⁻_k. S4 applies the compiled-Q row to the exported Q and the residual row to its file. The
@@ -392,7 +394,7 @@ max(1, |g_ref|), reported at a near-zero start; the oracle reports its central d
 **Why.** A line chosen after seeing results is not a test; each rests on a measurement or derivation
 in the archive (1e-10: the synthesis's goal, section 4.3; the κ-scaled Q line: two correct routes).
 **Since** 2026-10-04 (021), 2026-10-05 (026), 2026-10-20 (030, 034 item 7), 2026-10-22 (036's
-withdrawn claim, 038's thread row), 2026-10-26 (S4's export rows).
+withdrawn claim, 038's thread row), 2026-10-26 (S4's export rows), 2026-10-29 (038's export rows).
 
 ### 012. Test the pure module with googletest in a standalone CMake project
 
@@ -432,18 +434,18 @@ likelihood.
 
 ### 038. Compare thread counts at a fixed point, not after a fit
 
-**Rule.** NQC's linked log-likelihood at the seed and its first gradient are computed at `-T 1`
-and with more threads, under `-p` and `-S`, with at least as many partitions as threads so that
-partitions run concurrently (on turtle, `-p` at `-T 4`, which IQ-TREE caps there at one thread
-per partition, and `-S` at `-T 3`). Each multi-threaded case runs 10 times, held to 021's lines,
-not bitwise, with `-T 1` as reference. Fits at more than one thread are reported, not asserted.
-**Why.** On the unmodified binary (2026-10-22) evaluations at a fixed point were exact at `-T 1`
-and differed by at most 1.3e-16 relative at `-T 4`, while none of 18 joint NONREV fits at `-T 4`
-matched `-T 1` (spreads 0.27 to 0.66, Level 1 included): the optimizer amplifies the rounding. A
-thread-safety fault in NQC is expected to miss 021's lines by orders of magnitude.
-**Not chosen.** Fit equality; a tolerance from the fits' spread; no test; a ThreadSanitizer build,
-the fallback if this test fails.
-**Since** 2026-10-22, retiring PLAN.md risk 19 (measurements: `explore/thread_counts.py`).
+**Rule.** Above one thread NQC is held to 021's lines against `-T 1` at a fixed point, never
+bitwise, in repeated runs: the linked seed lnL and first gradient with one thread per partition
+(turtle, `-p` at `-T 4`, `-S` at `-T 3`), and exports where threads share one likelihood (one
+alignment; twopart's two partitions at `-T 4`). The export's recheck of −lnL holds to the lnL line,
+its matrix bitwise. Threaded runs must finish with their exports; fits' scores are reported.
+**Why.** The non-reversible kernel adds packets in thread order: at a fixed point evaluations were
+exact at `-T 1` and within 1.3e-16 relative at `-T 4` (2026-10-22), 18 joint NONREV fits at `-T 4`
+spread 0.27 to 0.66, and a bitwise export recheck aborted 3 of 8 runs at `-T 4` (2026-10-29 audit).
+**Not chosen.** Fit equality or a line from the fits' spread; no test; dropping the recheck; an
+in-order kernel sum (an upstream edit, maintainer question 12); bitwise at `-T 1` alone (two rules
+for one check); ThreadSanitizer, the fallback for a race, not for explained rounding.
+**Since** 2026-10-22, retiring risk 19 (`explore/thread_counts.py`); exports 2026-10-29 (Peter).
 
 ### 023. Use the turtle pooled composition as the S1 to S4 test target
 

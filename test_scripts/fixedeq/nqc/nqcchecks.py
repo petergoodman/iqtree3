@@ -3,7 +3,7 @@
 
   python nqcchecks.py --binary ~/iqtree3-build/iqtree3 --alisim ~/iqtree3-baseline/iqtree3 \
       --calibration CALIBRATION/results.json --older-run S2_GATE/nqc/fit-level1 \
-      --previous-binary ~/iqtree3-binaries/81729f4b/iqtree3 --out DIR [--cases root,seed,...] [--git git.exe]
+      --previous-binary ~/iqtree3-binaries/91ea7d14/iqtree3 --out DIR [--cases root,seed,...] [--git git.exe]
 
 Cases:
   root      a rooted input tree keeps its root and an unrooted one is rooted at the midpoint
@@ -28,8 +28,8 @@ Cases:
             (CODE_PLAN.md section 3.6; needs --alisim)
   export    S4 on aa_example's Level 1 fit: the export's files against the checkpoint and the
             oracle, the diagnostic against the oracle, re-import by this build and the frozen
-            v3.1.4 binary (--alisim), a no-fit export, --undo, and outputs against the S3c binary
-            (--previous-binary)
+            v3.1.4 binary (--alisim), a no-fit export, --undo, and outputs, export files included,
+            against the previous binary (--previous-binary)
 
 S3b's linked cases (CODE_PLAN.md section 3.5, "Linked fits" and after), on nqc/twopart.py's data
 (needs --alisim) unless they name turtle:
@@ -56,8 +56,12 @@ S3b's linked cases (CODE_PLAN.md section 3.5, "Linked fits" and after), on nqc/t
   linked-short     a Level 1 -S and a Level 2 -p +G4 fit on 150 sites of each twopart partition, with
                    their exports, cut down for the sanitizer build
   linked-export    S4 on the -S and -q Level 1 fits: files and diagnostic as for export, the -S
-                   re-import, the -q export through the oracle, outputs against the S3c binary, and
-                   the citation (report)
+                   re-import, the -q export through the oracle, outputs against the previous binary,
+                   and the citation (report)
+  export-threads   exports at more threads against -T 1 at a fixed point (decision 038): aa_example's
+                   no-fit export at -T 2, 4 and 8 (20, 100 and 20 runs), and --undo of the aa_example,
+                   twopart -S and twopart -q Level 1 fits at -T 4 (10 runs each), with their premises;
+                   5 aa_example Level 2 +G4 fits at -T 4, which must finish with their exports
 
 Every run has its own directory under DIR and uses -seed 1 and -T 1 unless a case says otherwise.
 Final states are read from the class's checkpoint keys; the seed Q and the first gradient from its
@@ -148,6 +152,11 @@ def same_rule_bound(lnl, h):
 
 def step_bound(lnl, h, curvature):
     return 2 * (np.abs(h) / 2 * np.abs(curvature) + 2 * TAU * abs(lnl) / np.abs(h))
+
+
+def beyond(value, line):
+    """True when value is not within line; a NaN is never within it, which value > line misses."""
+    return not (value <= line)
 
 
 # ---------------------------------------------------------------- reading a run
@@ -998,19 +1007,30 @@ def toolchain_changes(binary):
     return changes
 
 
+def same_exports(run, old):
+    """Whether two runs wrote the same .qmat bytes and the same .info apart from its command."""
+    a, b = export_files(run), export_files(old)
+    if a is None or b is None:
+        return False
+    return (run.file(".NQC.qmat").read_bytes() == old.file(".NQC.qmat").read_bytes() and
+            {k: v for k, v in a[1].items() if k != "command"} == {k: v for k, v in b[1].items() if k != "command"})
+
+
 def same_outputs(label, previous, run, args, files, changes):
-    """Decision 021's before-and-after row: the same command run by the S3c binary gives the same
-    report sections (layer 4's rules; REFERENCES left out under --model-joint, where S4 changes the
-    citation), tree file and NQC checkpoint keys."""
+    """Decision 021's before-and-after row: the same command run by the previous binary gives the
+    same report sections (layer 4's rules; REFERENCES left out under --model-joint, where S4 changed
+    the citation), tree file, NQC checkpoint keys and, from 2026-10-29, export files (decision 038)."""
     old = previous.run("previous-" + run.name, args, files)
     a, b = run.extract()["items"], old.extract()["items"]
     skip = {"REFERENCES"} if "--model-joint" in args else set()
     differ = sorted(k for k in set(a) | set(b) if k not in skip and a.get(k) != b.get(k))
     keys_equal = nqc_checkpoint(run) == nqc_checkpoint(old)
-    ok = run.code == 0 and old.code == 0 and not differ and keys_equal
-    return check(f"{label}: outputs identical to the S3c binary's (decision 021)" + (" (report: the toolchain "
-                 "changed since that build)" if changes else ""), None if changes else ok, exit_codes=[run.code, old.code],
-                 differing=differ, keys_equal=keys_equal, references_differ=a.get("REFERENCES") != b.get("REFERENCES"))
+    exports_equal = same_exports(run, old)
+    ok = run.code == 0 and old.code == 0 and not differ and keys_equal and exports_equal
+    return check(f"{label}: outputs identical to the previous binary's (decision 021)" + (" (report: the "
+                 "toolchain changed since that build)" if changes else ""), None if changes else ok,
+                 exit_codes=[run.code, old.code], differing=differ, keys_equal=keys_equal, exports_equal=exports_equal,
+                 references_differ=a.get("REFERENCES") != b.get("REFERENCES"))
 
 
 def level1_command(c):
@@ -1111,7 +1131,7 @@ TWOPART_COUNTS = {("-S", "seed"): 360, ("-p", "seed"): 384, ("-S", "Level 1"): 3
                   ("-S", "+G4"): 406, ("-S", "+I+G4"): 408, ("-S", "+R4"): 416,
                   ("-p", "+G4"): 386, ("-p", "+I+G4"): 388, ("-p", "+R4"): 396}
 LINKED_CASES = ("linked-seed", "linked-fits", "linked-refusals", "permuted", "linked-restart", "linked-short",
-                "linked-export")
+                "linked-export", "export-threads")
 
 
 def numbered_checkpoints(run):
@@ -1248,9 +1268,10 @@ def linked_invariants(label, run, c, partitions):
             bad["coordinates"].append(n)
         if any([int(v) for v in s["references"].split(",")] != ref for s in structs.values()):
             bad["references"].append(n)
-        res = max(float(np.max(floats(s["residuals"])[:3])) for s in structs.values())
-        worst = max(worst, res)
-        if res > RESIDUAL:
+        # np.max carries a NaN through, where the built-in max can drop it
+        res = float(np.max([np.max(floats(s["residuals"])[:3]) for s in structs.values()]))
+        worst = float(np.max([worst, res]))
+        if beyond(res, RESIDUAL):
             bad["residuals"].append(n)
     where = f"{judged} numbered checkpoints" if paths else "the final checkpoint"
     ok = judged > 0 and not bad["structs"]
@@ -1494,15 +1515,18 @@ def seed_against(label, reference, runs):
     got = [first_gradient(run.stdout()) if run.code == 0 else None for run in runs]
     same_point = [g is not None and np.array_equal(g[1], x1) and np.array_equal(g[2], h1) for g in got]
     usable = [g for g, ok in zip(got, same_point) if ok]
-    complete = len(usable) == len(runs)
-    lnl_rel = [abs(g[0] - f1) / abs(f1) for g in usable]
-    ratio = [float(np.max(np.abs(g[3] - g1) / same_rule_bound(f1, h1))) for g in usable]
+    complete = len(usable) == len(runs) > 0
+    # np.max carries a NaN through, where the built-in max keeps the first value unless a later one is larger
+    lnl_rel = np.array([abs(g[0] - f1) / abs(f1) for g in usable])
+    ratio = np.array([np.max(np.abs(g[3] - g1) / same_rule_bound(f1, h1)) for g in usable])
+    largest = float(np.max(lnl_rel)) if usable else None
+    worst = float(np.max(ratio)) if usable else None
     return [
         check(f"{label}: -lnL within 1e-8 |lnL| of the reference (decision 038)",
-              complete and max(lnl_rel) <= TOL_LNL, runs=len(runs), at_the_same_point=len(usable),
-              largest_relative=max(lnl_rel, default=None)),
+              complete and not beyond(largest, TOL_LNL), runs=len(runs), at_the_same_point=len(usable),
+              largest_relative=largest),
         check(f"{label}: first gradient within 2e-12 |lnL| / |h| of the reference (decision 038)",
-              complete and max(ratio) <= 1, worst=max(ratio, default=None)),
+              complete and not beyond(worst, 1), worst=worst),
         check(f"{label}: runs bitwise equal to the reference (report)", None,
               lnl=sum(g[0] == f1 for g in usable), gradient=sum(bool(np.array_equal(g[3], g1)) for g in usable)),
     ]
@@ -1793,6 +1817,138 @@ def case_linked_export(r, c, ctx, alisim, previous, changes):
     return out
 
 
+# ---------------------------------------------------------------- exports at more threads (decision 038)
+
+# (threads, runs) of the no-fit export: before the fix 2 of 5 aborted at -T 4 (95% interval 0.053 to
+# 0.853), so the unfixed build passes 100 runs with probability about 0.004 (CODE_PLAN.md section 3.5)
+NOFIT_THREADS = ((2, 20), (4, 100), (8, 20))
+UNDO_THREADS, UNDO_RUNS = 4, 10
+FITS_THREADED = 5
+DIAGNOSTIC_FIELDS = ("export_lnl", "stop_statistic", "stop_gradient")
+KERNEL = re.compile(r"^Kernel: .*$", re.M)
+
+
+def aborted(run):
+    """An ASSERT: abort() ends IQ-TREE with SIGABRT, which subprocess reports as -6."""
+    return run.code == -6 or "Assertion" in run.stdout()
+
+
+def export_span(z):
+    """h+ + h-, the displacements of the export's central differences at coordinates z (decision 009)."""
+    return np.array([((x + h) - x) + (x - (x - h)) for x in z for h in [chart.FIRST_ORDER_ETA * max(1.0, abs(x))]])
+
+
+def fixed_point_against(label, reference, runs):
+    """Decision 021's thread-export rows (decision 038): runs at more threads against the same command
+    or the same staged checkpoint at -T 1. A run that aborted or wrote no export, or a NaN, fails."""
+    ref = export_files(reference)
+    if ref is None:
+        return [check(f"{label}: the -T 1 reference finishes with its export (the test's premise; stop for Peter)",
+                      False, exit_code=reference.code)]
+    info = ref[1]
+    ref_qmat = reference.file(".NQC.qmat").read_bytes()
+    f = -float(info["export_lnl"])
+    z, g = floats(info["coordinates"]), floats(info["stop_gradient"])
+    line = same_rule_bound(f, export_span(z))
+    band = float(np.max(line * np.maximum(np.abs(z), 1.0) / max(abs(f), 1.0)))
+    near = abs(float(info["stop_statistic"]) - chart.FIRST_ORDER_GTOL) <= band
+    # within the rounding band the label, and so its reason, may differ; the label row reports it
+    kept = set(info) - {"command", *DIAGNOSTIC_FIELDS} - ({"stop", "stop_reason"} if near else set())
+    done = [export_files(run) for run in runs]
+    got = [d[1] for d in done if d is not None]
+    finished = len(got) == len(runs) > 0
+    # np.max carries a NaN through, so a NaN anywhere fails the line
+    lnl_rel = np.array([abs(-float(i["export_lnl"]) - f) / abs(f) for i in got])
+    g_ratio = np.array([np.max(np.abs(floats(i["stop_gradient"]) - g) / line) for i in got])
+    largest = float(np.max(lnl_rel)) if got else None
+    worst = float(np.max(g_ratio)) if got else None
+    labels = [i["stop"] for i in got]
+    return [
+        check(f"{label}: every run finishes with both export files (decision 038)", finished,
+              runs=len(runs), finished=len(got), aborted=sum(aborted(run) for run in runs),
+              exit_codes=sorted({str(run.code) for run in runs})),
+        check(f"{label}: .qmat byte-identical to the -T 1 reference's (decision 021)",
+              finished and all(run.file(".NQC.qmat").read_bytes() == ref_qmat for run in runs)),
+        check(f"{label}: .info as the reference's apart from the command and the diagnostic (decision 021)",
+              finished and all({k: i.get(k) for k in kept} == {k: info[k] for k in kept} and set(i) == set(info)
+                               for i in got)),
+        check(f"{label}: export_lnl within 1e-8 |lnL| of the reference's (decision 038)",
+              finished and not beyond(largest, TOL_LNL), largest_relative=largest),
+        check(f"{label}: stop_gradient within the same-rule line of the reference's (decision 021)",
+              finished and not beyond(worst, 1), worst=worst),
+        check(f"{label}: stop label equal to the reference's" + (" (report: within the rounding band)" if near else ""),
+              None if near else finished and all(l == info["stop"] for l in labels), reference=info["stop"],
+              labels=sorted(set(labels)), statistic=info["stop_statistic"], band=band),
+        check(f"{label}: rounding exercised (report)", None,
+              distinct_export_lnl=len({i["export_lnl"] for i in got}),
+              bitwise_equal_to_reference=sum(i["export_lnl"] == info["export_lnl"] for i in got),
+              cpu_wall=[cpu_wall(run) for run in runs[:5]],
+              kernel=(KERNEL.search(runs[0].stdout()) or [None])[0] if runs else None),
+    ]
+
+
+def undo_against(r, label, name, args, files):
+    """--undo of a finished run's copied checkpoint at -T 1 and at more threads: one fixed point."""
+    ref = r.run(f"{name}-t1", args + ["--undo"], files)
+    runs = [r.run(f"{name}-t{UNDO_THREADS}-{k}", args + ["--undo"], files, UNDO_THREADS)
+            for k in range(1, UNDO_RUNS + 1)]
+    return fixed_point_against(f"{label} --undo, -T {UNDO_THREADS} x {UNDO_RUNS}", ref, runs)
+
+
+def thread_cap(tp):
+    """IQ-TREE's thread cap under -p and -q (SuperAlignment's constructor): the sum over partitions of
+    max(1, distinct patterns x 20 // mf_thread_factor), whose default is 4000. Returns the cap and the
+    patterns per partition."""
+    patterns = [len(set(zip(*part_alignment(tp.aln, sites).values()))) for sites in tp.charsets.values()]
+    return sum(max(1, n * 20 // 4000) for n in patterns), patterns
+
+
+def case_export_threads(r, c, ctx, alisim):
+    """Decision 038 at export (CODE_PLAN.md section 3.5, "Export at more threads"): fixed points where
+    several threads share one likelihood, and threaded fits that must finish with their exports."""
+    out = []
+    nofit = ["-s", AA, "-m", c.model + f"+G4{{{ALPHA}}}", "-te", "input.tree", "-blfix", "-nparam", "2"]
+    files = {"input.tree": c.t02}
+    ref = r.run("threads-export-nofit-t1", nofit, files)
+    for threads, n in NOFIT_THREADS:
+        runs = [r.run(f"threads-export-nofit-t{threads}-{k}", nofit, files, threads) for k in range(1, n + 1)]
+        out += fixed_point_against(f"aa_example no-fit export, -T {threads} x {n}", ref, runs)
+
+    base = level1(r, c, ctx)
+    out += (failed_run(base) if base.code != 0 else
+            undo_against(r, "aa_example Level 1", "threads-export-level1", level1_args(c.model), staged(base.dir)))
+
+    # with fewer partitions than threads PhyloSuperTree::setNumThreads gives each partition every thread
+    tp = twopart_data(r, c, ctx, alisim)
+    cap, patterns = thread_cap(tp)
+    out.append(check(f"twopart: {len(tp.charsets)} partitions under {UNDO_THREADS} threads, and the -q thread cap "
+                     f"at least {UNDO_THREADS}, so each partition runs on every thread (the test's premise; stop "
+                     "for Peter)", len(tp.charsets) < UNDO_THREADS <= cap, cap=cap, patterns=patterns))
+    run = linked_level1(r, c, ctx, tp)
+    out += (failed_run(run) if run.code != 0 else
+            undo_against(r, "twopart -S Level 1", "threads-export-s-level1", run.args,
+                         staged(run.dir, (tree_name("-S"),))))
+    qrun, qargs, _, _ = linked_q_level1(r, c, ctx, tp)
+    if qrun is None:
+        out.append(check("twopart -q Level 1: the -p Level 2 +G4 fit's tree, shapes and partition rates", False))
+    else:
+        out += (failed_run(qrun) if qrun.code != 0 else
+                undo_against(r, "twopart -q Level 1", "threads-export-q-level1", qargs,
+                             staged(qrun.dir, ("parts.nex", "input.tree"))))
+
+    fits = [r.run(f"threads-export-level2-t{UNDO_THREADS}-{k}", level2_args(c.model, "+G4"), files, UNDO_THREADS)
+            for k in range(1, FITS_THREADED + 1)]
+    label = f"aa_example Level 2 +G4, -T {UNDO_THREADS} x {FITS_THREADED}"
+    out.append(check(f"{label}: every fit finishes with both export files (decision 038)",
+                     all(export_files(run) is not None for run in fits), exit_codes=[run.code for run in fits],
+                     aborted=sum(aborted(run) for run in fits)))
+    out.append(check(f"{label}: scores, labels and hard stops (report; decision 038)", None,
+                     states=[fit_state(run) for run in fits],
+                     labels=[(export_files(run) or [None, {}])[1].get("stop") for run in fits],
+                     hard_stops=[aborted(run) or BUG_ABORT in run.stdout() for run in fits]))
+    return out
+
+
 # ---------------------------------------------------------------- driver
 
 def provenance(a, binary, out):
@@ -1807,7 +1963,9 @@ def provenance(a, binary, out):
         "platform": platform.platform(),
         "settings": {"tol_lnl": TOL_LNL, "residual": RESIDUAL, "tau": TAU, "central_steps": CENTRAL_STEPS,
                      "alpha": ALPHA, "p_invar": PINV, "near_zero": NEAR_ZERO, "r4_given": R4_GIVEN, "wide": WIDE,
-                     "seed_runs": SEED_RUNS, "level2_threaded": LEVEL2_THREADED, "turtle_seed": TURTLE_SEED},
+                     "seed_runs": SEED_RUNS, "level2_threaded": LEVEL2_THREADED, "turtle_seed": TURTLE_SEED,
+                     "nofit_threads": NOFIT_THREADS, "undo_threads": UNDO_THREADS, "undo_runs": UNDO_RUNS,
+                     "fits_threaded": FITS_THREADED},
     }
 
 
@@ -1827,7 +1985,7 @@ def markdown(prov, results):
 
 CASES = ("root", "seed", "gradient", "target", "refusals", "fits", "nesting", "skewed", "restart", "risk22", "toy",
          "short", "linked-seed", "linked-fits", "linked-refusals", "permuted", "threads", "linked-restart",
-         "risk22-turtle", "warm-starts", "linked-short", "export", "linked-export")
+         "risk22-turtle", "warm-starts", "linked-short", "export", "linked-export", "export-threads")
 
 
 def main():
@@ -1836,7 +1994,8 @@ def main():
     ap.add_argument("--alisim", help="the frozen unmodified binary, which simulates the toy data")
     ap.add_argument("--calibration", help="results.json of explore/toy_calibration.py")
     ap.add_argument("--older-run", help="S2's gate run fit-level1, whose checkpoint lacks S3a's keys")
-    ap.add_argument("--previous-binary", help="the S3c binary, for the export cases' before-and-after comparison")
+    ap.add_argument("--previous-binary", help="the previous build, which writes exports, for the export cases' "
+                    "before-and-after comparison")
     ap.add_argument("--out", required=True, help="new directory outside the repository")
     ap.add_argument("--cases", help="comma-separated, from " + ",".join(CASES) +
                     " (default: all)")
@@ -1931,6 +2090,8 @@ def main():
                 results[key] = case_export(r, c, ctx, frozen, prior, changes)
             elif key == "linked-export":
                 results[key] = case_linked_export(r, c, ctx, alisim, prior, changes)
+            elif key == "export-threads":
+                results[key] = case_export_threads(r, c, ctx, alisim)
         except Exception:  # a crash in one case is recorded, and the other cases still run
             results[key] = [check("case ran", False, exception=traceback.format_exc())]
         for row in results[key]:
