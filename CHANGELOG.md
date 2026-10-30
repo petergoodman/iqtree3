@@ -8,6 +8,19 @@ gate record and may run to 25 lines. The next session starts from the top entry.
 This is a fork of `iqtree/iqtree3`. Entries here describe work on the fork, not upstream
 development.
 
+## 2026-10-30: the release audit's lower-priority findings
+
+- **Changed.** `dff98bf1`, `a49fa1ae`: regression `compare` fails on a missing baseline run; runs
+  13 to 15 (NQC's mixture hooks, `-p --model-joint GTR20`) baselined. `743b6eab`: NQC refuses
+  `--lie-markov` (reversing 034 item 5) and a rate model in `--model-joint` (008); tighter driver
+  rows and case `options` (021); C1 to C4 record fixes; maintainer questions 13 to 15 (15 is A2).
+- **Gate** at `743b6eab` (`~/iqtree3-runs/audit-followup/20261030-gate-743b6eab/`, binary
+  `3db13f51`): pytest 265; unit tests 49 of 49 twice; nqcchecks 441 passed, none failed, Level 1
+  outputs equal to `db4e7aff`'s; regression 15 of 15; sanitizers only the two upstream findings.
+- **Failed.** The plan's A2 mechanism and its `-p` joint-rate claim were wrong, fixed before
+  commit; two no-op system Python runs (`python3 -c 1` in Windows, an empty heredoc in Debian).
+- **Next.** S5 (PLAN.md, next step).
+
 ## 2026-10-29: release audit; threaded export abort fixed (decision 038)
 
 - **Audit** of S0 to S4: one release blocker, NQC runs above one thread could abort at their end
