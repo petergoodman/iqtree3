@@ -519,7 +519,8 @@ instead; the driver applies that rule when comparing, so the stored baseline kee
 as recorded. The driver is `test_scripts/fixedeq/regression/regress.py`. The baseline of runs 1 to
 11 and its provenance are in `test_scripts/fixedeq/regression/baseline/`; run 12's, recorded
 later from the same frozen binary with run 8 rerun in each repeat to supply its inputs, is in
-`baseline/run12/`. A comparison reads both files (`compare --baseline` given once for each).
+`baseline/run12/`. A comparison reads both files (`compare --baseline` given once for each), and
+from 2026-10-29 fails on any baseline run missing from the new extract.
 
 ### 3.5 Layer 5: invariants and nesting
 

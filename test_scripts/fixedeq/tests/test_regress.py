@@ -157,3 +157,15 @@ def test_baselines_merge_but_a_run_in_two_is_refused(tmp_path):
     assert regress.load_baselines([tmp_path / "a.json", tmp_path / "b.json"]) == {"run11": {}, "run12": {}}
     with pytest.raises(SystemExit):
         regress.load_baselines([tmp_path / "b.json", tmp_path / "c.json"])
+
+
+def test_compare_fails_on_a_baseline_run_missing_from_the_extract(tmp_path, capsys):
+    base = baseline_of({"T": "a"}, {"T": "a"})
+    (tmp_path / "base.json").write_text(json.dumps({"runs": {"run01": base, "run02": base}}))
+    for names, code in [(["run01"], 1), (["run01", "run02"], 0)]:
+        (tmp_path / "new.json").write_text(json.dumps({"runs": {n: {"items": {"T": "a"}} for n in names}}))
+        args = regress.argparse.Namespace(baseline=[str(tmp_path / "base.json")], extract=str(tmp_path / "new.json"))
+        with pytest.raises(SystemExit) as stop:
+            regress.cmd_compare(args)
+        assert stop.value.code == code
+        assert ("run02: FAIL, missing from the new extract" in capsys.readouterr().out) == (code == 1)

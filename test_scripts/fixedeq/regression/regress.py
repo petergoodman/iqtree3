@@ -45,6 +45,12 @@ RUNS = {
     "run10": (RUN10, 1),
     "run11": (TURTLE + ["-p", NEX, "--model-joint", "NONREV"], 4),
     "run12": (RUN10, 4),
+    # the shared-file hooks no earlier run reaches: initMixture's +FMIX loop and its component branch, and
+    # reportReferences with a --model-joint model other than NONREV; -n 0, since building and reporting the
+    # model reaches them (CODE_PLAN.md section 3.4)
+    "run13": (["-s", AA, "-m", "LG+C10", "-n", "0"], 1),
+    "run14": (["-s", AA, "-m", "MIX{LG,WAG}", "-n", "0"], 1),
+    "run15": (TURTLE + ["-p", NEX, "--model-joint", "GTR20", "-n", "0"], 1),
 }
 NEEDS_RUN08 = {"run10", "run12"}
 
@@ -429,6 +435,9 @@ def cmd_compare(a):
         for problem in problems:
             print(f"    {problem}")
         failed = failed or bool(problems)
+    for name in sorted(set(runs) - set(new["runs"])):
+        print(f"{name}: FAIL, missing from the new extract")
+        failed = True
     sys.exit(1 if failed else 0)
 
 
