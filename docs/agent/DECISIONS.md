@@ -243,18 +243,18 @@ box of the records made in it; [log 1e-6, log 1e6], NONREV's ratio range; [log 1
 
 ### 008. Refuse every combination the first release does not support
 
-**Rule.** NQC stops with a message for every input outside the first release (`CODE_PLAN.md` section
-2.2, "Refusals"): non-protein data, untargeted `+F`, `-optfromgiven`, `-jointopt`, mixtures, tree
-mixtures and HMM, GHOST `+H`, site-specific frequencies, `--link-exchange-rates`, `--eigen`,
-ModelFinder in any form, AliSim, unlinked partitions, `-mstore`, `--runs` above 1.
-**Why.** Each path bypasses the invariants or is undesigned: `-optfromgiven` releases the
-equilibrium in the base decomposition (015), `-jointopt` clamps coordinates with rate bounds, an
-`--mdef` mixture never shows "MIX", the export's probes would reuse `-mstore`'s cached matrices
-(009) and fail on the tree `--runs` restores. Peter chose refusal over testing unlinked partitions
-(2026-10-22) and over readying that tree (2026-10-28).
+**Rule.** NQC stops with a message for every input outside the first release (`CODE_PLAN.md` 2.2):
+non-protein data, untargeted `+F`, `-optfromgiven`, `-jointopt`, mixtures, tree mixtures and HMM,
+GHOST `+H`, site-specific frequencies, `--link-exchange-rates`, `--eigen`, `--lie-markov`, ModelFinder
+in any form, AliSim, unlinked partitions, `-mstore`, `--runs` above 1, a rate model in `--model-joint`.
+**Why.** Each path bypasses the invariants, is undesigned or ends wrongly: `-optfromgiven` releases
+the equilibrium (015), `-jointopt` clamps coordinates, an `--mdef` mixture never shows "MIX", the
+export's probes would reuse `-mstore`'s matrices (009) and fail on the tree `--runs` restores,
+`--lie-markov` stops at an `ASSERT`, and IQ-TREE drops a joint rate model. Peter chose refusal
+over testing unlinked partitions (2026-10-22), readying that tree (2026-10-28) and NONREV's `ASSERT`.
 **Not chosen.** Allowing them silently; supporting them now; detecting mixtures from the string.
-**Since** 2026-09-23; revised 2026-10-20 (032; 034 items 2, 4, 5), 2026-10-22, 2026-10-23
-(`--model-joint`, `--link-model` allowed), 2026-10-26 (`-mstore`) and 2026-10-28 (`--runs`).
+**Since** 2026-09-23; revised 2026-10-20 (032, 034), 2026-10-22, 2026-10-23, 2026-10-26, 2026-10-28
+and 2026-10-29 (`--lie-markov`, reversing 034 item 5; the joint rate model; Peter).
 
 ### 009. Check every fit afterwards, report a fall below the start, restore nothing
 
@@ -386,6 +386,9 @@ files, not from the log, and IQ-TREE's printed final score is reported, not comp
 | NQC outputs of a build against the previous build (at S4, the S3c binary), same commands at `-T 1`, same toolchain | identical: layer 4's report sections, tree files, NQC checkpoint keys; from 2026-10-29 also `.qmat` bytes and `.info` apart from `command` | S4, 038 |
 | Export recheck in one run (the C++ `ASSERT`): rate matrix; −lnL at the restored point against f0 | bitwise; ≤ 1e-8 × \|lnL\| | 038 |
 | Export at more threads against `-T 1`, same command or same staged checkpoint: `.qmat`; `.info` apart from `command`, `export_lnl`, `stop_statistic`, `stop_gradient`; `export_lnl`; `stop_gradient`; `stop` | byte-identical; identical; ≤ 1e-8 × \|lnL\|; the same-rule line; equal, unless the reference's statistic lies within the band of the label row above, then reported | 038 |
+| `+I+G` restore: the score printed after the restore against the best start's (10 printed decimals) | ≤ min(5e-4, 1e-8 × \|lnL\|); NaN fails | 021 (5e-4 until 2026-10-29, tightened by Peter) |
+| Default domain: a default run's `domain` key | bitwise [log 1e-5, log 1e5] | 007, 2026-10-29 |
+| Options case (`CODE_PLAN.md` 3.5): exit code; report and both export files | 0; present | 2026-10-29 (Peter) |
 
 h_k is the step's displacement (`CODE_PLAN.md` section 2.1); for the export's central differences,
 h⁺_k + h⁻_k. S4 applies the compiled-Q row to the exported Q and the residual row to its file. The
@@ -394,7 +397,8 @@ max(1, |g_ref|), reported at a near-zero start; the oracle reports its central d
 **Why.** A line chosen after seeing results is not a test; each rests on a measurement or derivation
 in the archive (1e-10: the synthesis's goal, section 4.3; the κ-scaled Q line: two correct routes).
 **Since** 2026-10-04 (021), 2026-10-05 (026), 2026-10-20 (030, 034 item 7), 2026-10-22 (036's
-withdrawn claim, 038's thread row), 2026-10-26 (S4's export rows), 2026-10-29 (038's export rows).
+withdrawn claim, 038's thread row), 2026-10-26 (S4's export rows), 2026-10-29 (038's export rows;
+the restore, default-domain and options rows).
 
 ### 012. Test the pure module with googletest in a standalone CMake project
 

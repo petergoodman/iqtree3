@@ -77,6 +77,32 @@ static string oneLine(const string &text) {
     return s;
 }
 
+/** whether a --model-joint string names NQC and carries a component other than its +F target, such
+    as +G4{0.5}, which IQ-TREE does not apply; braces' contents are skipped */
+static bool jointRateModel(const string &joint) {
+    string outside;
+    int depth = 0;
+    for (char c : joint) {
+        if (c == '{')
+            depth++;
+        else if (c == '}')
+            depth--;
+        else if (depth == 0)
+            outside += c;
+    }
+    size_t pos = outside.find_first_of("+*");
+    if (!ModelNonrevFixedEq::isName(outside.substr(0, pos)))
+        return false;
+    while (pos != string::npos) {
+        size_t next = outside.find_first_of("+*", pos + 1);
+        string part = outside.substr(pos + 1, next == string::npos ? string::npos : next - pos - 1);
+        if (part.empty() || toupper((unsigned char)part[0]) != 'F')
+            return true;
+        pos = next;
+    }
+    return false;
+}
+
 bool ModelNonrevFixedEq::isName(const string &model_name) {
     string upper_name = model_name;
     transform(upper_name.begin(), upper_name.end(), upper_name.begin(), ::toupper);
@@ -168,11 +194,16 @@ void ModelNonrevFixedEq::refuseUnsupported(const string &model_params, StateFreq
         why = "is not supported with --link-exchange-rates";
     else if (params.matrix_exp_technique == MET_EIGEN_DECOMPOSITION)
         why = "is not supported with --eigen";
+    // the non-reversible transition matrix has no --lie-markov branch and stops at an ASSERT
+    else if (params.matrix_exp_technique == MET_LIE_MARKOV_DECOMPOSITION)
+        why = "is not supported with --lie-markov";
     else if (params.alisim_active)
         why = "cannot simulate alignments; simulate from its fitted matrix instead";
     // after the AliSim check, because AliSim also sets partition_file
     else if (params.partition_file && params.model_joint.empty() && !params.link_model)
         why = "is not supported with unlinked partitions (-p, -q or -S without --model-joint or --link-model)";
+    else if (jointRateModel(params.model_joint))
+        why = "takes its rate model from -m: a rate model written in --model-joint is not applied";
     // cached transition matrices, keyed by branch length, would outlive a change of Q
     else if (params.store_trans_matrix)
         why = "is not supported with -mstore";

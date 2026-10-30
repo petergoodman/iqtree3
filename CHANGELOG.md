@@ -83,7 +83,7 @@ development.
   `.info` values, non-finite scores, toolchain rule. The laptop restarted during a development run
   (rerun). Two stray commands ran a system Python on empty or no-op input (Windows `python`,
   stopped; Debian `python3 -c 1`); no project code ran.
-- **Release audit** (PLAN.md software criteria, all met): residual maxima 5.9e-16 (S1), 6.7e-16
+- **Release audit** (PLAN.md software criteria, all met): residual maxima 5.9e-16 (S1), 7.5e-16
   (S2), 6.2e-16 (S3b), 4.2e-16 (S4); fixed-Q lnL against the oracle ≤ 1.06e-15 (S2), 1.7e-16 linked
   (S3b); nesting from GTR20, first lnL 2.4e-11 above, final 60.46 above (S3a); 360 counted once
   (S3b); π* bitwise to export (S3a, S3b, S4); Level 1 re-import (S4); regression 12 of 12 after every
@@ -124,7 +124,8 @@ development.
   reproduce. No sanitizer build (Peter): only a default value and a help string changed.
 - **Verified** from the clean commit (`~/iqtree3-runs/domain-change/20261025T213903Z-0e9fb159/`,
   keep-awake on, 80 min): build (binary `81729f4b...`); pytest 196; unit tests in both variants;
-  case A's box run reproduces the pilot bitwise; `nqcchecks.py` 21 cases, 236 asserted passed, none
+  case A's box run reproduces the pilot bitwise, its script exiting 1 on S-1 and S-2 under the
+  development limits as in `57e4855f`'s run; `nqcchecks.py` 21 cases, 236 asserted passed, none
   failed, no switch, fall or ASSERT; regression 12 of 12. At default settings the new default ends
   +2.73, +0.55 (aa_example L1, turtle `-p` L2), −1.98, −1.38 (turtle `-S` L1, L2) against the old.
 - **Decided** (Peter): decision 039, NONREV's optimization process kept and S7 declares one stopping
@@ -299,7 +300,9 @@ development.
 - **Corrected.**
   - The check driver's `results.md` double-counts fits, reads the `+I+G4` residuals from the last
     start, and checks π* from the class's own copy. Recomputed by `fitrecords.py` (`fitrecords/`
-    in the gate directory): the three fit runs made 6, 6 and 171 fits; over all 171 fit records
+    in the gate directory; run from a dirty tree at `50515d07` before the script's commit
+    `f7df75d0`, rerun clean at `5c108536` on 2026-10-29 with identical results): the three fit
+    runs made 6, 6 and 171 fits; over all 171 fit records
     the largest residuals are 2.8e-16 (‖π*Q‖∞), 6.7e-16 (row sums) and 4.4e-16 (mean rate); the
     restored `+I+G4` model has 1 coordinate at the upper bound, none at the lower, and residuals
     of at most 2.5e-16 as the oracle computes them. The bitwise `state_freq` guard held and every

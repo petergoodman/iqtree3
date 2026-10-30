@@ -1606,8 +1606,10 @@ little-endian doubles.
 **Checkpointing.** Every model must round-trip its rates through
 `startCheckpoint` / `saveCheckpoint` / `restoreCheckpoint`, with the base class called **last on
 save and first on restore**, and `decomposeRateMatrix()` followed by `clearAllPartialLH()` after
-restore (`model/modelunrest.cpp:113-138` is the reference). A linked model is checkpointed and
-dumped to disk after every matrix update, so a long QMaker run resumes at that granularity.
+restore (`model/modelunrest.cpp:113-138` is the reference). A linked model is checkpointed after
+every matrix update (`model/partitionmodel.cpp:862-863`), but the dump reaches the disk at most once
+a minute unless forced (`utils/checkpoint.cpp:146-153`), so a long QMaker run resumes from the last
+dump written.
 
 ---
 

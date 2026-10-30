@@ -11,10 +11,10 @@ Cases:
   gradient  the first gradient against the oracle, by the same rule and against a central
             reference, at the LG seed and at a start near zero (decision 021)
   target    targets refused for their sum and for an entry below the minimum
-  refusals  every combination decision 008 refuses, and --runs 1 accepted with the outputs of the
-            same Level 1 fit without it
-  fits      Level 1 and Level 2 fits on aa_example, +I+G4 and free +R4 included, and the domain
-            option
+  refusals  every combination decision 008 refuses, each by its own reason, and --runs 1 accepted
+            with the outputs of the same Level 1 fit without it
+  fits      Level 1 and Level 2 fits on aa_example, +I+G4 and free +R4 included, with the Level 2
+            exports; the default domain and the domain option
   nesting   NQC seeded at a fitted GTR20+F{pi*}+G4 in a widened domain (decision 025)
   skewed    a Level 1 fit at the test target cubed and renormalized, reported (decision 023)
   restart   --undo with another target or domain refused, with the same command accepted, and
@@ -37,11 +37,13 @@ S3b's linked cases (CODE_PLAN.md section 3.5, "Linked fits" and after), on nqc/t
                    and -p with +G4{0.5} and the given +R4; the printed steps against decision 005's
                    rule, bitwise; the gradient lines; and a -S start near zero
   linked-fits      Level 1 under -S, -q (decision 024, nuisances from the -p Level 2 +G4 fit) and
-                   --link-model (-S); Level 2 under -S and -p with +G4, +I+G4 and free +R4; at every
-                   numbered checkpoint pi*, coordinates, references and residuals in every struct
+                   --link-model (-S); Level 2 under -S and -p with +G4, +I+G4 and free +R4, with their
+                   exports; at every numbered checkpoint pi*, coordinates, references and residuals in
+                   every struct
   linked-refusals  --link-model with another target and with the target at 8 decimals, refused at
                    the first linked fit; a charset without a model and no -m; a charset with +H4;
-                   --model-joint with --runs 2 under -p, -q, -Q and -S
+                   --model-joint with --runs 2 under -p, -q, -Q and -S; a rate model inside
+                   --model-joint under -S, -Q and -p
   permuted         twopart -S Level 1 with the charsets reversed, bitwise; turtle at the seed under -p
                    and -S with the charsets (and -S trees) reversed, by decision 038's lines
   threads          turtle at the seed, -p at -T 4 and -S at -T 3, 10 runs each against -T 1 (decision
@@ -62,6 +64,10 @@ S3b's linked cases (CODE_PLAN.md section 3.5, "Linked fits" and after), on nqc/t
                    no-fit export at -T 2, 4 and 8 (20, 100 and 20 runs), and --undo of the aa_example,
                    twopart -S and twopart -q Level 1 fits at -T 4 (10 runs each), with their premises;
                    5 aa_example Level 2 +G4 fits at -T 4, which must finish with their exports
+
+  options          common options no other case runs, each of which must finish with its report and
+                   both export files: tree search with -B 1000; -te with -alrt and -abayes, with -asr,
+                   and at -T AUTO; turtle -p --model-joint with --link-alpha; turtle -Q --model-joint
 
 Every run has its own directory under DIR and uses -seed 1 and -T 1 unless a case says otherwise.
 Final states are read from the class's checkpoint keys; the seed Q and the first gradient from its
@@ -427,6 +433,21 @@ def case_target(r, c):
     return out
 
 
+# each refusal's reason, so that another refusal of the same command cannot stand in for it
+# (CODE_PLAN.md section 4, "Checks that read output text")
+REFUSAL_REASONS = {
+    "dna": "protein data only", "braces": "no parameters in braces", "optfromgiven": "-optfromgiven",
+    "jointopt": "-jointopt", "tree-mixture": "tree mixtures or HMM", "hmm": "tree mixtures or HMM",
+    "ghost": "heterotachy", "site-freq": "site-specific frequency", "site-freq-fs": "site-specific frequency",
+    "link-exchange": "--link-exchange-rates", "eigen": "--eigen", "modelfinder": "ModelFinder",
+    "modelfinder-no-m": "ModelFinder", "alisim": "cannot simulate", "mix": "component of a mixture",
+    "fmix": "component of a mixture", "mdef-mix": "component of a mixture", "unlinked-p": "unlinked partitions",
+    "unlinked-q": "unlinked partitions", "unlinked-S": "unlinked partitions", "mstore": "-mstore",
+    "lie-markov": "--lie-markov",
+    **{f"freq-{f}": "needs its target stationary distribution" for f in ("F", "FQ", "FO", "FU", "none")},
+}
+
+
 def case_refusals(r, c, ctx):
     t = c.target_text
     two = c.t02.strip() + "\n" + c.t02.strip() + "\n"
@@ -471,13 +492,12 @@ def case_refusals(r, c, ctx):
         ("unlinked-S", ["-s", TURTLE, "-S", NEX, "-m", c.model, "-nparam", "2"], {}),
         # S4: cached transition matrices would outlive a change of Q (decision 008)
         ("mstore", aa + ["-m", c.model, "-mstore"], tree),
+        # 2026-10-29: the non-reversible transition matrix stops at an ASSERT under --lie-markov (decision 008)
+        ("lie-markov", aa + ["-m", c.model, "--lie-markov"], tree),
     ]
     out = []
     for name, args, files in runs:
-        run = r.run(f"refuse-{name}", args, files)
-        message = nqc_error(run)
-        out.append(check(f"refused: {name}", run.code not in (0, "timeout") and message is not None,
-                         exit_code=run.code, message=message))
+        out.append(refused(f"refused: {name}", r.run(f"refuse-{name}", args, files), REFUSAL_REASONS[name]))
     # --runs above 1 (decision 008), from the first run and from the first bootstrap replicate
     for name, extra in (("runs", ["--runs", "2"]), ("runs-bootstrap", ["-b", "2", "--runs", "2"])):
         out.append(runs_refused(name, r.run(f"refuse-{name}", aa + ["-m", c.model] + extra, tree)))
@@ -502,6 +522,13 @@ def nqc_error(run):
     return next((l for l in run.stdout().splitlines() if "NQC" in l and "ERROR" in l), None)
 
 
+def refused(label, run, reason):
+    """A refusal: a non-zero exit and an NQC error line naming its reason."""
+    message = nqc_error(run)
+    return check(label, run.code not in (0, "timeout") and message is not None and reason in message,
+                 exit_code=run.code, message=message, reason=reason)
+
+
 def runs_refused(label, run):
     """A --runs refusal names its reason and comes before the export, where --runs used to crash."""
     message = nqc_error(run)
@@ -515,14 +542,24 @@ START_LNL = re.compile(r"Init pinv, alpha: \S+ \S+ / Estimate: \S+ \S+ / LogL: (
 BEST_LNL = re.compile(r"Optimal pinv,alpha: \S+ \S+ / LogL: (\S+)")
 
 
+def restore_line(best):
+    """Decision 021's restore line: decision 038's lnL line, capped at the earlier 5e-4 so that it
+    never loosens."""
+    return min(5e-4, TOL_LNL * abs(best))
+
+
 def restore_check(label, text):
     """The +I+G path keeps the best of its starts through the model's checkpoint (decision 033): the
-    model it ends with must score as the best start did, at the 3 decimals IQ-TREE prints. For one
-    alignment, which takes the path once; block_restore_check covers -S."""
+    model it ends with, re-scored after the restore, must score as the best start did, within
+    restore_line of the scores IQ-TREE prints at 10 decimals. The check is informative only when the
+    best start is not the last. For one alignment, which takes the path once; block_restore_check
+    covers -S."""
     starts, best = [float(v) for v in START_LNL.findall(text)], BEST_LNL.search(text)
-    ok = bool(starts and best and abs(float(best.group(1)) - max(starts)) <= 5e-4)
-    return check(f"{label}: the restored model scores as the best +I+G start", ok,
-                 best_start=max(starts) if starts else None, final=best.group(1) if best else None)
+    top = float(np.max(starts)) if starts else None  # np.max carries a NaN through
+    ok = bool(starts and best and not beyond(abs(float(best.group(1)) - top), restore_line(top)))
+    return check(f"{label}: the restored model scores as the best +I+G start", ok, best_start=top,
+                 final=best.group(1) if best else None,
+                 informative=bool(starts) and top - starts[-1] > restore_line(top))
 
 
 def block_restore_check(label, text):
@@ -537,12 +574,15 @@ def block_restore_check(label, text):
             continue
         m = BEST_LNL.search(line)
         if m:
-            blocks.append((max(starts) if starts else None, float(m.group(1))))
+            blocks.append((float(np.max(starts)), starts[-1], float(m.group(1))) if starts else (None, None,
+                                                                                                float(m.group(1))))
             starts = []
-    bad = [i for i, (s, b) in enumerate(blocks) if s is None or abs(b - s) > 5e-4]
-    gaps = [abs(b - s) for s, b in blocks if s is not None]
+    bad = [i for i, (s, _, b) in enumerate(blocks) if s is None or beyond(abs(b - s), restore_line(s))]
+    gaps = [abs(b - s) for s, _, b in blocks if s is not None]
+    informative = sum(1 for s, last, _ in blocks if s is not None and s - last > restore_line(s))
     return check(f"{label}: in each block of +I+G starts, the restored model scores as the best start", bool(blocks)
-                 and not bad, blocks=len(blocks), failing=bad, largest_gap=max(gaps, default=None))
+                 and not bad, blocks=len(blocks), failing=bad, largest_gap=float(np.max(gaps)) if gaps else None,
+                 informative=informative)
 
 
 KEYS = ("target", "residuals", "coordinates", "domain", "bounds")
@@ -618,6 +658,8 @@ def fit_checks(label, run, c, expected_parameters, level):
         out.append(check(f"{label}: root-adjacent lengths unchanged", bool(comp and comp["root_lengths_kept"])))
     if "+I+G" in label:
         out.append(restore_check(label, text))
+    if level == 2:  # Level 1's export is the export case's
+        out += export_checks(label, run, ck, c, 0)
     return out + monitoring(label, run, ck)
 
 
@@ -630,6 +672,9 @@ def case_fits(r, c, ctx):
     run1 = level1(r, c, ctx)
     out += fit_checks("Level 1", run1, c, 360, 1)
     ck = single_checkpoint(run1) if run1.code == 0 else None
+    domain = floats((ck or {}).get("domain", "nan,nan"))
+    out.append(check("Level 1: the default domain [log 1e-5, log 1e5] in the checkpoint (decision 007)",
+                     bool(np.array_equal(domain, [math.log(1e-5), math.log(1e5)])), domain=domain.tolist()))
     if not (ck and "accepted_score" in ck):
         out.append(check("Level 1: accepted score against the oracle's re-evaluation (decisions 021, 030)", False,
                          reason="no accepted_score key"))
@@ -1241,11 +1286,13 @@ def q_charpartition(nex_text, names, route):
 
 
 def linked_invariants(label, run, c, partitions):
-    """Asserted at every numbered checkpoint, or at the final one when the run wrote none
-    (CODE_PLAN.md section 3.5, "Linked fits"): pi* bitwise in the linked struct and in every partition struct,
-    coordinates bitwise equal across them, the oracle's references, and the residual keys within
-    decision 021's line. A checkpoint holding no NQC struct is counted, not judged."""
+    """Asserted at every numbered checkpoint, or at the final one when the run was not given
+    --all-checkpoint; a run given it must have written one (CODE_PLAN.md section 3.5, "Linked fits"):
+    pi* bitwise in the linked struct and in every partition struct, coordinates bitwise equal across
+    them, the oracle's references, and the residual keys within decision 021's line. A checkpoint
+    holding no NQC struct is counted, not judged."""
     paths = numbered_checkpoints(run)
+    numbered_expected = "--all-checkpoint" in run.args
     cks = [read_checkpoint(p) for p in paths] or [run.checkpoint()]
     bad = {k: [] for k in ("structs", "target", "coordinates", "references", "residuals")}
     judged, without, fits, worst = 0, 0, [], 0.0
@@ -1274,10 +1321,10 @@ def linked_invariants(label, run, c, partitions):
         if beyond(res, RESIDUAL):
             bad["residuals"].append(n)
     where = f"{judged} numbered checkpoints" if paths else "the final checkpoint"
-    ok = judged > 0 and not bad["structs"]
+    ok = judged > 0 and not bad["structs"] and (bool(paths) or not numbered_expected)
     return [
         check(f"{label}: the linked struct and {partitions} partition structs in {where}", ok,
-              failing=bad["structs"], checkpoints_without_nqc=without),
+              failing=bad["structs"], checkpoints_without_nqc=without, numbered_expected=numbered_expected),
         check(f"{label}: target bitwise equal to the parsed target in every struct", ok and not bad["target"],
               failing=bad["target"]),
         check(f"{label}: coordinates bitwise equal across the structs", ok and not bad["coordinates"],
@@ -1300,6 +1347,8 @@ def linked_fit_checks(label, run, c, partitions, expected_parameters):
     out.append(free_parameters_check(label, run, expected_parameters))
     if label.startswith("-S ") and "+I+G" in label:
         out.append(block_restore_check(label, run.stdout()))
+    if "Level 2" in label:  # the Level 1 exports are the linked-export case's
+        out += export_checks(label, run, final, c, partitions)
     return out + monitoring(label, run, final)
 
 
@@ -1489,6 +1538,13 @@ def case_linked_refusals(r, c, ctx, alisim):
         run = r.run(name, joint_args(tp.phy, mode, tp.nex, c.model, f"+G4{{{ALPHA}}}", tree_name(mode), "-blfix",
                                      "--runs", "2"), tp.files(mode))
         out.append(runs_refused(f"--model-joint {mode} --runs 2", run))
+    # a rate model written inside --model-joint, which IQ-TREE does not apply (decision 008)
+    for mode in ("-S", "-Q", "-p"):
+        name = "linked-refuse-joint-rate" + ("-edge-unlinked" if mode == "-Q" else slug(mode))
+        files = tp.files("-S" if mode == "-Q" else mode)
+        run = r.run(name, joint_args(tp.phy, mode, tp.nex, c.model + f"+G4{{{ALPHA}}}", None,
+                                     tree_name("-S" if mode == "-Q" else mode), "-blfix"), files)
+        out.append(refused(f"refused: a rate model inside --model-joint under {mode}", run, "rate model"))
     return out
 
 
@@ -1949,6 +2005,36 @@ def case_export_threads(r, c, ctx, alisim):
     return out
 
 
+def case_options(r, c, ctx):
+    """CODE_PLAN.md section 3.5, "Options": common IQ-TREE options with NQC, which no other case runs,
+    must finish with the report and both export files; labels, scores and crash lines are reported."""
+    tree, model = {"input.tree": c.t02}, c.model + "+G4"
+    te = ["-s", AA, "-m", model, "-te", "input.tree"]
+    runs = [
+        ("tree search with -B 1000", "options-ufboot", ["-s", AA, "-m", model, "-B", "1000"], {}, 1),
+        ("-te with -alrt 1000 -abayes", "options-alrt", te + ["-alrt", "1000", "-abayes"], tree, 1),
+        ("-te with -asr", "options-asr", te + ["-asr"], tree, 1),
+        ("-te at -T AUTO --threads-max 4", "options-threads-auto", te + ["--threads-max", "4"], tree, "AUTO"),
+        ("turtle -p --model-joint with --link-alpha", "options-link-alpha",
+         joint_args(TURTLE, "-p", NEX, c.model, "+G4", tree_name("-p"), "--link-alpha"), turtle_files("-p"), 1),
+        ("turtle -Q --model-joint", "options-edge-unlinked",
+         joint_args(TURTLE, "-Q", NEX, c.model, f"+G4{{{ALPHA}}}", tree_name("-S"), "-blfix"), turtle_files("-S"), 1),
+    ]
+    out = []
+    for label, name, args, files, threads in runs:
+        run = r.run(name, args, files, threads)
+        exported = export_files(run)
+        printed = re.search(SCALARS["log_likelihood"], run.report(), re.M)
+        out.append(check(f"options, {label}: exit 0 with the report and both export files",
+                         run.code == 0 and run.file(".iqtree").exists() and exported is not None, exit_code=run.code))
+        out.append(check(f"options, {label}: label, scores and crash lines (report)", None,
+                         stop=(exported or [None, {}])[1].get("stop"),
+                         export_lnl=(exported or [None, {}])[1].get("export_lnl"),
+                         printed=printed.group(1) if printed else None,
+                         crash_lines="Assertion" in run.stdout() or "CRASHES" in run.stdout(), wall_s=run.wall))
+    return out
+
+
 # ---------------------------------------------------------------- driver
 
 def provenance(a, binary, out):
@@ -1985,7 +2071,7 @@ def markdown(prov, results):
 
 CASES = ("root", "seed", "gradient", "target", "refusals", "fits", "nesting", "skewed", "restart", "risk22", "toy",
          "short", "linked-seed", "linked-fits", "linked-refusals", "permuted", "threads", "linked-restart",
-         "risk22-turtle", "warm-starts", "linked-short", "export", "linked-export", "export-threads")
+         "risk22-turtle", "warm-starts", "linked-short", "export", "linked-export", "export-threads", "options")
 
 
 def main():
@@ -2092,6 +2178,8 @@ def main():
                 results[key] = case_linked_export(r, c, ctx, alisim, prior, changes)
             elif key == "export-threads":
                 results[key] = case_export_threads(r, c, ctx, alisim)
+            elif key == "options":
+                results[key] = case_options(r, c, ctx)
         except Exception:  # a crash in one case is recorded, and the other cases still run
             results[key] = [check("case ran", False, exception=traceback.format_exc())]
         for row in results[key]:

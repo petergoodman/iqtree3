@@ -40,8 +40,8 @@ upstream as a pull request (decision 001).
 
 ## Scientific motivation and success criteria
 
-> Drafted from the design documents on 2026-09-23 for Peter's confirmation. The scientific
-> criterion below is a placeholder until he replaces it.
+> Drafted from the design documents on 2026-09-23; Peter confirmed the software criteria on
+> 2026-10-29. The scientific criterion below is a placeholder until he replaces it.
 
 The reversible workflow's frequency replacement is exact only because q_ij = R_ij π_j is
 stationary at every positive π (reported). In an asymmetric factor the same replacement still
@@ -58,8 +58,8 @@ so a wrong target can produce apparent circulation; simulations with reversible 
 non-reversible generators at correct and perturbed targets come before any circulation is read
 as biology. Manuscript title and venue: to be supplied by Peter.
 
-Success criteria for the software (proposed). The feature works when gates G0 to G3 of the
-synthesis are met with this evidence:
+Success criteria for the software (confirmed by Peter, 2026-10-29). The feature works when gates
+G0 to G3 of the synthesis are met with this evidence:
 
 - every accepted Q has ‖π*Q‖∞ and |mean rate − 1| at or below 1e-10, the synthesis's
   provisional goal, with the actual maxima reported;
@@ -282,6 +282,25 @@ Peter relays these if and when he chooses; no agent contacts the maintainers (`C
     order. The differences are rounding (1.3e-16 relative at `-T 4`, decision 038), but a bitwise
     recheck in NQC's export aborted 3 of 8 runs at `-T 4`; NQC now compares within decision 038's
     line. Would the maintainers want the non-reversible kernel to add its packets in order?
+13. Upstream observation, 2026-10-29, unmodified binary: a rate model written inside
+    `--model-joint` is not applied. On turtle with `-te -blfix`, `--model-joint "NONREV+G4{0.5}"`
+    fits `NONREV+FO` with no rate model under `-S`, `-Q` and `-p`, exit 0, while a bare
+    `"NONREV+G4"` stops `-p` with "File not found NONREV+G4"; the rate model takes effect only
+    through `-m`. NQC now refuses one (decision 008). Should `--model-joint` reject a rate model, or
+    apply it?
+14. Upstream finding, 2026-10-29, unmodified binary: `--lie-markov` with a non-reversible model
+    (NONREV on aa_example, UNREST on `example.phy`) stops at `ASSERT(0 && "this line should not be
+    reached")` in `ModelMarkov::computeTransMatrixNonrev`; LG runs. NQC now refuses it (decision
+    008). Should it be refused for non-reversible models, or fall back to scaling and squaring?
+15. Upstream finding, 2026-10-29, unmodified binary: a one-alignment `-te` run that stops after its
+    model fit and before its end-of-run dump (killed at `reportPhyloAnalysis`) resumes with "Model
+    parameters restored", reports the fitted model on the input tree's branch lengths and exits 0:
+    aa_example on baseline run 2's tree, `LG+G4` −7330.3269 against −7302.3888 for the run that
+    finished, `NONREV+G4` −6820.0884 against −6811.2908; NQC the same. By reading, `computeInitialTree`
+    saves the `-te` tree into the checkpoint before `runTreeReconstruction` restores the tree from
+    it, and the fitted tree reaches the candidate set only after the fit's dump; resuming with the
+    fitted tree as `-te` gives the finished run's score. Linked runs not tested. Script and outputs:
+    `~/iqtree3-audit/followup-20261030T054825Z/`. Should the restore keep the fitted tree?
 
 ## Current state
 
