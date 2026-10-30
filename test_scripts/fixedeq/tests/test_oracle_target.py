@@ -72,3 +72,45 @@ def test_target_parser_accepts_and_normalizes_once():
 def test_target_parser_rejects(text):
     with pytest.raises(ValueError):
         target.parse_target(text)
+
+
+def read_target_fixture():
+    """unittest/fixtures/targets.txt's cases, read as unittest/test_fixedeqchart.cpp reads them:
+    each line without its newline, so a text keeps its trailing separators."""
+    cases = []
+    for line in (REPO / "unittest" / "fixtures" / "targets.txt").read_text(encoding="utf-8").split("\n"):
+        if line.startswith("case "):
+            cases.append({"name": line[5:], "text": ""})
+        elif line.startswith("text "):
+            cases[-1]["text"] = line[5:]
+        elif line.startswith("min_freq "):
+            cases[-1]["min_freq"] = float(line[9:])
+        elif line.startswith("verdict "):
+            cases[-1]["verdict"] = line[8:]
+        elif line.startswith("raw_sum "):
+            cases[-1]["raw_sum"] = float(line[8:])
+        elif line.startswith("values "):
+            cases[-1]["values"] = np.array([float(v) for v in line[7:].split()])
+    return cases
+
+
+TARGET_CASES = read_target_fixture()
+
+
+def test_target_fixture_has_the_cases_the_compiled_test_reads():
+    assert len(TARGET_CASES) == 25
+
+
+@pytest.mark.parametrize("case", TARGET_CASES, ids=[c["name"] for c in TARGET_CASES])
+def test_target_parser_matches_the_compiled_parser(case):
+    """The fixture's verdicts, raw sums and normalized vectors are what the googletest suite asserts
+    for fixedeq::parseTarget, so the oracle must reproduce them bitwise: the drivers compare its
+    target with the checkpoint's bit for bit (decision 006: the sum is taken left to right)."""
+    try:
+        pi, raw = target.parse_target(case["text"], min_state_freq=case["min_freq"])
+    except ValueError:
+        assert case["verdict"] == "reject"
+        return
+    assert case["verdict"] == "accept"
+    assert raw == case["raw_sum"]
+    assert np.array_equal(pi, case["values"])

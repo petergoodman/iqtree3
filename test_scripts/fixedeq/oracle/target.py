@@ -134,7 +134,11 @@ def parse_target(text, min_state_freq=MIN_STATE_FREQ, tol=1e-6):
         raise ValueError(f"non-numeric entry: {e}") from None
     if not np.all(np.isfinite(values)) or np.any(values <= 0) or np.any(values < min_state_freq):
         raise ValueError(f"every entry must be finite, positive and at least {min_state_freq}")
-    raw = float(values.sum())
+    # left to right, as fixedeq::parseTarget sums (decision 006); NumPy's pairwise sum can differ
+    # in the last bit, and the drivers compare this target with the checkpoint's bitwise
+    raw = 0.0
+    for v in values:
+        raw += float(v)
     if abs(raw - 1.0) > tol:
         raise ValueError(f"the entries sum to {raw!r}, not within {tol} of 1")
     return values / raw, raw

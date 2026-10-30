@@ -407,6 +407,10 @@ The package is `test_scripts/fixedeq/oracle/`, and its tests use the pass lines 
   rate (`-p`, `-q`) folded into the rate categories; `normalize_part_rates` repeats
   `PhyloSuperTreePlen::normalizePartRate`'s operations in order, for `-q`'s `{x}` rates.
 - A port of the target estimator (PLAN.md, "Where π* comes from").
+- The target parser (`target.parse_target`), summing left to right as `fixedeq::parseTarget` does
+  (from 2026-10-30; NumPy's pairwise sum normalized 2,140 of 5,000 random targets to other bits),
+  so the drivers' bitwise target checks hold for any target. A test holds it to the compiled
+  parser's fixture, `unittest/fixtures/targets.txt`.
 - A direct balanced-flux reference optimizer for small problems (S5).
 
 ### 3.2 Layer 2: C++ unit tests
@@ -640,11 +644,18 @@ and from 2026-10-29 fails on any baseline run missing from the new extract.
   - The driver's runner must pass the thread count, since it appends `-T 1` last and the last
     `-T` wins.
   - Nothing logs the allocation under `-S`, so it is reported as the CPU-to-wall ratio.
-- Permuted partition order, the charsets reversed (trees reversed for `-S`):
-  - on the two-partition data at Level 1, seed lnL, first gradient and final coordinates are
-    bitwise equal, because a sum of two partitions is commutative;
-  - on turtle at the seed, within the lines of decision 038's thread row, which bound the same
-    rounding.
+- Permuted partition order, the charsets reversed (trees reversed for `-S`). IQ-TREE sums the
+  partitions in order of cost (`PhyloSuperTree::computePartitionOrder`, `part_order`), not file
+  order, so the reversal leaves the summation order unchanged, and at `-T 1` the runs are bitwise
+  equal (decision 021): on the two-partition data at Level 1 the seed lnL, first gradient and final
+  coordinates, on turtle at the seed the seed lnL and first gradient. The order IQ-TREE prints at
+  `-v` is reported, not asserted. The case tests independence from file order through the
+  representative (the first partition in file order) and the checkpoint structs; rounding from a
+  different summation order is not exercised (corrected 2026-10-30: turtle's rows were held to
+  decision 038's lines on the premise that the reversal changed that rounding). `part_order_by_nptn`,
+  which `-p`'s branch-length sums use, is not printed and does not run before the first gradient
+  under `-blfix`; a tie in cost would make the order follow file order, which the reported order
+  would show.
 - Export and re-import (S4; pass lines in decision 021). Asserted from files; printed output
   (the citation, IQ-TREE's "does not match" line on re-import, the summary's lines) is reported
   (Peter, 2026-10-26).
@@ -1014,3 +1025,4 @@ still at `63c330d9`: at HEAD, lines after 60 are offset by 1, after 164 by 4 and
 | `utils/tools.cpp:3064, 7254`; `model/modelfactory.cpp:1582, 1756, 1800-1817` | `-mstore`, off by default; transition-matrix storing stopped at the start of each model optimization and started at its end; the cache keyed by branch length (added 2026-10-26) |
 | `alignment/alignment.cpp:4125`; `main/phyloanalysis.cpp:4598` | `createBootstrapAlignment` copies the source alignment's unset `pomo_sampling_method`; `runStandardBootstrap` calls it for each `-b` replicate (PLAN.md maintainer question 10; added 2026-10-27) |
 | `tree/phylokernelnonrev.h:1180, 1330`; `tree/phylokernelnew.h:3151-3160`; `tree/phylotreesse.cpp:43-49`; `alignment/superalignment.cpp:68-85`; `utils/tools.h:51-57` | the non-reversible tree likelihood adds packets' sums under `schedule(dynamic,1)` with a `reduction`, the reversible one stores them and adds them in packet order; 2 packets per thread above one thread; `-p` and `-q` cap the threads at the sum over partitions of max(1, patterns × states / `mf_thread_factor`, 4000); `ASSERT` calls `abort()` (PLAN.md maintainer question 12; added 2026-10-29) |
+| `tree/phylosupertree.cpp:657-697, 690`; `model/partitionmodel.cpp:314-334` | `computePartitionOrder` sorts partitions by cost (sequences × patterns × states) into `part_order`, prints it at `-v`, and sorts `part_order_by_nptn` by patterns; `PartitionModel::targetFunk` sums in `part_order` (added 2026-10-30) |

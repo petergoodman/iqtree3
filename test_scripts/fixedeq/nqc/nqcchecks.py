@@ -233,8 +233,9 @@ def floats(text):
 
 
 def check(name, passed, **values):
-    """passed is True or False for an asserted check, None for a reported one."""
-    return {"check": name, "passed": passed, **values}
+    """passed is True or False for an asserted check, None for a reported one. A verdict is stored
+    as a Python bool, so that a numpy False counts as a failure (main counts passed is False)."""
+    return {"check": name, "passed": None if passed is None else bool(passed), **values}
 
 
 def failed_run(run):
@@ -343,7 +344,7 @@ def case_seed(r, c):
                                              p_invar=p_invar, free=free)
         iq = float(m.group(1))
         out.append(check(f"{name}: first log-likelihood against the oracle (decision 021)",
-                         significant_digits(m.group(1)) >= 10 and abs(iq - oracle) <= TOL_LNL * abs(iq),
+                         bool(significant_digits(m.group(1)) >= 10 and abs(iq - oracle) <= TOL_LNL * abs(iq)),
                          iqtree=m.group(1), oracle=oracle, relative=abs(iq - oracle) / abs(iq)))
         Q_iq = seed_q(run.stdout())
         rel = float(np.max(np.abs(Q_iq - Q_or) / np.abs(Q_or)))
@@ -427,7 +428,7 @@ def case_target(r, c):
                             ("minimum", ",".join(f"{v:.17g}" for v in low), "an entry below --min-freq")):
         run = r.run(f"target-{name}", ["-s", AA, "-m", f"NQC+F{{{text}}}", "-te", "input.tree", "-nparam", "2"],
                     {"input.tree": c.t02})
-        out.append(check(f"refused: {why}", run.code not in (0, "timeout") and "NQC: invalid target" in run.stdout(),
+        out.append(check(f"refused: {why}", bool(run.code not in (0, "timeout") and "NQC: invalid target" in run.stdout()),
                          exit_code=run.code))
     out.append(check("accepted through +F{...} and through --mdef: see the seed case", None))
     return out
@@ -518,14 +519,15 @@ def case_refusals(r, c, ctx):
 
 
 def nqc_error(run):
-    """The first error line that names NQC, or None."""
-    return next((l for l in run.stdout().splitlines() if "NQC" in l and "ERROR" in l), None)
+    """The first error line NQC itself wrote ("ERROR: NQC ..." or "ERROR: NQC: ..."), or None; an
+    IQ-TREE error that only echoes the model string does not count."""
+    return next((l for l in run.stdout().splitlines() if re.match(r"ERROR: NQC[ :]", l)), None)
 
 
 def refused(label, run, reason):
     """A refusal: a non-zero exit and an NQC error line naming its reason."""
     message = nqc_error(run)
-    return check(label, run.code not in (0, "timeout") and message is not None and reason in message,
+    return check(label, bool(run.code not in (0, "timeout") and message is not None and reason in message),
                  exit_code=run.code, message=message, reason=reason)
 
 
@@ -533,8 +535,8 @@ def runs_refused(label, run):
     """A --runs refusal names its reason and comes before the export, where --runs used to crash."""
     message = nqc_error(run)
     return check(f"refused: {label}, naming --runs, with no export",
-                 run.code not in (0, "timeout") and message is not None and "--runs" in message and
-                 not run.file(".NQC.qmat").exists(), exit_code=run.code, message=message, wall_s=run.wall,
+                 bool(run.code not in (0, "timeout") and message is not None and "--runs" in message and
+                 not run.file(".NQC.qmat").exists()), exit_code=run.code, message=message, wall_s=run.wall,
                  runs_started=run.stdout().count("START RUN NUMBER"))
 
 
@@ -580,9 +582,9 @@ def block_restore_check(label, text):
     bad = [i for i, (s, _, b) in enumerate(blocks) if s is None or beyond(abs(b - s), restore_line(s))]
     gaps = [abs(b - s) for s, _, b in blocks if s is not None]
     informative = sum(1 for s, last, _ in blocks if s is not None and s - last > restore_line(s))
-    return check(f"{label}: in each block of +I+G starts, the restored model scores as the best start", bool(blocks)
-                 and not bad, blocks=len(blocks), failing=bad, largest_gap=float(np.max(gaps)) if gaps else None,
-                 informative=informative)
+    return check(f"{label}: in each block of +I+G starts, the restored model scores as the best start",
+                 bool(blocks and not bad), blocks=len(blocks), failing=bad,
+                 largest_gap=float(np.max(gaps)) if gaps else None, informative=informative)
 
 
 KEYS = ("target", "residuals", "coordinates", "domain", "bounds")
@@ -641,7 +643,7 @@ def monitoring(label, run, ck):
 
 def free_parameters_check(label, run, expected):
     m = re.search(SCALARS["free_parameters"], run.report(), re.M)
-    return check(f"{label}: free parameters", bool(m) and int(m.group(1)) == expected,
+    return check(f"{label}: free parameters", bool(m and int(m.group(1)) == expected),
                  reported=m.group(1) if m else None, expected=expected)
 
 
@@ -761,9 +763,9 @@ def case_nesting(r, c, ctx):
                              **values))
         else:
             out.append(check(f"{label}: first log-likelihood equals the GTR20 evaluation within 1e-8 |lnL|",
-                             first is not None and abs(first - reference) <= line, **values))
+                             bool(first is not None and abs(first - reference) <= line), **values))
             out.append(check(f"{label}: final log-likelihood not below the GTR20 evaluation by more than 1e-8 |lnL|",
-                             final is not None and final >= reference - line))
+                             bool(final is not None and final >= reference - line)))
         out += monitoring(label, run, ck)
     return out
 
@@ -813,7 +815,7 @@ def case_restart(r, c, ctx, older):
         message = nqc_error(run)
         # refused by the restore, not by an earlier NQC check
         out.append(check(f"--undo with another {name}: refused by NQC's restore",
-                         run.code not in (0, "timeout") and message is not None and RESTORE_REFUSAL in message,
+                         bool(run.code not in (0, "timeout") and message is not None and RESTORE_REFUSAL in message),
                          exit_code=run.code, message=message))
     run = r.run("restart-undo", args + ["--undo"], staged(base.dir))
     out.append(check("--undo with the same command: exit 0", run.code == 0, exit_code=run.code))
@@ -864,7 +866,7 @@ def case_toy(r, c, calibration_path, alisim):
     m = INITIAL.search(run.stdout())
     iq_start = float(m.group(1)) if m else None
     out.append(check("start score against the oracle's (decision 021)",
-                     iq_start is not None and abs(iq_start - plain["start_lnl"]) <= TOL_LNL * abs(plain["start_lnl"]),
+                     bool(iq_start is not None and abs(iq_start - plain["start_lnl"]) <= TOL_LNL * abs(plain["start_lnl"])),
                      iqtree=iq_start, oracle=plain["start_lnl"]))
     objective = nqc.Objective(readers.read_phylip(data / "toy.phy"), readers.read_newick(data / "toy.nwk"), c.pi, c.ref)
     got = first_gradient(run.stdout())
@@ -949,27 +951,28 @@ def export_checks(label, run, ck, c, partitions):
     kappa = chart.nu_condition(chart.jump_of(Q_or))
     rel = float(np.max(np.abs(Q - Q_or) / np.abs(Q_or)))
     d = chart.diagnostics(Q, c.pi)
-    worst = max(d["stationarity"], d["row_sums"], d["mean_rate_error"])
+    # np.max carries a NaN through, where the built-in max keeps the first value unless a later one is larger
+    worst = float(np.max([d["stationarity"], d["row_sums"], d["mean_rate_error"]]))
     missing = [k for k in INFO_FIELDS if k not in info]
     wrong = sorted(k for k, n in INFO_COUNTS.items() if k in info and len(info[k].split(",")) != n)
     # a score the checkpoint does not hold is written "unknown" (CODE_PLAN.md section 2.2, item 6)
     differ = [k for k in SHARED_KEYS if info.get(k) != ck.get(k, "unknown" if k.endswith("_score") else None)]
     return [
         check(f"{label}: .qmat holds 20 rows of 20 and a pi row, a negative first entry and positive rates",
-              len(rows) == 21 and all(len(r) == 20 for r in rows) and Q[0, 0] < 0 and bool(np.all(Q[off] > 0))),
+              bool(len(rows) == 21 and all(len(r) == 20 for r in rows) and Q[0, 0] < 0 and bool(np.all(Q[off] > 0)))),
         check(f"{label}: .qmat pi row bitwise equal to the target key (decision 021)",
               bool(np.array_equal(pi, floats(ck["target"])) and np.array_equal(pi, c.pi))),
         check(f"{label}: .qmat Q against the oracle's build at the checkpointed coordinates (decision 021)",
               rel <= q_line(kappa), max_relative=rel, line=q_line(kappa), kappa=kappa),
         check(f"{label}: residuals of the .qmat's Q at most {RESIDUAL:g} (decision 021)", worst <= RESIDUAL,
               **{k: d[k] for k in ("stationarity", "row_sums", "mean_rate_error")}),
-        check(f"{label}: .info complete, with its value counts", not missing and not wrong, missing=missing,
+        check(f"{label}: .info complete, with its value counts", bool(not missing and not wrong), missing=missing,
               wrong_counts=wrong),
         check(f"{label}: .info fields shared with the checkpoint identical to its keys (decision 021)", not differ,
               differing=differ),
-        check(f"{label}: .info state order, seed, partitions and file name", info.get("state_order") == lk.AMINO and
+        check(f"{label}: .info state order, seed, partitions and file name", bool(info.get("state_order") == lk.AMINO and
               info.get("random_seed") == "1" and info.get("linked_partitions") == str(partitions) and
-              info.get("qmat") == f"{PREFIX}.NQC.qmat", state_order=info.get("state_order"),
+              info.get("qmat") == f"{PREFIX}.NQC.qmat"), state_order=info.get("state_order"),
               random_seed=info.get("random_seed"), linked_partitions=info.get("linked_partitions"),
               qmat=info.get("qmat")),
         check(f"{label}: .info start, version, diagnostic evaluations (report)", None, start=info.get("start"),
@@ -996,8 +999,8 @@ def diagnostic_checks(label, info, objective):
     near = abs(theirs["statistic"] - chart.FIRST_ORDER_GTOL) <= band
     rows = [
         check(f"{label}: statistic, coordinate and label recomputed from the C++ gradient (decision 021)",
-              float(info["stop_statistic"]) == mine["statistic"] and
-              int(info["stop_coordinate"]) == mine["coordinate"] + 1 and info["stop"] == expected,
+              bool(float(info["stop_statistic"]) == mine["statistic"] and
+              int(info["stop_coordinate"]) == mine["coordinate"] + 1 and info["stop"] == expected),
               stop=info["stop"], expected=expected, statistic=info["stop_statistic"], recomputed=mine["statistic"]),
         check(f"{label}: -lnL at the exported point against the oracle (decision 021)",
               abs(f0 - f_or) <= TOL_LNL * abs(f_or), export=f0, oracle=f_or),
@@ -1022,7 +1025,7 @@ def reimport_checks(label, run, accepted, partitions):
     total = sum(float(v) for v in values) if ok else None
     return [
         check(f"{label}: first log-likelihood against accepted_score (decision 021)",
-              ok and abs(total - accepted) <= TOL_LNL * abs(accepted), exit_code=run.code, printed=values,
+              bool(ok and abs(total - accepted) <= TOL_LNL * abs(accepted)), exit_code=run.code, printed=values,
               accepted=accepted, relative=abs(total - accepted) / abs(accepted) if ok else None),
         check(f"{label}: IQ-TREE's 'does not match' line on reading the file (report)", None,
               count=text.count(MISMATCH)),
@@ -1144,8 +1147,8 @@ def case_export(r, c, ctx, frozen, previous, changes):
         out.append(check("--undo: .qmat byte-identical to the original's (decision 021)",
                          run.file(".NQC.qmat").read_bytes() == base.file(".NQC.qmat").read_bytes()))
         out.append(check("--undo: .info as the original's apart from the command, the diagnostic within decision "
-                         "021's lnL and same-rule lines", not set(differ) - diagnostic and
-                         abs(f - f_undo) <= TOL_LNL * abs(f) and g_ratio <= 1, differing=differ,
+                         "021's lnL and same-rule lines", bool(not set(differ) - diagnostic and
+                         abs(f - f_undo) <= TOL_LNL * abs(f) and g_ratio <= 1), differing=differ,
                          export_lnl=[f, f_undo], gradient_worst=g_ratio))
 
     # the restore leaves every later output as it was, -z's evaluations included
@@ -1325,14 +1328,14 @@ def linked_invariants(label, run, c, partitions):
     return [
         check(f"{label}: the linked struct and {partitions} partition structs in {where}", ok,
               failing=bad["structs"], checkpoints_without_nqc=without, numbered_expected=numbered_expected),
-        check(f"{label}: target bitwise equal to the parsed target in every struct", ok and not bad["target"],
+        check(f"{label}: target bitwise equal to the parsed target in every struct", bool(ok and not bad["target"]),
               failing=bad["target"]),
-        check(f"{label}: coordinates bitwise equal across the structs", ok and not bad["coordinates"],
+        check(f"{label}: coordinates bitwise equal across the structs", bool(ok and not bad["coordinates"]),
               failing=bad["coordinates"]),
-        check(f"{label}: references equal the oracle's in every struct", ok and not bad["references"],
+        check(f"{label}: references equal the oracle's in every struct", bool(ok and not bad["references"]),
               failing=bad["references"]),
         check(f"{label}: residual keys at most {RESIDUAL:g} in every struct (decision 021)",
-              ok and not bad["residuals"], failing=bad["residuals"], worst=worst),
+              bool(ok and not bad["residuals"]), failing=bad["residuals"], worst=worst),
         check(f"{label}: linked fits key at each checkpoint (report)", None, fits=fits),
     ]
 
@@ -1518,7 +1521,7 @@ def case_linked_refusals(r, c, ctx, alisim):
         message = nqc_error(run)
         # refused by startLinkedFit, not by an earlier NQC check
         out.append(check(f"--link-model with {name}: refused at the first linked fit",
-                         run.code not in (0, "timeout") and message is not None and SHARE_REFUSAL in message,
+                         bool(run.code not in (0, "timeout") and message is not None and SHARE_REFUSAL in message),
                          exit_code=run.code, message=message))
     # each refusal must be the one meant: ModelFinder's, and the partition string's +H
     for name, why, entries in (("a charset without a model and no -m", "ModelFinder", [(c.model, "partA"), ("", "partB")]),
@@ -1529,7 +1532,7 @@ def case_linked_refusals(r, c, ctx, alisim):
                     {"parts.nex": parts, **tp.files("-S")})
         message = nqc_error(run)
         out.append(check(f"refused: --link-model with {name}, for {why}",
-                         run.code not in (0, "timeout") and message is not None and why in message,
+                         bool(run.code not in (0, "timeout") and message is not None and why in message),
                          exit_code=run.code, message=message))
     # --runs above 1 under every partition type (decision 008); -Q crashed at the export before
     for mode in ("-p", "-q", "-Q", "-S"):
@@ -1579,10 +1582,10 @@ def seed_against(label, reference, runs):
     worst = float(np.max(ratio)) if usable else None
     return [
         check(f"{label}: -lnL within 1e-8 |lnL| of the reference (decision 038)",
-              complete and not beyond(largest, TOL_LNL), runs=len(runs), at_the_same_point=len(usable),
+              bool(complete and not beyond(largest, TOL_LNL)), runs=len(runs), at_the_same_point=len(usable),
               largest_relative=largest),
         check(f"{label}: first gradient within 2e-12 |lnL| / |h| of the reference (decision 038)",
-              complete and not beyond(worst, 1), worst=worst),
+              bool(complete and not beyond(worst, 1)), worst=worst),
         check(f"{label}: runs bitwise equal to the reference (report)", None,
               lnl=sum(g[0] == f1 for g in usable), gradient=sum(bool(np.array_equal(g[3], g1)) for g in usable)),
     ]
@@ -1593,27 +1596,44 @@ def cpu_wall(run):
     return round(float(cpu.group(1)) / float(wall.group(1)), 2) if cpu and wall and float(wall.group(1)) > 0 else None
 
 
+def summation_order(text):
+    """The charset names in the order IQ-TREE sums the partitions (PhyloSuperTree::computePartitionOrder,
+    which prints them once at -v), or None if the order was not printed."""
+    m = re.search(r"Partitions ordered by computation costs:\n#nexus\nbegin sets;\n(.*?)\nend;", text, re.S)
+    return re.findall(r"^\s*charset (\S+) =", m.group(1), re.M) if m else None
+
+
+def seed_bitwise(label, reference, run):
+    """Decision 021's permuted rows: at -T 1, with the partitions summed in the same order, the seed
+    -lnL and the first gradient (point, steps, values) bitwise equal; the printed orders reported."""
+    a = first_gradient(reference.stdout()) if reference.code == 0 else None
+    b = first_gradient(run.stdout()) if run.code == 0 else None
+    orders = [summation_order(x.stdout()) for x in (reference, run)]
+    return [check(f"{label}: the partitions' summation order IQ-TREE printed (report)", None,
+                  reference=orders[0], reversed=orders[1], same=orders[0] is not None and orders[0] == orders[1]),
+            check(f"{label}: seed -lnL bitwise equal", bool(a and b and a[0] == b[0]),
+                  exit_codes=[reference.code, run.code], lnl=[a and a[0], b and b[0]]),
+            check(f"{label}: first gradient (point, steps, values) bitwise equal",
+                  bool(a and b and all(np.array_equal(u, v) for u, v in zip(a[1:], b[1:]))))]
+
+
 def case_permuted(r, c, ctx, alisim):
-    """CODE_PLAN.md section 3.5, "Permuted partition order"."""
+    """CODE_PLAN.md section 3.5, "Permuted partition order": IQ-TREE sums partitions in order of cost,
+    not file order, so the reversed runs must be bitwise equal at -T 1 (decision 021)."""
     tp = twopart_data(r, c, ctx, alisim)
     base = linked_level1(r, c, ctx, tp)
     run = r.run("permuted-twopart", joint_args(tp.phy, "-S", "reversed.nex", c.model, f"+G4{{{ALPHA}}}",
                                                tree_name("-S"), "-blfix", "-vv", *LINKED_CKP),
                 {"reversed.nex": twopart.nexus(tuple(reversed(list(tp.charsets)))), **tp.files("-S")})
-    a = first_gradient(base.stdout()) if base.code == 0 else None
-    b = first_gradient(run.stdout()) if run.code == 0 else None
     za, zb = ((final_struct(x) or {}) if x.code == 0 else {} for x in (base, run))
-    out = [check("twopart -S Level 1, charsets reversed: seed -lnL bitwise equal", bool(a and b and a[0] == b[0]),
-                 exit_codes=[base.code, run.code], lnl=[a and a[0], b and b[0]]),
-           check("twopart -S Level 1, charsets reversed: first gradient (point, steps, values) bitwise equal",
-                 bool(a and b and all(np.array_equal(u, v) for u, v in zip(a[1:], b[1:])))),
-           check("twopart -S Level 1, charsets reversed: final coordinates bitwise equal",
-                 "coordinates" in za and za.get("coordinates") == zb.get("coordinates"))]
+    out = seed_bitwise("twopart -S Level 1, charsets reversed", base, run)
+    out.append(check("twopart -S Level 1, charsets reversed: final coordinates bitwise equal",
+                     bool("coordinates" in za and za.get("coordinates") == zb.get("coordinates"))))
     for mode in ("-p", "-S"):
         ref = turtle_seed(r, c, ctx, mode)
         rev = r.run("permuted-turtle" + slug(mode), turtle_seed_args(c, mode, "reversed.nex"),
                     {"reversed.nex": reversed_charsets(read(NEX)), **turtle_files(mode, reverse=True)})
-        out += seed_against(f"turtle {mode} at the seed, charsets reversed", ref, [rev])
+        out += seed_bitwise(f"turtle {mode} at the seed, charsets reversed", ref, rev)
     return out
 
 
@@ -1677,9 +1697,9 @@ def case_linked_restart(r, c, ctx, alisim):
         saved = int(ck1["fits"])
         out += [check(f"{label}, resumed from #1: exit 0", rerun.code == 0, exit_code=rerun.code),
                 check(f"{label}, resumed: first linked gradient at #1's coordinates, bitwise",
-                      got is not None and np.array_equal(got[1], floats(ck1["coordinates"]))),
+                      bool(got is not None and np.array_equal(got[1], floats(ck1["coordinates"])))),
                 check(f"{label}, resumed: fits continue from #1's count, never reset",
-                      first_new == saved + 1 and min(fits) >= saved and fits == sorted(fits),
+                      bool(first_new == saved + 1 and min(fits) >= saved and fits == sorted(fits)),
                       fits=fits, first_after_a_fit=first_new, saved=saved)]
         out += linked_invariants(f"{label}, resumed", rerun, c, 2)
     base = linked_level1(r, c, ctx, tp)
@@ -1692,7 +1712,7 @@ def case_linked_restart(r, c, ctx, alisim):
         run = r.run(f"restart-linked-other-{name}", args + ["--undo"], files)
         message = nqc_error(run)
         out.append(check(f"linked --undo with another {name}: refused by NQC's restore",
-                         run.code not in (0, "timeout") and message is not None and RESTORE_REFUSAL in message,
+                         bool(run.code not in (0, "timeout") and message is not None and RESTORE_REFUSAL in message),
                          exit_code=run.code, message=message))
     run = r.run("restart-linked-undo", base.args + ["--undo"], files)
     out.append(check("linked --undo with the same command: exit 0", run.code == 0, exit_code=run.code))
@@ -1924,16 +1944,16 @@ def fixed_point_against(label, reference, runs):
               runs=len(runs), finished=len(got), aborted=sum(aborted(run) for run in runs),
               exit_codes=sorted({str(run.code) for run in runs})),
         check(f"{label}: .qmat byte-identical to the -T 1 reference's (decision 021)",
-              finished and all(run.file(".NQC.qmat").read_bytes() == ref_qmat for run in runs)),
+              bool(finished and all(run.file(".NQC.qmat").read_bytes() == ref_qmat for run in runs))),
         check(f"{label}: .info as the reference's apart from the command and the diagnostic (decision 021)",
-              finished and all({k: i.get(k) for k in kept} == {k: info[k] for k in kept} and set(i) == set(info)
-                               for i in got)),
+              bool(finished and all({k: i.get(k) for k in kept} == {k: info[k] for k in kept} and set(i) == set(info)
+                               for i in got))),
         check(f"{label}: export_lnl within 1e-8 |lnL| of the reference's (decision 038)",
-              finished and not beyond(largest, TOL_LNL), largest_relative=largest),
+              bool(finished and not beyond(largest, TOL_LNL)), largest_relative=largest),
         check(f"{label}: stop_gradient within the same-rule line of the reference's (decision 021)",
-              finished and not beyond(worst, 1), worst=worst),
+              bool(finished and not beyond(worst, 1)), worst=worst),
         check(f"{label}: stop label equal to the reference's" + (" (report: within the rounding band)" if near else ""),
-              None if near else finished and all(l == info["stop"] for l in labels), reference=info["stop"],
+              None if near else bool(finished and all(l == info["stop"] for l in labels)), reference=info["stop"],
               labels=sorted(set(labels)), statistic=info["stop_statistic"], band=band),
         check(f"{label}: rounding exercised (report)", None,
               distinct_export_lnl=len({i["export_lnl"] for i in got}),
@@ -2026,7 +2046,7 @@ def case_options(r, c, ctx):
         exported = export_files(run)
         printed = re.search(SCALARS["log_likelihood"], run.report(), re.M)
         out.append(check(f"options, {label}: exit 0 with the report and both export files",
-                         run.code == 0 and run.file(".iqtree").exists() and exported is not None, exit_code=run.code))
+                         bool(run.code == 0 and run.file(".iqtree").exists() and exported is not None), exit_code=run.code))
         out.append(check(f"options, {label}: label, scores and crash lines (report)", None,
                          stop=(exported or [None, {}])[1].get("stop"),
                          export_lnl=(exported or [None, {}])[1].get("export_lnl"),

@@ -162,7 +162,7 @@ def cpu_row(name, cpu, wall, threads):
     frac = cpu / wall if cpu is not None and wall else None
     return check(f"{name}: CPU time at least {CPU_FLOOR} of wall time (not paused or sharing the CPU)"
                  + ("" if threads == 1 else " (report above -T 1)"),
-                 (frac is not None and frac >= CPU_FLOOR) if threads == 1 else None, cpu_s=cpu, wall_s=wall,
+                 bool(frac is not None and frac >= CPU_FLOOR) if threads == 1 else None, cpu_s=cpu, wall_s=wall,
                  fraction=frac)
 
 
@@ -511,7 +511,7 @@ def per_fit_row(key, parts):
     x = max(vals) if vals else None
     flag = ("missing" if x is None else "blocks the gate (above 3)" if x > BLOCK_LINE else
             "investigate (above 2)" if x > PER_FIT_LINE else "within")
-    return check(f"{key}: NQC to NONREV per fit at most 3 (line 2 to investigate)", x is not None and x <= BLOCK_LINE,
+    return check(f"{key}: NQC to NONREV per fit at most 3 (line 2 to investigate)", bool(x is not None and x <= BLOCK_LINE),
                  verdict=flag, **parts)
 
 
@@ -623,8 +623,8 @@ def counter_checks(r, data, pairs):
         run = r.run(f"check-nonrev-turtle-{arr[1:]}", args + one_round(arr), files, extra=(PER_PARTITION,))
         h = run.gdb["hits"]
         rows.append(check(f"NONREV turtle Level 1 {arr}, one round: {PER_PARTITION} hits equal {parts} x "
-                          f"{COUNTED} hits", run.code == 0 and bool(h.get(COUNTED))
-                          and h.get(PER_PARTITION) == parts * h[COUNTED], hits=h, exit=run.code))
+                          f"{COUNTED} hits", bool(run.code == 0 and bool(h.get(COUNTED))
+                          and h.get(PER_PARTITION) == parts * h[COUNTED]), hits=h, exit=run.code))
     args, files = data.level1("turtle", "-S", data.model)
     args = args + one_round("-S")
     costs, base = [], None
@@ -644,8 +644,8 @@ def counter_checks(r, data, pairs):
         rows.append(check(f"overhead pair {i}: plain and counted runs make the same evaluations and the same "
                           "accepted score, bitwise", same, plain=pk.get("accepted_score"), counted=ck.get("accepted_score"),
                           evaluations=(pk.get("evaluations"), ck.get("evaluations")), hits=hits))
-        rows.append(check(f"counted NQC run {i}: hits equal the evaluations key", hits is not None
-                          and str(hits) == ck.get("evaluations"), hits=hits, key=ck.get("evaluations")))
+        rows.append(check(f"counted NQC run {i}: hits equal the evaluations key", bool(hits is not None
+                          and str(hits) == ck.get("evaluations")), hits=hits, key=ck.get("evaluations")))
         if same and pw and cw and hits:
             costs.append((cw - pw) / hits)
             base = pw / hits
@@ -685,8 +685,8 @@ def windows_problems(windows, binary_sha, data_sha):
 
 def key_row(name, state):
     """Asserted for every counted NQC run: gdb's hits equal NQC's evaluations key."""
-    return check(f"{name}: hits equal the evaluations key", state["hits"] is not None
-                 and state["hits"] == state["evaluations_key"], hits=state["hits"], key=state["evaluations_key"])
+    return check(f"{name}: hits equal the evaluations key", bool(state["hits"] is not None
+                 and state["hits"] == state["evaluations_key"]), hits=state["hits"], key=state["evaluations_key"])
 
 
 def cmd_fits(a):

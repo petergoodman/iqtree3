@@ -389,6 +389,7 @@ files, not from the log, and IQ-TREE's printed final score is reported, not comp
 | `+I+G` restore: the score printed after the restore against the best start's (10 printed decimals) | ≤ min(5e-4, 1e-8 × \|lnL\|); NaN fails | 021 (5e-4 until 2026-10-29, tightened by Peter) |
 | Default domain: a default run's `domain` key | bitwise [log 1e-5, log 1e5] | 007, 2026-10-29 |
 | Options case (`CODE_PLAN.md` 3.5): exit code; report and both export files | 0; present | 2026-10-29 (Peter) |
+| Permuted partition order at `-T 1`, charsets reversed (`CODE_PLAN.md` 3.5; a check of file order, not of threads): seed −lnL, first gradient, twopart's final coordinates | bitwise, since IQ-TREE sums in the same order (derived, not observed) | 2026-10-30 (Peter) |
 
 h_k is the step's displacement (`CODE_PLAN.md` section 2.1); for the export's central differences,
 h⁺_k + h⁻_k. S4 applies the compiled-Q row to the exported Q and the residual row to its file. The
@@ -398,7 +399,7 @@ max(1, |g_ref|), reported at a near-zero start; the oracle reports its central d
 in the archive (1e-10: the synthesis's goal, section 4.3; the κ-scaled Q line: two correct routes).
 **Since** 2026-10-04 (021), 2026-10-05 (026), 2026-10-20 (030, 034 item 7), 2026-10-22 (036's
 withdrawn claim, 038's thread row), 2026-10-26 (S4's export rows), 2026-10-29 (038's export rows;
-the restore, default-domain and options rows).
+the restore, default-domain and options rows), 2026-10-30 (the permuted row).
 
 ### 012. Test the pure module with googletest in a standalone CMake project
 
