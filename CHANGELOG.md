@@ -8,6 +8,19 @@ gate record and may run to 25 lines. The next session starts from the top entry.
 This is a fork of `iqtree/iqtree3`. Entries here describe work on the fork, not upstream
 development.
 
+## 2026-10-30 (second session): third audit; NQC refuses `--root-test`
+
+- **Audit:** no blocker, four medium findings, twelve low (two fixed, the rest in CODE_PLAN 4).
+- **Changed.** `36a43711`: NQC refuses `--root-test`, which re-fits every branch length after the
+  fit, `-blfix` included (008; maintainer question 16). `7cdb9fd6`: the oracle sums π\* left to
+  right, as the C++ does; every failing verdict counts in the driver's exit; `permuted` reports
+  IQ-TREE's cost order, which reversing charsets leaves unchanged, and asserts turtle bitwise (021).
+- **Gate** at `36a43711` (`~/iqtree3-runs/rootfix/20261030-gate-36a43711/`, binary `25d78d6e`):
+  pytest 300; unit tests 49 of 49 twice; nqcchecks 442 passed, none failed, Level 1 outputs equal
+  to `3db13f51`'s; regression 15 of 15; no sanitizer run (Peter).
+- **Failed.** A `conda run` in a stdin-fed script read the script's rest; its rerun overwrote a
+  development log. **Next.** S5 (PLAN.md, next step).
+
 ## 2026-10-30: the release audit's lower-priority findings
 
 - **Changed.** `dff98bf1`, `a49fa1ae`: regression `compare` fails on a missing baseline run; runs

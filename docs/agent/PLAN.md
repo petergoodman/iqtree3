@@ -3,9 +3,10 @@
 > **Status, 2026-10-30: S4 complete, so gates G0 to G3 are met and the branch is the first release
 > candidate: NQC writes its fitted matrix at 17 significant digits (`<prefix>.NQC.qmat`, which
 > re-imports through `-m FILE` within 7.8e-16 of the fit) and an export record with a first-order
-> stop label; the release audit's blocker (threaded runs could abort in the export) is fixed and
-> its other findings closed or with the maintainers; S5 (independent reference) next; approach
-> accepted by the IQ-TREE maintainers (reported by Peter, 2026-10-01).** Peter owns this document.
+> stop label; the release audit's blocker (threaded runs could abort in the export) is fixed, and
+> its other findings and a third audit's are closed, recorded or with the maintainers; S5
+> (independent reference) next; approach accepted by the IQ-TREE maintainers (reported by Peter,
+> 2026-10-01).** Peter owns this document.
 
 This is the project's living core document: what we are building and why, the constraints the
 work must satisfy, where it stands, and the next step. It is read at the start of every task and
@@ -324,7 +325,11 @@ thread could abort in the export diagnostic. It is fixed in `6b69c125` (decision
 from that commit (binary `~/iqtree3-binaries/db4e7aff/`; record in the 2026-10-29 entry of
 `CHANGELOG.md`). Its lower-priority findings were addressed on 2026-10-30 and gated from
 `743b6eab` (binary `~/iqtree3-binaries/3db13f51/`; record in the 2026-10-30 entry of
-`CHANGELOG.md`); the upstream behaviours they exposed are maintainer questions 13 to 15.
+`CHANGELOG.md`); the upstream behaviours they exposed are maintainer questions 13 to 15. A third
+audit (2026-10-30) found no blocker: its four medium findings were fixed in `7cdb9fd6` and
+`36a43711` (NQC refuses `--root-test`, maintainer question 16) and gated from `36a43711` (binary
+`~/iqtree3-binaries/25d78d6e/`; record in the second 2026-10-30 entry of `CHANGELOG.md`); its
+low findings are in `CODE_PLAN.md` section 4, "Known and left alone".
 
 - **In the repository:** the NQC class `model/modelnonrevfixedeq.{h,cpp}`, with its 17-digit
   checkpoint record, its fit records, its linked hooks (`model/linkedmodelhooks.h`, two calls in

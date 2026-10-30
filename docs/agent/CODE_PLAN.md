@@ -884,7 +884,8 @@ fit checked and reported once; the oracle's linked objective, `nqc/twopart.py`, 
 linked, thread, permuted, restart, risk 22 and warm-start cases (sections 1.2, 2.2, 3.1, 3.5,
 3.6).
 
-Known and left alone after S3b and S4 (S3b's citation item was fixed in S4):
+Known and left alone after S3b, S4 and the 2026-10-30 audits (S3b's citation item was fixed in
+S4):
 - `-b 1` reports, and so exports, the single bootstrap replicate's model; `-b N` exports the
   original's at the re-read tree's rounded branch lengths, and is untested with `-p`, `-q` or
   `-S`;
@@ -893,14 +894,32 @@ Known and left alone after S3b and S4 (S3b's citation item was fixed in S4):
 - `--link-alpha`, and `-Q` with `--model-joint` (which takes `-S`'s `PartitionModel` path), are
   tested by exit code and export files only (the `options` case, from 2026-10-29);
 - after a tree search IQ-TREE checkpoints no final model (`main/phyloanalysis.cpp:3896-3899`), so
-  `--undo` restores pre-final state, for every model; NQC's restart tests use `-te`;
+  `--undo` restores pre-final state, for every model; NQC's restart tests use `-te`. So after a
+  tree search NQC's checkpoint holds an earlier fit than its export records (fit 6 against fit 12
+  on aa_example, 2026-10-30; PLAN.md maintainer question 5), and the export is checked against
+  the checkpoint only under `-te`;
 - a one-alignment `-te` run that stops after its model fit and before the end-of-run dump resumes
   with the fitted model on the input tree's branch lengths, reports it and exits 0, for every model
   (PLAN.md maintainer question 15; anchors in section 5). Linked runs also dump after each linked
   fit, at most once a minute, so whether they resume this way depends on timing; untested;
 - PLAN.md risk 23, reported by the S3 review and not verified, outside S3's paths;
 - at `-v` and above, a Release `-S` run ends by printing meaningless NNI counts (PLAN.md
-  maintainer question 6).
+  maintainer question 6);
+- from the 2026-10-30 audit: no test alignment holds B, Z or J, so those codes, with `+I`, are
+  never compared with IQ-TREE; no test data set has identical sequences (none of the 36a43711
+  gate's 350 logs notes one), whose removal by IQ-TREE the oracle, scoring the full tree, does
+  not model;
+- the oracle accepts zero rates the C++ rejects (unreachable inside the domain), and its fixtures
+  check its own build (their residuals against π\* are the independent check);
+- the linked checkpoint struct and partition A's come from one object, so the "every struct" rows
+  compare only A with B; the `--undo` export rows do not assert that the restore happened; the
+  `hmm` row duplicates `tree-mixture`; the `--alisim` binary's hash is not recorded; CI downloads
+  micromamba unpinned;
+- `*H4`, `*G4` and `*R4` are refused with the mixture message; by reading, not run, `--no-outfiles`
+  still writes `.NQC.*` and runs the diagnostic; `--root-find` is not refused, though decision 016
+  excludes it;
+- verdicts built into a variable before `check()` (`ok`, `finished`, `same`, `ref_ok`) are outside
+  `test_nqcchecks_audit.py`'s AST test; every operand is a bool today.
 
 Monitoring, reported for every S3a and S3b fit and not asserted:
 - whether a linked round reaches IQ-TREE's `ASSERT` on a fall of more than 0.1 (formerly risk 7;
