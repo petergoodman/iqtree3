@@ -507,6 +507,14 @@ five times to measure their spread:
     because the report prints the Q file's path
 11. run 8 with `-T 4`
 12. run 10 with `-T 4` (decision 018)
+13. `-s example/aa_example.phy -m LG+C10 -n 0`
+14. `-s example/aa_example.phy -m "MIX{LG,WAG}" -n 0`
+15. `-s test_scripts/test_data/turtle_aa.fasta -p test_scripts/test_data/turtle_aa.nex --model-joint GTR20 -n 0`
+
+Runs 13 to 15 (2026-10-29) reach the shared-file hooks no earlier run reaches: `initMixture`'s
+`+FMIX` loop (run 13) and its component branch (run 14), and `reportReferences` with a
+`--model-joint` model other than NONREV (run 15). Building and reporting the model reaches them,
+so they run with `-n 0` and no tree search.
 
 Compared per run: every section of the `.iqtree` report except the opening header, "ALISIM
 COMMAND" and "TIME STAMP", which hold paths, the build date and clock times; the tree file; and
@@ -519,8 +527,9 @@ instead; the driver applies that rule when comparing, so the stored baseline kee
 as recorded. The driver is `test_scripts/fixedeq/regression/regress.py`. The baseline of runs 1 to
 11 and its provenance are in `test_scripts/fixedeq/regression/baseline/`; run 12's, recorded
 later from the same frozen binary with run 8 rerun in each repeat to supply its inputs, is in
-`baseline/run12/`. A comparison reads both files (`compare --baseline` given once for each), and
-from 2026-10-29 fails on any baseline run missing from the new extract.
+`baseline/run12/`; runs 13 to 15's, recorded from the same frozen binary on 2026-10-29, in
+`baseline/run13/`. A comparison reads all three files (`compare --baseline` given once for each),
+and from 2026-10-29 fails on any baseline run missing from the new extract.
 
 ### 3.5 Layer 5: invariants and nesting
 

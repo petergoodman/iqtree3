@@ -89,10 +89,11 @@ cmake --build ~/iqtree3-build -j 4
   is recorded, and create or edit no repository file while it runs.
 - **Regression driver**: `test_scripts/fixedeq/regression/regress.py` (`freeze`, `run`,
   `baseline`, `compare`; `CODE_PLAN.md` section 3.4). The baseline (runs 1 to 11 in
-  `regression/baseline/`, run 12 in `baseline/run12/`; raw outputs under `~/iqtree3-runs/baseline/`)
-  came from the frozen unmodified binary `~/iqtree3-baseline/iqtree3` (SHA-256 beside it), never
-  rebuilt or overwritten. After a source change, `run` the new build into a new directory, then
-  `compare --baseline baseline/baseline.json --baseline baseline/run12/baseline.json`.
+  `regression/baseline/`, run 12 in `baseline/run12/`, runs 13 to 15 in `baseline/run13/`; raw
+  outputs under `~/iqtree3-runs/baseline/`) came from the frozen unmodified binary
+  `~/iqtree3-baseline/iqtree3` (SHA-256 beside it), never rebuilt or overwritten. After a source
+  change, `run` the new build into a new directory, then `compare --baseline baseline/baseline.json
+  --baseline baseline/run12/baseline.json --baseline baseline/run13/baseline.json`.
 - **Sanitizer build** (decision 022; flags and coverage in `CODE_PLAN.md` section 3.6):
   `sanitize.py build --build-dir DIR --git git.exe` into a new directory per slice (S2: about 30
   minutes of compute alone, 4.2 hours of wall time beside other checks; S3a: 15 minutes beside
