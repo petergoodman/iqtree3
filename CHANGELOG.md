@@ -8,6 +8,19 @@ gate record and may run to 25 lines. The next session starts from the top entry.
 This is a fork of `iqtree/iqtree3`. Entries here describe work on the fork, not upstream
 development.
 
+## 2026-10-29: release audit; threaded export abort fixed (decision 038)
+
+- **Audit** of S0 to S4: one release blocker, NQC runs above one thread could abort at their end
+  (the export's bitwise −lnL recheck against the non-reversible kernel's thread-order sum;
+  maintainer question 12). The lower-priority findings went to a separate agent (Peter).
+- **Fixed** (`6b69c125`): the recheck held to decision 038's line, the matrix check bitwise; case
+  `export-threads`; two NaN gaps in the driver closed. On `91ea7d14`: 42 aborts in 175 runs.
+- **Gate** at `6b69c125` (`~/iqtree3-runs/thread-export/20261029-gate-6b69c125/`, binary
+  `db4e7aff`): pytest 256; unit tests 49 of 49 twice; nqcchecks 367 passed, none failed, `-T 1`
+  outputs equal to `91ea7d14`'s, 0 aborts in 175 threaded runs; regression 12 of 12; sanitizers
+  only the two upstream findings; 15 smoke runs at `-T 4`, `8`, `AUTO` exit 0 with exports.
+- **Next.** S5 (PLAN.md, next step); the audit's other findings stay with the hand-off agent.
+
 ## 2026-10-28 (second session): NQC refuses `--runs` above 1
 
 - **Changed** (`10fe190f`): NQC's constructor refuses `--runs` above 1 (decision 008), so such a

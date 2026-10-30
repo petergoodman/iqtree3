@@ -1,10 +1,11 @@
 # Plan: π-constrained non-reversible amino-acid models
 
-> **Status, 2026-10-27: S4 complete, so gates G0 to G3 are met and the branch is the first release
+> **Status, 2026-10-29: S4 complete, so gates G0 to G3 are met and the branch is the first release
 > candidate: NQC writes its fitted matrix at 17 significant digits (`<prefix>.NQC.qmat`, which
 > re-imports through `-m FILE` within 7.8e-16 of the fit) and an export record with a first-order
-> stop label; S5 (independent reference) next; approach accepted by the IQ-TREE maintainers
-> (reported by Peter, 2026-10-01).** Peter owns this document.
+> stop label; the release audit's one blocker (threaded runs could abort in the export) is fixed;
+> S5 (independent reference) next; approach accepted by the IQ-TREE maintainers (reported by
+> Peter, 2026-10-01).** Peter owns this document.
 
 This is the project's living core document: what we are building and why, the constraints the
 work must satisfy, where it stands, and the next step. It is read at the start of every task and
@@ -289,7 +290,10 @@ the first release candidate. S3 ran as three slices (the approved plan is frozen
 `docs/agent/archive/S3_plan_2026-10-22.md`). S4's gate ran from the clean tree at `a0ebf5cf` on
 2026-10-27 (`~/iqtree3-runs/s4-gate/20261027T043226Z-a0ebf5cf/`, binary frozen in
 `~/iqtree3-binaries/e31974dd/`); its record and the release audit are the S4 entry of
-`CHANGELOG.md`.
+`CHANGELOG.md`. A second release audit (2026-10-29) found one blocker: NQC runs at more than one
+thread could abort in the export diagnostic. It is fixed in `6b69c125` (decision 038) and gated
+from that commit (binary `~/iqtree3-binaries/db4e7aff/`; record in the 2026-10-29 entry of
+`CHANGELOG.md`). The audit's lower-priority findings are with a separate agent (Peter).
 
 - **In the repository:** the NQC class `model/modelnonrevfixedeq.{h,cpp}`, with its 17-digit
   checkpoint record, its fit records, its linked hooks (`model/linkedmodelhooks.h`, two calls in
@@ -328,4 +332,5 @@ Plan and implement S5 in a new session, started in plan mode with this prompt:
 > the records leave a choice, including the small real data set of risk 9. Use the keep-awake
 > helper for any run longer than a few minutes (CLAUDE.md).
 
-The working rules are in `CODE_PLAN.md` section 4, "Implementation".
+The working rules are in `CODE_PLAN.md` section 4, "Implementation". The 2026-10-29 audit's
+lower-priority findings are handled by a separate agent from Peter's hand-off list.
