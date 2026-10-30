@@ -213,6 +213,11 @@ Refusals (decision 008; this is the full list):
   there (S4's binary crashed). The model is first built in run 1, after its starting tree and
   before any fit; under `-S` with a tree search, upstream's crash in that starting tree comes
   first (PLAN.md maintainer question 11);
+- `--root-test` (from 2026-10-30): `testRootPosition` re-optimizes every branch length after the
+  last fit, `-blfix` included, before `reportPhyloAnalysis`, so the export's `export_lnl`, label and
+  gradient would describe that state rather than the fit's (aa_example Level 1: −6955.4930 against
+  `accepted_score` −6960.2163, "unclassified"; the `.qmat` unchanged). Peter chose refusal over
+  moving the export ahead of the root test, a shared edit (PLAN.md maintainer question 16);
 - in `initMixture`, any mixture component.
 
 IQ-TREE's parser rewrites `+FO{...}` and `+FU{...}` to `+F{...}` for every model (verified,
@@ -854,8 +859,9 @@ read it only where these lists are unclear.
       needs the restore's own error ("the checkpoint was written with a different"), the only
       sign that the restore refused it (S3a); from S3b the linked refusals name their reason too
       ("linked partitions must share one model", "ModelFinder", "heterotachy"), as do the
-      `--runs` refusals from 2026-10-28 ("--runs") and every refusal from 2026-10-29 (the
-      driver's `REFUSAL_REASONS`);
+      `--runs` refusals from 2026-10-28 ("--runs") and every refusal in the driver's
+      `REFUSAL_REASONS` from 2026-10-29, `--root-test` included; from 2026-10-30 the error line is
+      matched only as NQC writes it (`^ERROR: NQC[ :]`);
     - the free-parameter count, read from the report;
     - the `+I+G` restore check: the restored model, re-scored after the restore, scores as the
       best start, from the start scores IQ-TREE prints at 10 decimals, within decision 021's
@@ -1026,3 +1032,4 @@ still at `63c330d9`: at HEAD, lines after 60 are offset by 1, after 164 by 4 and
 | `alignment/alignment.cpp:4125`; `main/phyloanalysis.cpp:4598` | `createBootstrapAlignment` copies the source alignment's unset `pomo_sampling_method`; `runStandardBootstrap` calls it for each `-b` replicate (PLAN.md maintainer question 10; added 2026-10-27) |
 | `tree/phylokernelnonrev.h:1180, 1330`; `tree/phylokernelnew.h:3151-3160`; `tree/phylotreesse.cpp:43-49`; `alignment/superalignment.cpp:68-85`; `utils/tools.h:51-57` | the non-reversible tree likelihood adds packets' sums under `schedule(dynamic,1)` with a `reduction`, the reversible one stores them and adds them in packet order; 2 packets per thread above one thread; `-p` and `-q` cap the threads at the sum over partitions of max(1, patterns × states / `mf_thread_factor`, 4000); `ASSERT` calls `abort()` (PLAN.md maintainer question 12; added 2026-10-29) |
 | `tree/phylosupertree.cpp:657-697, 690`; `model/partitionmodel.cpp:314-334` | `computePartitionOrder` sorts partitions by cost (sequences × patterns × states) into `part_order`, prints it at `-v`, and sorts `part_order_by_nptn` by patterns; `PartitionModel::targetFunk` sums in `part_order` (added 2026-10-30) |
+| `utils/tools.cpp:1308-1309`; `main/phyloanalysis.cpp:3957`; `tree/phylotree.cpp:3130, 3175-3178, 3198` | `--root-test` sets `root_test`; `runTreeReconstruction` calls `testRootPosition`, its only caller, after the final fit and before the report; it re-optimizes every branch length for each root, ending at the original root, `-blfix` notwithstanding, then `ASSERT`s against the starting score (PLAN.md maintainer question 16; added 2026-10-30) |

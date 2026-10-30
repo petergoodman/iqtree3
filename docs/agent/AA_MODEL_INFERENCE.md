@@ -421,8 +421,10 @@ midpoint of the candidate branch, re-optimises all branch lengths for each candi
 (`tree/iqtree.cpp:3257-3259`) and from `ModelFactory::optimizeParameters` when `root_find` is on
 (`model/modelfactory.cpp:1733-1734`). Separately, `--root-test` scans **every** branch and writes
 a ranked list for the standard topology tests (`tree/phylotree.cpp:3130-3215`, driven from
-`main/phyloanalysis.cpp:3957-3961`), and `--rootstrap` counts how often each branch is the root
-across bootstrap replicates. Under `-te` no tree search runs, so only `--root-find` can move the
+`main/phyloanalysis.cpp:3957-3961`); it ends at the original root with every branch length
+re-optimized, `-blfix` notwithstanding, and with a reversible model on an unrooted tree it writes
+no list and the run stops (verified 2026-10-30 on the unmodified binary; PLAN.md maintainer
+question 16). `--rootstrap` counts how often each branch is the root across bootstrap replicates. Under `-te` no tree search runs, so only `--root-find` can move the
 root. In S0 probe (f) (2026-10-05) the root never changed branch in 13 comparisons, and an unrooted
 input was rooted at the midpoint of the longest path. Under `-S` this happened per partition tree,
 and under `-p` and `-q` on the shared tree. In every fit that optimized branch lengths, the root

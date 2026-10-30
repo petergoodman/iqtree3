@@ -301,6 +301,16 @@ Peter relays these if and when he chooses; no agent contacts the maintainers (`C
     it, and the fitted tree reaches the candidate set only after the fit's dump; resuming with the
     fitted tree as `-te` gives the finished run's score. Linked runs not tested. Script and outputs:
     `~/iqtree3-audit/followup-20261030T054825Z/`. Should the restore keep the fitted tree?
+16. Upstream finding, 2026-10-30, unmodified binary: `--root-test` re-optimizes every branch length
+    after the model fit, `-blfix` included, and the report then mixes two states. On aa_example with
+    baseline run 2's tree, `NONREV+G4{0.5} -te -blfix --root-test` ends with tree length 3.4968
+    against 3.0282 without the option, its root test reaching −6819.462 at the original root, while
+    the `.iqtree` prints the pre-test −6825.6805 beside the re-optimized tree. With a reversible
+    model on an unrooted tree (`LG+G4{0.5}`) `testRootPosition` writes no `.roottest.trees` and the
+    run stops with "File not found" (exit 2). NQC refuses `--root-test` (decision 008), since its
+    export would describe the re-optimized state. Script and outputs:
+    `~/iqtree3-audit/rootfix-20261030T174542Z/step0a/`. Should the root test honour `-blfix` and
+    leave the tree as it found it?
 
 ## Current state
 

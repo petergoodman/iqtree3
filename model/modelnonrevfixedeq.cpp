@@ -207,6 +207,10 @@ void ModelNonrevFixedEq::refuseUnsupported(const string &model_params, StateFreq
     // cached transition matrices, keyed by branch length, would outlive a change of Q
     else if (params.store_trans_matrix)
         why = "is not supported with -mstore";
+    // root testing re-optimizes every branch length after the last fit, -blfix included, so the
+    // export would describe another state (PLAN.md maintainer question 16)
+    else if (params.root_test)
+        why = "is not supported with --root-test";
     // --runs restores the best run into a tree that cannot compute a likelihood, which the
     // export's diagnostic needs
     else if (params.num_runs > 1)

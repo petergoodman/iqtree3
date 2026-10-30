@@ -246,15 +246,15 @@ box of the records made in it; [log 1e-6, log 1e6], NONREV's ratio range; [log 1
 **Rule.** NQC stops with a message for every input outside the first release (`CODE_PLAN.md` 2.2):
 non-protein data, untargeted `+F`, `-optfromgiven`, `-jointopt`, mixtures, tree mixtures and HMM,
 GHOST `+H`, site-specific frequencies, `--link-exchange-rates`, `--eigen`, `--lie-markov`, ModelFinder
-in any form, AliSim, unlinked partitions, `-mstore`, `--runs` above 1, a rate model in `--model-joint`.
-**Why.** Each path bypasses the invariants, is undesigned or ends wrongly: `-optfromgiven` releases
-the equilibrium (015), `-jointopt` clamps coordinates, an `--mdef` mixture never shows "MIX", the
-export's probes would reuse `-mstore`'s matrices (009) and fail on the tree `--runs` restores,
-`--lie-markov` stops at an `ASSERT`, and IQ-TREE drops a joint rate model. Peter chose refusal
-over testing unlinked partitions (2026-10-22), readying that tree (2026-10-28) and NONREV's `ASSERT`.
-**Not chosen.** Allowing them silently; supporting them now; detecting mixtures from the string.
-**Since** 2026-09-23; revised 2026-10-20 (032, 034), 2026-10-22, 2026-10-23, 2026-10-26, 2026-10-28
-and 2026-10-29 (`--lie-markov`, reversing 034 item 5; the joint rate model; Peter).
+in any form, AliSim, unlinked partitions, `-mstore`, `--runs` above 1, `--root-test`, a joint rate model.
+**Why.** Each path bypasses the invariants, is undesigned or ends wrongly: `-optfromgiven` releases π
+(015), `-jointopt` clamps coordinates, an `--mdef` mixture never shows "MIX", the export would reuse
+`-mstore`'s matrices (009), fail on the tree `--runs` restores and describe the branch lengths
+`--root-test` re-fits (`-blfix` too), `--lie-markov` hits an `ASSERT`, IQ-TREE drops a joint rate model.
+**Not chosen.** Allowing them silently; supporting them now (Peter: testing unlinked partitions,
+readying `--runs`'s tree, NONREV's `ASSERT`, moving the export); detecting mixtures from the string.
+**Since** 2026-09-23; revised 2026-10-20 (032, 034), 2026-10-22, 2026-10-23, 2026-10-26, 2026-10-28,
+2026-10-29 (`--lie-markov`, reversing 034 item 5; the joint rate model), 2026-10-30 (`--root-test`).
 
 ### 009. Check every fit afterwards, report a fall below the start, restore nothing
 
@@ -314,14 +314,14 @@ becomes Q. The maintainers advised caution with changes to `ModelMarkov`.
 
 **Rule.** Root frequencies: π*. An unrooted input tree is rooted by IQ-TREE's conversion
 (midpoint of the longest path, or the `-o` outgroup's branch); a rooted one keeps its root. No
-root-edge search: fits run under `-te` without tree search or `--root-find`. The root split is
-fixed in Level 1 (`-blfix`) and left to IQ-TREE's branch-length optimization in Level 2. The
-policy for scientific runs is set at gate G5.
+root-edge search: fits run under `-te` without tree search or `--root-find`, and `--root-test` is
+refused (008). The root split is fixed in Level 1 (`-blfix`) and left to IQ-TREE's branch-length
+optimization in Level 2. The policy for scientific runs is set at gate G5.
 **Why.** A non-reversible likelihood depends on the root, so comparisons need a stated policy
 (synthesis section 7.5); this inherits nQMaker's practice under `-te`. S0 probe (f) found the
 root unchanged.
 **Not chosen.** Searching the root; requiring an outgroup; fixing the split in Level 2.
-**Since** 2026-10-03.
+**Since** 2026-10-03; the `--root-test` reference 2026-10-30 (wording only).
 
 ### 024. Run Level 1 with existing options
 

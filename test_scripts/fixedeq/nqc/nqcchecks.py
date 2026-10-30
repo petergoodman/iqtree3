@@ -444,7 +444,7 @@ REFUSAL_REASONS = {
     "modelfinder-no-m": "ModelFinder", "alisim": "cannot simulate", "mix": "component of a mixture",
     "fmix": "component of a mixture", "mdef-mix": "component of a mixture", "unlinked-p": "unlinked partitions",
     "unlinked-q": "unlinked partitions", "unlinked-S": "unlinked partitions", "mstore": "-mstore",
-    "lie-markov": "--lie-markov",
+    "lie-markov": "--lie-markov", "root-test": "--root-test",
     **{f"freq-{f}": "needs its target stationary distribution" for f in ("F", "FQ", "FO", "FU", "none")},
 }
 
@@ -495,6 +495,8 @@ def case_refusals(r, c, ctx):
         ("mstore", aa + ["-m", c.model, "-mstore"], tree),
         # 2026-10-29: the non-reversible transition matrix stops at an ASSERT under --lie-markov (decision 008)
         ("lie-markov", aa + ["-m", c.model, "--lie-markov"], tree),
+        # 2026-10-30: root testing re-optimizes branch lengths after the fit, -blfix included (decision 008)
+        ("root-test", aa + ["-m", c.model, "--root-test"], tree),
     ]
     out = []
     for name, args, files in runs:
