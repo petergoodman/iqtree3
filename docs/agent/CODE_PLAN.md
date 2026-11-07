@@ -890,7 +890,8 @@ S4):
   original's at the re-read tree's rounded branch lengths, and is untested with `-p`, `-q` or
   `-S`;
 - the report lines that cannot re-run an NQC fit (PLAN.md maintainer question 8);
-- the export diagnostic's evaluations (section 2.2), with no switch to skip them unless S7 needs one;
+- the export diagnostic's evaluations (section 2.2), with no switch to skip them unless SIM-2 or
+  S7 needs one (SIM-2 runs thousands of NQC fits, each paying them);
 - `--link-alpha`, and `-Q` with `--model-joint` (which takes `-S`'s `PartitionModel` path), are
   tested by exit code and export files only (the `options` case, from 2026-10-29);
 - after a tree search IQ-TREE checkpoints no final model (`main/phyloanalysis.cpp:3896-3899`), so
@@ -962,7 +963,53 @@ S5, an outline to be planned in full in its own session (PLAN.md, next step):
   set before the comparison (decision 021); decision 039 governs how the endpoints are compared.
 - A comparison report.
 
-S6 and S7: lists written when S5 is done; S7's starts from decision 039's convergence protocol.
+SIM-1 and SIM-2, outlines to be planned in full in their own sessions, as S5's is (order in
+decision 040, gates in PLAN.md; the reasons and literature are frozen in
+`docs/agent/archive/SIM_plan_2026-11-07.md`, read only where these outlines are unclear). In
+these two outlines π* denotes the simulated target composition of PLAN.md risk 25, never the real
+target.
+
+SIM-1 (laptop):
+- Exact check of AliSim from an exported `.qmat` through `-m FILE`: about a million sites on a
+  two-taxon rooted tree, the 400 tip-pair counts against the oracle's exact probabilities, with
+  and without `+G4`, and the root composition. For a non-reversible Q the joint law depends on
+  both branch lengths separately, not only on their sum, so the check also tests root handling.
+  Fallback: `+F{π*}` on the matrix file. Whether AliSim draws the root from π* and normalizes Q
+  as NQC does is unverified;
+  `nqc/toy.py`'s `simulate` (used by `nqc/twopart.py` and `profile/profiling.py`) already
+  simulates this way.
+- The oracle's NQC objective with `lbfgsb_fit`, fitted to exact expected pattern frequencies on
+  3- and 4-taxon trees, returns the true Q (S5's direct-flux reference may serve as a second
+  fitter). Rough cost one to two hours a fit on 160,000 patterns (unverified).
+- The exact screen of misspecification with the same fits, each scenario built on a reversible and
+  on an NQ.mammal-strength truth: global target shift, per-gene composition, site profiles mixed
+  over the truth's exchange pattern, content-dependent residue masking; circulation per scenario;
+  it selects SIM-2's scenarios. The design documents ran a three-state version (P-positive section
+  8, check 11).
+- The pipeline: a truth family dialling circulation from zero to NQ.mammal strength at fixed
+  composition (scaling the antisymmetric part of the balanced flux within positivity, a
+  proposal); trees and per-gene settings from the data set of PLAN.md risk 25; AliSim runs with
+  one recorded seed per repetition and provenance; metrics; reusing `nqc/toy.py`'s helpers.
+- A pilot for Monte Carlo standard errors and cost; SIM-2's plan written as section 3.8 in ADEMP
+  form (Morris et al. 2019) before any large run, reporting failed fits and every failed
+  validation attempt (Mendes et al. 2024), and approved by Peter.
+
+SIM-2 (cluster; decisions 039, 040, 041), per section 3.8 once approved:
+- Lean recovery: reversible and NQ.mammal-strength truths at π*; 30, 100, 300 and 1000 genes;
+  Level 1 on true trees, one size at Level 2; starts LG at π*, the GTR20 fit and a distant start;
+  per-rate log error (Pearson correlation alone hides twofold errors in small rates, Tinh et al.
+  2024), net-flux error, held-out log-likelihood against the truth, ending rules and
+  relaxed-setting checks.
+- Finite-sample false-circulation runs for the screen's flagged scenarios and the reversible
+  truth at the correct target.
+- Content-dependent masking from CLOAK's removal statistics, comparing NQC at π*, frequency
+  replacement and the reversible refit at π* against the known truth: the only known-truth
+  evidence for the claim that frequency replacement estimates worse.
+
+S6: list written when SIM-1 closes, using the simulation results then available (for instance,
+whether the Level 3 driver is worth building). S7: list written when SIM-2 closes; it starts from
+decision 039's convergence protocol and includes the parametric bootstraps of decisions 040 and 041
+and the gene resampling of π*.
 
 ## 5. Source anchors
 

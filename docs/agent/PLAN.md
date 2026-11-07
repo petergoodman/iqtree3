@@ -1,12 +1,12 @@
 # Plan: π-constrained non-reversible amino-acid models
 
-> **Status, 2026-10-30: S4 complete, so gates G0 to G3 are met and the branch is the first release
+> **Status, 2026-11-07: S4 complete, so gates G0 to G3 are met and the branch is the first release
 > candidate: NQC writes its fitted matrix at 17 significant digits (`<prefix>.NQC.qmat`, which
 > re-imports through `-m FILE` within 7.8e-16 of the fit) and an export record with a first-order
 > stop label; the release audit's blocker (threaded runs could abort in the export) is fixed, and
 > its other findings and a third audit's are closed, recorded or with the maintainers; S5
-> (independent reference) next; approach accepted by the IQ-TREE maintainers (reported by Peter,
-> 2026-10-01).** Peter owns this document.
+> (independent reference) next, then the simulation slices (decision 040); approach accepted by
+> the IQ-TREE maintainers (reported by Peter, 2026-10-01).** Peter owns this document.
 
 This is the project's living core document: what we are building and why, the constraints the
 work must satisfy, where it stands, and the next step. It is read at the start of every task and
@@ -33,7 +33,7 @@ construction at every likelihood evaluation, not only at convergence. IQ-TREE's 
 engine, model selection, tree inference, and branch-length and rate-parameter optimization are
 reused, with peripheral changes to target input, seeding, parameter counting, and output. The
 estimate is the non-reversible counterpart of the reversible workflow of Wheeler et al. (2025;
-doi:10.64898/2025.12.01.691663 as given in the Part 2 slide deck, not verified), which takes
+doi:10.64898/2025.12.01.691663, the bioRxiv preprint, resolved 2026-11-07), which takes
 exchangeabilities from filtered training alignments and composition from the target data, a
 frequency replacement that is exact only for reversible models. The work is done on branch
 `nq-constrained-pi` of the fork `petergoodman/iqtree3` and is intended for eventual submission
@@ -57,7 +57,7 @@ is the pooled composition of the original training data, held fixed across clean
 and the comparison arms are those of D08. Because π* e^{tQ} = π*, every tip marginal equals π*,
 so a wrong target can produce apparent circulation; simulations with reversible and
 non-reversible generators at correct and perturbed targets come before any circulation is read
-as biology. Manuscript title and venue: to be supplied by Peter.
+as biology (decision 040). Manuscript title and venue: to be supplied by Peter.
 
 Success criteria for the software (confirmed by Peter, 2026-10-29). The feature works when gates
 G0 to G3 of the synthesis are met with this evidence:
@@ -83,9 +83,9 @@ Scientific success criterion (proposed placeholder). Frozen matrices are evaluat
 held-out genes under one declared nuisance policy across the D08 arms, with uncertainty from
 resampling genes. Candidate criterion: the general refit at π* exceeds both the reversible refit
 at π* and the frequency-replacement arm in held-out log-likelihood by more than the resampling
-uncertainty, and non-reversibility is claimed only where it exceeds what reversible simulations
-at a perturbed target produce. Whatever criterion is adopted is written as a confirmatory plan in
-the repository before any training or evaluation data are read.
+uncertainty, and non-reversibility is judged as decision 041 sets. Whatever criterion is adopted
+is written as a confirmatory plan in the repository before any training or evaluation data are
+read.
 
 ## Scope of the first release
 
@@ -116,14 +116,20 @@ Tree search with NQC runs through ordinary IQ-TREE code but is not a first-relea
 target.
 
 Deferred, still in the project: a small direct-flux reference in Python (D10; S5, gate G4 as
-reduced by D01); target-rebuilt guide candidates, fixed learned candidates in ModelFinder, the
-reversible/non-reversible mixing guard, an optional Level 3 outer driver, and simulation (S6,
-gate G5); domain sensitivity of the scientific fits (S3a and S3b report it on test data for
-risk 22), multiple starts, mismatch simulations and held-out evaluation (S7, gate G6).
+reduced by D01); the simulation slices SIM-1 and SIM-2 (decision 040); target-rebuilt guide
+candidates, fixed learned candidates in ModelFinder, the reversible/non-reversible mixing guard,
+the root policy for scientific runs (decision 016), incumbent protection and an optional Level 3
+outer driver (S6, gate G5's remaining conditions); domain sensitivity of the scientific fits (S3a
+and S3b report it on test data for risk 22), multiple starts, held-out evaluation, the parametric
+bootstraps of decisions 040 and 041, and gene resampling of π* as a sensitivity analysis, since
+D07 holds π* fixed (S7, gate G6's remaining conditions).
 
 Out of scope: EM (D10), exact boundary fitting, branch-specific targets, non-stationary roots,
 profile mixtures with distinct equilibria, analytic likelihood gradients, compiled positive-ratio
-and T3 charts (D01), and any edit to IQ-TREE's optimizer (decision 009).
+and T3 charts (D01), any edit to IQ-TREE's optimizer (decision 009), simulation of root placement,
+of non-stationary lineages (a limitation the manuscript states) and of alignment error with
+realignment and cleaning (decision 040), and a 5% likelihood-ratio test of reversibility
+(decision 041).
 
 ## Constraints and requirements
 
@@ -166,7 +172,8 @@ smoothing, and the vector at 17 significant digits. For the turtle test data the
 below the 8 decimals IQ-TREE prints (baseline runs 8 and 9). The real π* is computed only after
 the confirmatory plan is in the repository, because computing it reads the training data. S0 to
 S4 use the test target of decision 023, recorded at 17 significant digits in the G0 manifest
-(`test_scripts/fixedeq/manifest/g0_manifest.md`).
+(`test_scripts/fixedeq/manifest/g0_manifest.md`). SIM-1 and SIM-2 simulate at a composition
+taken from data outside the confirmatory sets (risk 25), never at the real π*.
 
 The oracle's port of the estimator, `test_scripts/fixedeq/oracle/target.py`, reproduces IQ-TREE's
 "Mean state frequencies" line, printed at 8 decimals, for the turtle data under both `-p` and
@@ -186,7 +193,8 @@ File-level changes, the NQC class specification, the six test layers and each sl
 are in `docs/agent/CODE_PLAN.md`. Each slice maps to a gate of synthesis section 11: G0 protocol
 and configuration, G1 mathematical core, G2 first compiled conditional model, G3 linked and
 lifecycle support, G4 competing implementations, G5 native and outer workflow, G6 scientific
-validation.
+validation. SIM-1 delivers G5's simulation support and begins G6's 20-state simulations; SIM-2
+and S7's two bootstraps complete them. The slices run in the order decision 040 sets.
 
 | Slice | Gate | Goal | Done when | Status |
 |---|---|---|---|---|
@@ -198,8 +206,10 @@ validation.
 | S3c | G3 | Stopping, risk 22's evidence, cost against NONREV | first part: the stopping study's asserted checks and the converged risk 22 evidence (`CODE_PLAN.md` section 4); then profiling against NONREV within its blocking threshold, or, above 3 per fit, fixed in NQC's code or accepted by Peter; any ratio above 1.25 per evaluation or 2 per fit explained (risks 5, 18, 24) | done 2026-10-26 (first part 2026-10-25, domain `0e9fb159`; profiling gate at `0b0048af`) |
 | S4 | G3 | Export, re-import and report | export then `-m FILE` reproduces the log-likelihood of a Level 1 fit; metadata complete; first release candidate | done 2026-10-27 (`a0ebf5cf`); first release candidate |
 | S5 | G4, as reduced by D01 | Independent reference | D10's direct balanced-flux fit in Python agrees with NQC fits on small problems; comparison report | not started |
-| S6 | G5 | Workflow | candidate-set and mixing-guard tests; G5 conditions | not started |
-| S7 | G6 | Science | the confirmatory plan's checks, with decision 039's convergence protocol; G6 conditions | not started |
+| SIM-1 | G5 (simulation support), G6 (part) | Simulator check and exact screen (proposed) | AliSim from an exported matrix passes the exact pattern check, or its fallback does; the oracle's NQC objective fitted to exact pattern frequencies returns the true Q within pass lines set first (decision 021); the screen's circulation tabled per scenario; pipeline and pilot run; SIM-2's plan written (`CODE_PLAN.md` section 3.8) and approved by Peter | not started |
+| SIM-2 | G6 (part) | Simulation study (proposed) | the approved plan's studies run at the pilot's replicate counts, failed fits counted, results with Monte Carlo standard errors; outputs for S7's confirmatory plan: reference distributions of the circulation statistic (decision 041), the stopping setting (decision 039), how much of the available data the fit needs | not started |
+| S6 | G5 | Workflow | candidate-set and mixing-guard tests; G5's remaining conditions | not started |
+| S7 | G6 | Science | the confirmatory plan's checks, with decision 039's convergence protocol; the parametric bootstraps of decisions 040 and 041 and the gene resampling of π*; G6's remaining conditions | not started |
 
 ## Risks and open questions
 
@@ -208,9 +218,11 @@ validation.
 | # | Item | Resolved by |
 |---|---|---|
 | 9 | Real training data: a small real set for S5, and the full set with a written confirmatory plan for S7 | Peter |
-| 11 | Scientific success criterion and manuscript details (placeholder above) | Peter |
+| 11 | Scientific success criterion and manuscript details (placeholder above) | Peter, with SIM-2's reference distributions (decision 041) |
 | 23 | Reported by the S3 plan's review, not verified: resuming an `-S` tree search with `+I+G` may restore stale top-level model keys, for every model, because per-partition refits during the search save to the top level (the model re-optimization in `IQTree::doNNISearch`) and the resumed process keeps `opt_gammai` on, so the `+I+G` starts restore from a copy of the checkpoint (`ModelFactory::optimizeParametersGammaInvar`; anchors in `CODE_PLAN.md` section 5). Outside S3's validation paths, which use `-te` | Checked before it becomes a question for the maintainers |
-| 24 | Fits stop short of their peaks under IQ-TREE's stopping rules, for every model. `dfpmin` tests its gradient relative to the log-likelihood with gtol fixed at 1e-4 and starts each call with no curvature memory; the round loops stop at a gain below `-me` (0.01; ten times that under `-S`) or at a cap (10 rounds under `-S`, 99 under `-p` and `-q`). On turtle's `-q` warm start each round was one step gaining about 0.01, so where a fit stops is close to chance; NONREV's turtle `-S` Level 1 fit hit its cap still gaining 3.5 per round (maintainer question 7). Comparing two fits' scores (box against wide, NQC against NONREV, D08's arms) therefore needs a convergence protocol. IQ-TREE's optimizer stays unchanged (decision 009). S3c's first part: NQC's endpoints lie 0.77 to 4.2 below the converged peaks at default settings and 0.67 to 2.5 after 300 relaxed rounds, more than the box costs; its later rounds average 724 evaluations, one step each. S3c's profiling: NONREV's `-S` fits all ended at the 10-round cap, NQC's 10-set `-q` and `-p` fits at the 99-round cap, so time per fit mostly follows where fits stop (NQC to NONREV 0.26 to 1.09) while time per evaluation is equal | Testing: S3c's first part (done 2026-10-25). Science: decision 039 (Peter, 2026-10-25): NQC keeps NONREV's optimization process, issues in it go to the maintainers; S7's confirmatory plan declares one stopping setting for every compared fit, reports each fit's ending rule and checks its conclusions against relaxed settings or a reference climb on a subset; the climbing routine is revisited if S7's pilot shows differences between arms the size of the stopping shortfall |
+| 24 | Fits stop short of their peaks under IQ-TREE's stopping rules, for every model. `dfpmin` tests its gradient relative to the log-likelihood with gtol fixed at 1e-4 and starts each call with no curvature memory; the round loops stop at a gain below `-me` (0.01; ten times that under `-S`) or at a cap (10 rounds under `-S`, 99 under `-p` and `-q`). On turtle's `-q` warm start each round was one step gaining about 0.01, so where a fit stops is close to chance; NONREV's turtle `-S` Level 1 fit hit its cap still gaining 3.5 per round (maintainer question 7). Comparing two fits' scores (box against wide, NQC against NONREV, D08's arms) therefore needs a convergence protocol. IQ-TREE's optimizer stays unchanged (decision 009). S3c's first part: NQC's endpoints lie 0.77 to 4.2 below the converged peaks at default settings and 0.67 to 2.5 after 300 relaxed rounds, more than the box costs; its later rounds average 724 evaluations, one step each. S3c's profiling: NONREV's `-S` fits all ended at the 10-round cap, NQC's 10-set `-q` and `-p` fits at the 99-round cap, so time per fit mostly follows where fits stop (NQC to NONREV 0.26 to 1.09) while time per evaluation is equal | Testing: S3c's first part (done 2026-10-25). Science: decision 039 |
+| 25 | Inputs for the simulation slices (decision 040). Before SIM-1: the size of the available real data (taxa, genes and their lengths; the real set itself is risk 9), the intended arrangement (`-S` or `-p`) and Level, the external data set for simulation trees and per-gene settings, and the source of the simulated composition. Before SIM-2's plan: the primary circulation statistic and the smallest effect of interest (decision 041), CLOAK's removal statistics from data outside the training and test sets (decision 040), and the range of target perturbations. Recommended: trees and per-gene settings from the mammal data of QMaker and nQMaker (public on Dryad), not OrthoMaM, the training and test source of Wheeler et al. 2025; total net flux over total flux as the statistic; CLOAK's removal statistics from BAliBASE, where CLOAK was benchmarked. The truth matrices (NQ.mammal, Q.mammal, LG) and the C20 and C60 profiles ship with IQ-TREE | Peter |
+| 26 | Compute: SIM-2 and S7 need a cluster. An unverified extrapolation from S3c (`docs/agent/archive/SIM_plan_2026-11-07.md`, Appendix C) gives SIM-2 about 5,000 to 10,000 core-hours and one NQC `-S` fit at 190 taxa and 1000 genes about 80 core-hours | Peter arranges UA HPC access; the agent writes the build and job scripts; Peter submits them |
 
 Retired risk numbers: 2, 3, 4, 6, 10 and 13 to 17 were resolved by 2026-10-07 (archived
 decisions and `CHANGELOG.md`); on 2026-10-22, 7 (a linked-round `ASSERT`) and 12 (the switch to
@@ -356,6 +368,8 @@ low findings are in `CODE_PLAN.md` section 4, "Known and left alone".
   switched off on the fork's Actions page (`ci.yaml` unchanged), so the fork no longer checks the
   macOS, Windows or ARM builds. fixedeq's first run (39817703469, `76dd4301`) passed all jobs, as
   did the run on S4 and its audit (40550150265, `548dad20`).
+- **Plan (2026-11-07):** simulation scope recorded (decisions 040, 041; reasons and literature in
+  `docs/agent/archive/SIM_plan_2026-11-07.md`).
 
 ## Next step
 
@@ -367,5 +381,7 @@ Plan and implement S5 in a new session, started in plan mode with this prompt:
 > setting each test's pass line before the test is written (decision 021), and ask me where
 > the records leave a choice, including the small real data set of risk 9. Use the keep-awake
 > helper for any run longer than a few minutes (CLAUDE.md).
+
+After S5 comes SIM-1 (decision 040); risk 25's first inputs are needed before SIM-1's session.
 
 The working rules are in `CODE_PLAN.md` section 4, "Implementation".

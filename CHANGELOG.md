@@ -8,6 +8,18 @@ gate record and may run to 25 lines. The next session starts from the top entry.
 This is a fork of `iqtree/iqtree3`. Entries here describe work on the fork, not upstream
 development.
 
+## 2026-11-07: simulation scope recorded (decisions 040, 041)
+
+- **Done.** A walk-through of the project's state for Peter; a literature search on simulation in
+  substitution-model papers: QMaker, nQMaker and Wheeler et al. 2025 have none, Tinh et al. 2024 is
+  the one non-reversible recovery study (what was read and how: Appendix B of the archived plan).
+- **Changed.** SIM-1 and SIM-2 after S5 (040); non-reversibility judged against simulated
+  distributions (041); 039 extended to them; PLAN.md scope, slices, risks 11 and 24 to 26;
+  CODE_PLAN 4 outlines; CLAUDE.md's `simulator/` line; the approved plan frozen in
+  `docs/agent/archive/SIM_plan_2026-11-07.md`.
+- **Failed.** Nothing in the records; papers not reached are listed in the archive's Appendix B.
+- **Next.** S5 (PLAN.md, next step); risk 25's first inputs before SIM-1.
+
 ## 2026-10-30 (second session): third audit; NQC refuses `--root-test`
 
 - **Audit:** no blocker, four medium findings, twelve low (two fixed, the rest in CODE_PLAN 4).

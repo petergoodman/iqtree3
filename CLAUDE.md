@@ -161,7 +161,7 @@ cmake --build ~/iqtree3-build -j 4
 - `test_scripts/fixedeq/` this project's Python environment, oracle, drivers, tests and
   regression baseline; the rest of `test_scripts/` is upstream's.
 - Not worth reading: `doc/` (generated Doxygen), `nn/`, `nn_models/`, `terrace/`, `phylo-yaml/`,
-  `lib*/`, `test_scripts/iqtree2/`, and `simulator/` until S6's simulations.
+  `lib*/`, `test_scripts/iqtree2/`, and `simulator/` until SIM-1.
 
 ## Conventions that differ from defaults
 

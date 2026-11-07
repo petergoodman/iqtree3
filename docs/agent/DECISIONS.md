@@ -155,16 +155,45 @@ infrastructure.
 
 **Rule.** NQC's matrix fit uses NONREV's optimization process (IQ-TREE's optimizer and round
 rules) unless there is a clear reason to depart; problems found in it are noted for the
-maintainers, not fixed. S7's confirmatory plan requires, for every compared fit, one declared
-stopping setting, each fit's ending rule reported, and a check that the conclusions survive
-relaxed settings or a reference climb (the oracle's `lbfgsb_fit`) on a subset.
+maintainers, not fixed. SIM-2's plan and S7's confirmatory plan require, for every compared fit,
+one declared stopping setting, each fit's ending rule reported, and a check that the conclusions
+survive relaxed settings or a reference climb (the oracle's `lbfgsb_fit`) on a subset.
 **Why.** S3c's first part: endpoints 0.77 to 4.2 below converged peaks at default settings, 0.67
 to 2.5 after 300 relaxed rounds (one step a round), more than the domain's cost; where fits stop
 reversed a comparison in two of three cases. Every endpoint is still a valid matrix.
 **Not chosen.** IQ-TREE's existing L-BFGS-B routine for NQC (a departure from NONREV), revisited
-if S7's pilot shows differences between arms the size of the stopping shortfall, a few
-log-likelihood units; relaxed settings alone (still short, at 5 to 12 times the time).
-**Since** 2026-10-25 (Peter).
+if SIM-1's pilot, SIM-2 or S7's pilot shows arm differences the size of the stopping shortfall,
+a few log-likelihood units; relaxed settings alone (still short, at 5 to 12 times the time).
+**Since** 2026-10-25 (Peter); SIM-1 and SIM-2 added 2026-11-07 (040).
+
+### 040. Validate the estimator by simulation in two slices after S5
+
+**Rule.** Two simulation slices follow S5 (contents: PLAN.md's slice table, `CODE_PLAN.md`
+section 4): SIM-1, then SIM-2, whose cluster runs may overlap S6 if S6 changes no code NQC's
+fits use; both close before S7. SIM-2 runs only after Peter approves its written plan
+(`CODE_PLAN.md` section 3.8, written in SIM-1). Trees, per-gene settings and removal statistics
+used in simulation come from data outside the confirmatory training and test sets. S7 adds 041's
+null bootstrap and a recovery bootstrap from the real NQC fit.
+**Why.** QMaker and nQMaker validate only on held-out data, and no source found measures
+circulation under a wrong target (`docs/agent/archive/SIM_plan_2026-11-07.md`). The slices need
+nothing from S6, and fits to exact pattern frequencies choose SIM-2's scenarios first.
+**Not chosen.** Simulation inside S7; simulating root placement, non-stationary lineages or
+realignment with CLOAK; a second simulator; an estimated-target arm; full-workflow recovery.
+**Since** 2026-11-07 (Peter).
+
+### 041. Judge non-reversibility by its size against simulated distributions
+
+**Rule.** Non-reversibility is claimed from one primary circulation statistic, fixed before any
+real data are read, compared with its distribution under reversible truths: SIM-2's
+false-circulation scenarios and, decisively, S7's parametric bootstrap from the real cleaned
+data's reversible fit. The likelihood-ratio statistic is reported, not used as the test.
+**Why.** At about a million columns any misspecification makes the test significant; a 5% tail
+needs hundreds of full-scale replicates; chi-square references need not hold (D09 item 5).
+Held-out likelihood does not guard against a wrong target, which shifts training and test data
+alike.
+**Not chosen.** A likelihood-ratio test calibrated by parametric bootstrap at 5%; chi-square
+references.
+**Since** 2026-11-07 (Peter).
 
 ## Model class
 
