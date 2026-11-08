@@ -506,18 +506,18 @@ composition is the kind of target the study uses (D07).
 
 ### 042. S5's flux reference: exact gradients, a barrier Newton method, NQC anchored at its start
 
-**Rule.** S5's reference (`CODE_PLAN.md` 3.1) fits f = f0 + Zy over NQC's box written exactly as
-linear ratio constraints, with analytic likelihood gradients (oracle only; the compiled model keeps
-finite differences) and a log-barrier Newton method of its own with an active-set finish, validated
-on known answers before any comparison. It climbs from NQC's start and from NQC's relaxed endpoint;
-the same-peak line is 021's L; NQC's endpoints may not lie above the peak. No real data set is added.
-**Why.** Fluxes at NQC's peaks span 1e-13 to 1e-1, so finite differences are too slow and noisy for
-the tight stopping needed (S3c's climbs at `pgtol` 1e-3 ended up to 0.303 apart). SciPy's
-`trust-constr` failed in development: BFGS asks for gradients at infeasible trials, Newton stalls at
-binding faces. A check from NQC's endpoint alone cannot fail; agreement does not depend on the data.
+**Rule.** S5's reference (`CODE_PLAN.md` 3.1), with no data set added, fits f = f0 + Zy over NQC's
+box written exactly as linear ratio constraints, with analytic likelihood gradients (oracle only;
+the compiled model keeps finite differences) and a log-barrier Newton method of its own with an
+active-set finish (central Hessian), validated on known answers first. It climbs from NQC's start
+and relaxed endpoint; the same-peak line is 021's L; NQC's endpoints may not lie above the peak.
+**Why.** Fluxes at NQC's peaks span 1e-13 to 1e-1, too wide for finite differences at the tight stop
+needed (S3c's climbs at `pgtol` 1e-3 ended up to 0.303 apart). `trust-constr` failed (BFGS asks for
+gradients at infeasible trials, Newton stalls at binding faces), as did the finish's forward Hessian
+on V3 (`explore/v3_diagnosis.py`). An endpoint-only check cannot fail; agreement is data-independent.
 **Not chosen.** Finite differences; `trust-constr`, SLSQP, cyipopt; a fixed 1e-3 line; 1e-8 × |lnL|;
-endpoint-anchored checks only; risk 9's small real set.
-**Since** 2026-11-07 (Peter; solver revised that day, finish added 2026-11-08); survey archived.
+endpoint-anchored checks only; risk 9's small real set; for V3, a smaller N or a relative stop.
+**Since** 2026-11-07 (Peter; solver revised then; finish 2026-11-08, central that day); survey archived.
 
 ## Tooling
 

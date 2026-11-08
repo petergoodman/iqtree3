@@ -423,14 +423,16 @@ The package is `test_scripts/fixedeq/oracle/`, and its tests use the pass lines 
     depend on π*. The canonical form (f0 uniform, Z = `null_space(C)`) serves the map tests. The
     solver works in a re-centred scaled basis f = f_c ⊙ (1 + N_c u), N_c = `null_space(C diag(f_c))`,
     because fluxes at NQC's peaks span about 1e-13 to 1e-1; it restarts at its endpoint until a
-    restart gains less than 1e-4, at most 10 times, with no projection at a restart. A non-finite
+    restart gains less than 1e-4 over the previous endpoint, at most 10 times, with no projection at
+    a restart. A non-finite
     or non-positive flux is refused before any likelihood; Q = f/π* off the diagonal, diagonal from
     row sums, never renormalized. Fitting uses only `t3._edges`, `cases.generator_from_flux`, the
     likelihood and SciPy.
   - Domains. Matched: NQC's box for the same references and bounds, written exactly as
     e^lo f_i,r(i) ≤ f_ij ≤ e^hi f_i,r(i), 720 inequalities that with Cf = b imply strict positivity,
     so one set in two charts (D03). Open (reported only): f > 0, kept interior by the barrier, with
-    no flux floor, since P_box's fluxes reach about 1e-13.
+    no flux floor, since P_box's fluxes reach about 1e-13; no active-set finish, since its faces
+    f = 0 lie outside it, so a fit not stopped by μ = 1e-10 ends unconverged at the barrier floor.
   - Gradient. `likelihood.log_likelihood_gradient` returns lnL and G = ∂lnL/∂Q from an upward and a
     downward pass per rate category and, per branch and category, the adjoint of `expm_frechet`;
     ∂lnL/∂f_ij = (G_ij − G_ii)/π*_i; the z-gradient through `chart.derivative`. It refuses `+I` and
@@ -440,7 +442,8 @@ The package is `test_scripts/fixedeq/oracle/`, and its tests use the pass lines 
     decrement λ²/2 ≤ 0.1 μ (or after 100 steps, or when the line search finds no decrease above
     rounding); below the objective's rounding (λ²/2 ≤ 1e-12 |φ|) the Newton step is taken whole if φ
     rises by no more than that rounding, until a step stops halving λ²; a restart that ends more than
-    1e-4 lower is unconverged and the higher endpoint kept; the Hessian of −V by forward differences of the analytic gradient (step 1e-6 in u,
+    1e-4 lower is unconverged and the higher endpoint kept; the Hessian of −V by forward differences
+    of the analytic gradient (`flux.difference_hessian`; central in the finish; step 1e-6 in u,
     probes over a process pool, kept at positive fluxes and so up to 1e-6 relative outside the box),
     the barrier's exactly; the step from the least-squares form [Lᵀ; √μ S⁻¹G], −V's Hessian damped
     only when not positive definite; an Armijo line search inside 0.995 of every slack, so no
@@ -452,9 +455,13 @@ The package is `test_scripts/fixedeq/oracle/`, and its tests use the pass lines 
     2026-11-08), entered when the subproblem at μ = 1e-10 ends without that stop: a primal
     active-set Newton method with no barrier (μ recorded as 0); working set first the rows within
     1e-6 of their bound, or within 1e-2 with a slack that fell to at most 0.6 of its value one level
-    earlier; each step solves Newton with the working rows as equalities, closing their slacks in the
-    same step; a row that blocks a step joins; at a stationary point rows with multiplier below
-    −1e-7 leave, moved 1e-9 off their face; at most 300 steps. SciPy's
+    earlier; each step solves Newton, its Hessian by central differences (forward ones are indefinite
+    along directions the data barely constrain and stalled V3, `explore/v3_diagnosis.py`), with the
+    working rows as equalities, closing their slacks in the same step; the rows that block a step
+    join, tied rows together and with no step when one is at its bound; a step cut short resets the
+    halving test; at a stationary point rows with multiplier below −1e-7 leave, moved 1e-9 off their
+    face; the basis re-centred as in the barrier; at most 300 steps; without the stop, the finish
+    returns its entry point if that is higher (the 2026-11-08 review's fixes). SciPy's
     `trust-constr`, planned first, failed in development (decision 042). Recorded per fit: the KKT
     residual with bounded-least-squares multipliers, m·μ, evaluations, Hessian gradients, steps,
     backtracks, dampings, re-centrings, the ending and wall time.
@@ -1047,8 +1054,13 @@ its survey, measurements and review is frozen in `docs/agent/archive/S5_plan_202
   Outputs under `~/iqtree3-runs/s5-gate/<UTC>-<commit>/`. Compute unverified (8 to 15 h was
   estimated for BFGS; the `validate` run measures the barrier Newton method's cost), 4 h caps per fit, the keep-awake helper and
   monitoring for every run; the gate may span sessions.
-- A read-only code review before the gate; at the close, a records-against-gate check, the gate
-  record in the CHANGELOG entry, this list cut to one line, budgets checked, the AI_DISCLOSURE entry.
+- Commit 6 (2026-11-08): the finish's Hessian by central differences (Peter, after the V3
+  diagnosis), and the fixes from the read-only review of the finish (section 3.1); `validate` from
+  that commit, then the gate from the same commit. Known shortfall: the finish's tie, zero-step
+  join, re-centring and entry-point branches have no unit test; `validate`'s V1b and V3 exercise
+  the finish end to end.
+- At the close, a records-against-gate check, the gate record in the CHANGELOG entry, this list cut
+  to one line, budgets checked, the AI_DISCLOSURE entry.
 
 SIM-1 and SIM-2, outlines to be planned in full in their own sessions, as S5's is (order in
 decision 040, gates in PLAN.md; the reasons and literature are frozen in

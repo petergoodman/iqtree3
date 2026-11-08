@@ -8,19 +8,18 @@ gate record and may run to 25 lines. The next session starts from the top entry.
 This is a fork of `iqtree/iqtree3`. Entries here describe work on the fork, not upstream
 development.
 
-## 2026-11-08: V3's failure diagnosed (exploratory)
+## 2026-11-08: V3 diagnosed; the finish's Hessian made central; finish reviewed
 
 - **Recorded.** `validate` at clean `775dea60` (`~/iqtree3-runs/s5-gate/20261108T062232Z-775dea60-validate/`):
-  V1 gap 2.3e-12, V1b 3.6e-12, AG and V2 pass; V3 deficit 4.7e-9, unconverged at 2.2e-5 (125 faces).
-- **Diagnosis** (`explore/v3_diagnosis.py`; `~/iqtree3-runs/s5-v3-diagnosis/20261108T225731Z-775dea60-dirty/`;
-  V3 and its fit reproduced bitwise). The gradient at the exact truth is 7.6e-12: no rounding floor,
-  so the last entry's "Newton's floor" was wrong. The slope sits on large-rate coordinates; those
-  with true rates below about 3e-6 (40 unheld wall faces among them) have gradients ≤ 3.7e-10.
-- **Repairs from the endpoint.** Its faces, forward Hessian (the reference's own): damped every step,
-  stalled at 6.9e-6; central Hessian: 2.3e-7 in 3 steps. The truth's 165 faces: 3.7e-7 (forward),
-  6.6e-9 (central), in 2. L-BFGS-B in z: 6.9e-6 after 2 iterations, its value test below rounding.
-- **Next.** Peter's remedy (recommended: central differences for the finish's Hessian, 042); a review
-  of the finish; `validate` from a clean commit; the gate.
+  V1, V1b, AG, V2 pass; V3 deficit 4.7e-9, unconverged at projected z-gradient 2.2e-5.
+- **Diagnosis** (`3b1eb3c2`, `explore/v3_diagnosis.py`, exploratory). Gradient at the exact truth
+  7.6e-12: no rounding floor (the last entry's "Newton's floor" was wrong). From V3's endpoint the
+  finish's forward Hessian was damped every step and stalled at 6.9e-6; a central one reached 2.3e-7.
+- **Changed (Peter).** Finish Hessian central (`flux.difference_hessian`, forward branch bitwise
+  unchanged); decision 042, CODE_PLAN 3.1. A fresh review confirmed it and found four finish defects
+  (early stall verdict, lost entry point, restart gain against the moved centre, tied or zero-step
+  blockers), all fixed, with re-centring and no finish in the open domain. Flux and driver tests 31.
+- **Next.** `validate` from this commit (run after it; result in the gate's entry), then the gate.
 
 ## 2026-11-07 (fourth session): S5 oracle and driver; validation fails on V3
 

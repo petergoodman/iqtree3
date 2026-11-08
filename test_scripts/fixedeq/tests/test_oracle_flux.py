@@ -175,6 +175,26 @@ def test_infeasible_fluxes_are_refused_before_any_likelihood():
     assert Counting.calls == 0
 
 
+def test_difference_hessian_against_the_exact_hessian():
+    """Both branches against the concave objective's exact Hessian in u, J^T diag(N / f^2) J with
+    J = diag(f_c) N_c: forward differences err O(h), central ones O(h^2) plus rounding, h = 1e-6."""
+    rng = np.random.default_rng(5)
+    pi, Qs, ref = setting(4, rng)
+    dom = flux.matched(ref)
+    basis = flux.Basis(flux.inward(Qs, pi, dom)[0], dom)
+    N = rng.lognormal(0, 1, 12)
+    objective = flux.Concave(N)
+    u = rng.normal(0, 1e-2, basis.N.shape[1])
+    f = basis.flux(u)
+    J = basis.fc[:, None] * basis.N
+    exact = J.T @ (J * (N / f ** 2)[:, None])
+    g0 = -basis.chain(objective(f)[1])
+    for central, line in ((False, 1e-4), (True, 1e-8)):
+        H, count = flux.difference_hessian(lambda fs: [objective(p) for p in fs], basis, u, g0, central)
+        assert count == (2 if central else 1) * len(u)
+        assert np.max(np.abs(H - exact)) <= line * np.max(np.abs(exact))
+
+
 @pytest.mark.parametrize("n", [3, 4])
 def test_v1_open_concave_problem(n):
     rng = np.random.default_rng(100 + n)

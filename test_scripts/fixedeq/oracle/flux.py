@@ -42,7 +42,7 @@ INNER_MAX = 100        # Newton steps per barrier parameter
 TO_BOUNDARY = 0.995    # a step keeps this fraction of every slack
 ARMIJO, ALPHA_MIN = 1e-4, 1e-12
 ROUNDING = 1e-12       # a decrement below this times |phi| is under the objective's rounding
-HESSIAN_STEP = 1e-6    # forward step in u for the Hessian of the objective
+HESSIAN_STEP = 1e-6    # step in u of the Hessian's differences (forward; central in the finish)
 RECENTRE = 0.5         # the basis is re-centred once a flux has moved this fraction from the centre
 KKT_THRESHOLDS = (0.0, 1e-12, 1e-11, 1e-10, 1e-9, 1e-8, 1e-7, 1e-6, 1e-5, 1e-4, 1e-3, 1e-2, 1e-1, 1.0, math.inf)
 
@@ -354,23 +354,59 @@ class FluxFit:
         return {k: sum(r[k] for r in self.runs) for k in keys}
 
 
+def difference_hessian(gradients, basis, u, g0, central=False):
+    """The Hessian of -objective in u, symmetrized, from the analytic gradient: forward differences
+    against g0 (its gradient at u), or central differences, which the active-set finish takes since
+    forward ones are indefinite along directions the data barely constrain and stalled V3
+    (explore/v3_diagnosis.py). Each probe moves HESSIAN_STEP, shrunk by 10 until its fluxes stay
+    positive (a probe may leave the box by up to the step). gradients(list of f) returns
+    [(value, d value / df)] in order. Returns H and the number of gradients taken."""
+    n = len(u)
+    probes, steps = [], []
+    for k in range(n):
+        step = HESSIAN_STEP
+        while True:
+            v = u.copy()
+            v[k] += step
+            fv = basis.flux(v)
+            if central:
+                w = u.copy()
+                w[k] -= step
+                fw = basis.flux(w)
+            if np.all(fv > 0) and (not central or np.all(fw > 0)):
+                break
+            step *= 0.1
+            if step < 1e-15:
+                raise RuntimeError("no Hessian probe keeps the fluxes positive")
+        probes += [fv, fw] if central else [fv]
+        steps.append(v[k] - w[k] if central else v[k] - u[k])
+    g = [-basis.chain(np.asarray(gf, dtype=float)) for _, gf in gradients(probes)]
+    H = np.empty((n, n))
+    for k in range(n):
+        H[:, k] = (g[2 * k] - g[2 * k + 1]) / steps[k] if central else (g[k] - g0) / steps[k]
+    return (H + H.T) / 2, len(probes)
+
+
 def fit(objective, f_start, domain, objective_map=None, max_iter=MAX_ITER, max_seconds=MAX_SECONDS, progress=None):
     """Maximize objective(f) -> (value, d value / df) over the domain from a strictly feasible
     f_start. Each run is a log-barrier Newton method from u = 0 at its centre, barrier parameter
     from MU0 down by MU_DECAY; the declared stop is the barrier parameter at most MU_STOP with the
     analytic projected z-gradient at most PG_STOP, checked after every Newton step. Converged: that
-    stop, on a restart that gained less than GAIN_STOP. Any other ending is unconverged (caps, the
-    active-set finish without the stop, restarts exhausted) or failed (an exception). objective_map(list of f) -> results
-    spreads the Hessian's probes, serially by default."""
+    stop, on a restart that gained less than GAIN_STOP over the previous run's endpoint (each restart
+    records its inward move's lnL change). Any other ending is unconverged (caps, the active-set finish
+    without the stop, the open domain's barrier floor, restarts exhausted) or failed (an exception).
+    objective_map(list of f) -> results spreads the Hessian's probes, serially by default."""
     t0 = time.monotonic()
     deadline = t0 + max_seconds
     f = np.array(f_start, dtype=float)
     if not domain.contains(f):
         raise ValueError("the start is not strictly inside the domain")
     out = FluxFit("unconverged", f"{MAX_RESTARTS} restarts each gained at least {GAIN_STOP}", f, math.nan, math.nan)
+    prev_f = prev_value = None
     for restart in range(MAX_RESTARTS + 1):
+        moved = 0
         if restart:
-            f = inward_flux(f, domain)[0]   # an active-set finish ends exactly on its faces
+            f, moved = inward_flux(f, domain)   # an active-set finish ends exactly on its faces
         if not domain.contains(f):
             out.status, out.message = "failed", "a restart centre is not strictly inside the domain"
             break
@@ -380,6 +416,10 @@ def fit(objective, f_start, domain, objective_map=None, max_iter=MAX_ITER, max_s
             out.status, out.message = "failed", f"{type(e).__name__}: {e}"
             break
         run = _run(objective, basis, domain, objective_map, max_iter - out.iterations, deadline, progress)
+        run["moved"] = moved
+        if restart:   # the inward move's lnL change, and the gain over the previous endpoint, not the moved centre
+            run["inward_change"] = run["value_start"] - prev_value
+            run["gain"] = run["value_end"] - prev_value
         out.runs.append(run)
         if restart == 0:
             out.start_value = run["value_start"]
@@ -389,9 +429,11 @@ def fit(objective, f_start, domain, objective_map=None, max_iter=MAX_ITER, max_s
             out.message = f"{run['ending']}: {run['message']}"
             break
         if restart > 0 and run["gain"] < -GAIN_STOP:   # the restart ended lower: keep the higher endpoint
+            f = prev_f
             out.status, out.message = "unconverged", f"restart {restart} ended {-run['gain']:.3g} lower"
             break
-        f = run["f"]
+        f = prev_f = run["f"]
+        prev_value = run["value_end"]
         if restart > 0 and run["gain"] < GAIN_STOP:
             out.status, out.message = "converged", f"declared stop; restart {restart} gained {run['gain']:.3g}"
             break
@@ -438,33 +480,16 @@ def _run(objective, basis, domain, objective_map, max_iter, deadline, progress=N
 
     last_hessian = [None, None]
 
-    def hessian(u, g0):
-        """Forward differences of the analytic gradient in u, kept for reuse while u is unchanged;
-        each probe moves its step, shrunk by 10 until every flux stays positive (a probe may leave
-        the box by up to the step)."""
-        if last_hessian[0] == u.tobytes():
+    def hessian(u, g0, central=False):
+        """difference_hessian, kept for reuse while u and the kind of difference are unchanged."""
+        key = (u.tobytes(), central)
+        if last_hessian[0] == key:
             return last_hessian[1]
-        probes, steps = [], []
-        for k in range(len(u)):
-            step = HESSIAN_STEP
-            while True:
-                v = u.copy()
-                v[k] += step
-                fv = basis.flux(v)
-                if np.all(fv > 0):
-                    break
-                step *= 0.1
-                if step < 1e-15:
-                    raise RuntimeError("no Hessian probe keeps the fluxes positive")
-            probes.append(fv)
-            steps.append(v[k] - u[k])
-        results = objective_map(probes) if objective_map else [objective(p) for p in probes]
-        rec["hessian_gradients"] += len(probes)
-        H = np.empty((len(u), len(u)))
-        for k, (_, gf) in enumerate(results):
-            H[:, k] = (-basis.chain(np.asarray(gf, dtype=float)) - g0) / steps[k]
-        last_hessian[:] = [u.tobytes(), (H + H.T) / 2]
-        return last_hessian[1]
+        H, count = difference_hessian(
+            lambda fs: objective_map(fs) if objective_map else [objective(p) for p in fs], basis, u, g0, central)
+        rec["hessian_gradients"] += count
+        last_hessian[:] = [key, H]
+        return H
 
     def direction(HF, gF, s, mu):
         """Newton direction of the barrier subproblem, (HF + mu G^T S^-2 G) d = -(gF - mu G^T S^-1 1),
@@ -493,31 +518,43 @@ def _run(objective, basis, domain, objective_map, max_iter, deadline, progress=N
             rec["ending"], rec["message"] = "time cap", f"{MAX_SECONDS:.0f} s per fit"
         return rec["ending"] is not None
 
+    def recentre(f):
+        """The finish's re-centring at f, as the barrier's: a new basis, u = 0, caches dropped."""
+        nonlocal basis
+        basis = Basis(f, domain)
+        cache.clear()
+        last_hessian[:] = [None, None]
+        rec["recentres"] += 1
+        return np.zeros(basis.N.shape[1])
+
     def finish(u, cur, level_slack):
         """The active-set finish (decision 042, Peter 2026-11-08), a primal active-set Newton method
-        entered when the barrier subproblem at MU_STOP ends without the declared stop. The working set
-        starts as the rows within ACTIVE of their bound, or within NEAR of it with a slack that fell to
-        at most TAPIA of its value one barrier level earlier (binding faces fall about tenfold, faces
-        with zero multipliers about threefold). Each step solves the Newton problem with the working
-        rows as equalities, closing their slacks in the same step (the closing's effect on the other
-        coordinates is part of the step); a row that blocks a step joins the set; at a stationary
-        point the rows whose multiplier is below -RELEASE leave it. No barrier: mu is recorded as 0,
-        and the declared stop is tested after every step."""
+        entered when the barrier subproblem at MU_STOP ends without the declared stop (never in the
+        open domain). The working set starts as the rows within ACTIVE of their bound, or within NEAR
+        of it with a slack that fell to at most TAPIA of its value one barrier level earlier (binding
+        faces fall about tenfold, faces with zero multipliers about threefold). Each step solves the
+        Newton problem, its Hessian by central differences, with the working rows as equalities,
+        closing their slacks in the same step (the closing's effect on the other coordinates is part
+        of the step); the rows that block a step join the set, with no step when one is at its bound;
+        at a stationary point the rows whose multiplier is below -RELEASE leave it. The basis is
+        re-centred as in the barrier. No barrier: mu is recorded as 0, and the declared stop is tested
+        after every step. Without that stop, the finish never ends below the point it started from."""
         rec["mu"], rec["finish_steps"], rec["released"] = 0.0, 0, 0
         slack = level_slack[-1]
         falling = (slack <= TAPIA * level_slack[-2]) & (slack <= NEAR) if len(level_slack) > 1 else False
         W = (slack <= ACTIVE) | falling
         cache.clear()
         cur = evaluate(u, W)
+        entry = cur
         last_pure = None
         for _ in range(FINISH_STEPS):
             if declared_stop(cur, 0.0):
                 rec["ending"] = "converged"
                 return u, cur
             if capped():
-                return u, cur
+                break
             s, g = basis.slack(u), cur[1]
-            HF = hessian(u, g)
+            HF = hessian(u, g, central=True)
             GW = basis.G[W]
             dp = lstsq(GW, -s[W])[0] if W.any() else np.zeros(len(u))
             P = null_space(GW) if W.any() else np.eye(len(u))
@@ -529,12 +566,21 @@ def _run(objective, basis, domain, objective_map, max_iter, deadline, progress=N
             decrement = float(-(g @ d) / 2)
             Gd = basis.G @ d
             block = ~W & (Gd < 0)
-            a_block = float(np.min(-s[block] / Gd[block])) if block.any() else math.inf
+            ratio = np.full(len(s), math.inf)
+            ratio[block] = -s[block] / Gd[block]
+            a_block = float(np.min(ratio))
+            blockers = block & (ratio <= a_block * (1 + 1e-9))   # exact ties join together
+            if a_block < ALPHA_MIN:   # a blocking row is at its bound: it joins with no step
+                W = W | blockers
+                last_pure = None
+                cache.clear()
+                continue
             if not closing:
                 pure = decrement <= rounding
                 stalled = pure and last_pure is not None and decrement > 0.5 * last_pure
                 if pure:
                     last_pure = decrement
+                    rec["pure"] += 1
                 if stalled or decrement <= 1e-6 * rounding:
                     lam = lstsq(GW.T, HF @ d + g)[0] if W.any() else np.zeros(0)
                     out = np.flatnonzero(W)[lam < -RELEASE]
@@ -552,11 +598,8 @@ def _run(objective, basis, domain, objective_map, max_iter, deadline, progress=N
                         raise RuntimeError("the active-set finish left the domain at a release")
                     continue
             alpha = min(1.0, a_block)
-            blocker = np.flatnonzero(block)[int(np.argmin(-s[block] / Gd[block]))] if block.any() else None
             while alpha >= ALPHA_MIN:
-                Wn = W.copy()
-                if blocker is not None and alpha >= a_block:
-                    Wn[blocker] = True   # the row that blocks the step joins the working set
+                Wn = W | blockers if alpha >= a_block else W.copy()   # the rows that block the step join
                 nxt = evaluate(u + alpha * d, Wn)
                 if nxt is None:
                     rec["infeasible"] += 1
@@ -568,18 +611,28 @@ def _run(objective, basis, domain, objective_map, max_iter, deadline, progress=N
             else:
                 rec["stalls"] += 1
                 break
+            if Wn.sum() > W.sum() or alpha < 1.0:
+                last_pure = None   # a cut step's decrement does not bound the next one's
             if Wn.sum() > W.sum():
                 cache.clear()
             u, cur, W = u + alpha * d, nxt, Wn
+            if float(np.max(np.abs(basis.N @ u))) > RECENTRE:
+                u = recentre(basis.flux(u))
+                cur = evaluate(u, W)
             if progress:
                 progress({"step": rec["iterations"], "mu": 0.0, "decrement": decrement, "alpha": alpha,
                           "pure": decrement <= rounding, "value": cur[3], "recentres": rec["recentres"],
                           "pg": rec["pg"], "faces": int(W.sum()), "closing": closing})
         if declared_stop(cur, 0.0):
             rec["ending"] = "converged"
-        else:
+            return u, cur
+        if rec["ending"] is None:
             rec["ending"], rec["message"] = "finish", f"the active-set finish ended without the declared stop " \
                                                        f"(projected z-gradient {rec['pg']:.3g}, {int(W.sum())} faces)"
+        if entry[3] > cur[3]:
+            rec["message"] += f"; kept its entry point, {entry[3] - cur[3]:.3g} higher"
+            u = recentre(entry[2])
+            cur = evaluate(u)
         return u, cur
 
     def newton_step(H, g):
@@ -672,7 +725,10 @@ def _run(objective, basis, domain, objective_map, max_iter, deadline, progress=N
             if rec["ending"] is None:
                 level_slack.append(domain.slack(cur[2]))
                 if mu <= MU_STOP * (1 + 1e-9):
-                    u, cur = finish(u, cur, level_slack)
+                    if domain.kind == "open":   # its faces f = 0 lie outside it
+                        rec["ending"], rec["message"] = "barrier floor", "the open domain has no active-set finish"
+                    else:
+                        u, cur = finish(u, cur, level_slack)
                 else:
                     mu *= MU_DECAY
         if rec["ending"] == "converged":

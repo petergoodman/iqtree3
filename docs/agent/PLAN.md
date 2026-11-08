@@ -199,7 +199,7 @@ and S7's two bootstraps complete them. The slices run in the order decision 040 
 | S3b | G3 | Linked training and lifecycle | two partitions with different compositions under `-S` and `-p`, one target and one Q in every object; each linked fit checked and reported once (S3-1's linked half); 360 counted once; the linked gradient uses the scaled step; thread counts compared at a fixed point (decision 038); permuted order; mid-run and `--undo` restarts, incompatible ones refused; turtle's risk 22 runs and the warm starts from the box fits reported; regression reproduces; sanitizers clean for new code | done 2026-10-23 (`054914de`, reruns at `fb5bf76d`) |
 | S3c | G3 | Stopping, risk 22's evidence, cost against NONREV | first part: the stopping study's asserted checks and the converged risk 22 evidence (`CODE_PLAN.md` section 4); then profiling against NONREV within its blocking threshold, or, above 3 per fit, fixed in NQC's code or accepted by Peter; any ratio above 1.25 per evaluation or 2 per fit explained (risks 5, 18, 24) | done 2026-10-26 (first part 2026-10-25, domain `0e9fb159`; profiling gate at `0b0048af`) |
 | S4 | G3 | Export, re-import and report | export then `-m FILE` reproduces the log-likelihood of a Level 1 fit; metadata complete; first release candidate | done 2026-10-27 (`a0ebf5cf`); first release candidate |
-| S5 | G4, as reduced by D01 | Independent reference | D10's direct balanced-flux fit in Python (decision 042) passes its known-answer validation; on four small Level 1 problems it reaches, from NQC's start and from NQC's relaxed endpoint, the peak NQC's own chart reaches, within the calibrated line, with every compared fit converged and NQC's endpoints not above that peak; failures counted; comparison report (`CODE_PLAN.md` sections 3.1, 3.3, 4) | in progress: oracle, driver, review fixes and active-set finish committed; validation fails V3's declared stop, cause diagnosed (the finish's forward-difference Hessian), remedy pending |
+| S5 | G4, as reduced by D01 | Independent reference | D10's direct balanced-flux fit in Python (decision 042) passes its known-answer validation; on four small Level 1 problems it reaches, from NQC's start and from NQC's relaxed endpoint, the peak NQC's own chart reaches, within the calibrated line, with every compared fit converged and NQC's endpoints not above that peak; failures counted; comparison report (`CODE_PLAN.md` sections 3.1, 3.3, 4) | in progress: oracle, driver, active-set finish with a central-difference Hessian (V3's remedy) and the review's fixes committed; next the gate |
 | SIM-1 | G5 (simulation support), G6 (part) | Simulator check and exact screen (proposed) | AliSim from an exported matrix passes the exact pattern check, or its fallback does; the oracle's NQC objective fitted to exact pattern frequencies returns the true Q within pass lines set first (decision 021); the screen's circulation tabled per scenario; pipeline and pilot run; SIM-2's plan written (`CODE_PLAN.md` section 3.8) and approved by Peter | not started |
 | SIM-2 | G6 (part) | Simulation study (proposed) | the approved plan's studies run at the pilot's replicate counts, failed fits counted, results with Monte Carlo standard errors; outputs for S7's confirmatory plan: reference distributions of the circulation statistic (decision 041), the stopping setting (decision 039), how much of the available data the fit needs | not started |
 | S6 | G5 | Workflow | candidate-set and mixing-guard tests; G5's remaining conditions | not started |
@@ -318,16 +318,12 @@ audits' low findings are in `CODE_PLAN.md` section 4, "Known and left alone".
 
 ## Next step
 
-S5's validation fails one asserted check: on V3 (LG at π* with 165 coordinates on the box's walls,
-zero multipliers, N = 10⁶) the fit reaches the truth but not the declared stop (projected
-z-gradient ≤ 1e-6). The exploratory diagnosis (`test_scripts/fixedeq/explore/v3_diagnosis.py`,
-`CHANGELOG.md` top entry) rules out a rounding floor and places the cause in the active-set
-finish's forward-difference Hessian, which is indefinite along coordinates the data barely see
-(true rates below about 3e-6, 40 unheld wall faces among them); from the same endpoint a
-central-difference Hessian reaches the stop in 3 steps. Peter decides the remedy (recommended:
-central differences for the finish's Hessian, revising decision 042); then a code review of the
-finish, `validate` from a clean commit, and the gate (`CODE_PLAN.md` section 4, S5), one problem
-at a time with the keep-awake helper.
+S5's gate (`CODE_PLAN.md` section 4, S5), from the commit that made the finish's Hessian central
+(V3's remedy, decision 042) and fixed the review's findings. `validate` is run from that commit at
+the end of its session, before any gate step; the next session first checks that result (under
+`~/iqtree3-runs/s5-gate/`, recorded in the gate's `CHANGELOG.md` entry), then runs `calibrate` and
+`compare` per problem, toy first to measure the compute, one problem at a time with the keep-awake
+helper, and the full pytest suite.
 
 After S5 comes SIM-1 (decision 040); risk 25's first inputs are needed before SIM-1's session.
 
