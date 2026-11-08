@@ -8,6 +8,18 @@ gate record and may run to 25 lines. The next session starts from the top entry.
 This is a fork of `iqtree/iqtree3`. Entries here describe work on the fork, not upstream
 development.
 
+## 2026-11-07 (third session): S5 planned (decision 042)
+
+- **Done.** S5 planned and recorded: the balanced-flux reference (NQC's box as 720 linear ratio
+  constraints, analytic gradients in the oracle, `trust-constr` with a declared stop), validation on
+  known answers, four Level 1 problems, decision 021's S5 rows, an outcome table; decision 042;
+  PLAN.md's S5 row, risk 9 and out-of-scope line; CODE_PLAN 3.1, 3.3, 4; plan frozen in the archive.
+- **Checked.** Kernel size, the box map both ways, the flux range at S3c case A's peak (1.2e-13 to
+  6.7e-2) and the Fréchet adjoint, computed in a scratchpad. A fresh reviewer found 2 blockers (the
+  interior point's undeclared stop; the 1e-3 line's evidence) and 13 more findings, all folded in.
+- **Failed.** My evidence for the 1e-3 line was circular (P3 starts at P2's peak), and the gradient
+  choice first omitted its conflict with PLAN.md's scope; both re-asked. **Next.** Implement S5.
+
 ## 2026-11-07 (second session): agent records cleaned up
 
 - **Done.** Records audited against their roles, then cleaned by an approved plan: the questions'

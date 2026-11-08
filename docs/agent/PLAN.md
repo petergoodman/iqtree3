@@ -1,9 +1,9 @@
 # Plan: π-constrained non-reversible amino-acid models
 
 > **Status, 2026-11-07: S0 to S4 complete, so gates G0 to G3 are met and the branch is the first
-> release candidate; S5 (independent reference) next, then the simulation slices (decision 040);
-> approach accepted by the IQ-TREE maintainers (reported by Peter, 2026-10-01).** Peter owns this
-> document.
+> release candidate; S5 (independent reference) planned and next, then the simulation slices
+> (decision 040); approach accepted by the IQ-TREE maintainers (reported by Peter, 2026-10-01).**
+> Peter owns this document.
 
 This is the project's living core document: what we are building and why, the constraints the
 work must satisfy, where it stands, and the next step. It is read at the start of every task and
@@ -122,11 +122,11 @@ bootstraps of decisions 040 and 041, and gene resampling of π* as a sensitivity
 D07 holds π* fixed (S7, gate G6's remaining conditions).
 
 Out of scope: EM (D10), exact boundary fitting, branch-specific targets, non-stationary roots,
-profile mixtures with distinct equilibria, analytic likelihood gradients, compiled positive-ratio
-and T3 charts (D01), any edit to IQ-TREE's optimizer (decision 009), simulation of root placement,
-of non-stationary lineages (a limitation the manuscript states) and of alignment error with
-realignment and cleaning (decision 040), and a 5% likelihood-ratio test of reversibility
-(decision 041).
+profile mixtures with distinct equilibria, analytic likelihood gradients in the compiled model (the
+oracle's S5 reference uses them, decision 042), compiled positive-ratio and T3 charts (D01), any
+edit to IQ-TREE's optimizer (decision 009), simulation of root placement, of non-stationary lineages
+(a limitation the manuscript states) and of alignment error with realignment and cleaning (decision
+040), and a 5% likelihood-ratio test of reversibility (decision 041).
 
 ## Constraints and requirements
 
@@ -199,7 +199,7 @@ and S7's two bootstraps complete them. The slices run in the order decision 040 
 | S3b | G3 | Linked training and lifecycle | two partitions with different compositions under `-S` and `-p`, one target and one Q in every object; each linked fit checked and reported once (S3-1's linked half); 360 counted once; the linked gradient uses the scaled step; thread counts compared at a fixed point (decision 038); permuted order; mid-run and `--undo` restarts, incompatible ones refused; turtle's risk 22 runs and the warm starts from the box fits reported; regression reproduces; sanitizers clean for new code | done 2026-10-23 (`054914de`, reruns at `fb5bf76d`) |
 | S3c | G3 | Stopping, risk 22's evidence, cost against NONREV | first part: the stopping study's asserted checks and the converged risk 22 evidence (`CODE_PLAN.md` section 4); then profiling against NONREV within its blocking threshold, or, above 3 per fit, fixed in NQC's code or accepted by Peter; any ratio above 1.25 per evaluation or 2 per fit explained (risks 5, 18, 24) | done 2026-10-26 (first part 2026-10-25, domain `0e9fb159`; profiling gate at `0b0048af`) |
 | S4 | G3 | Export, re-import and report | export then `-m FILE` reproduces the log-likelihood of a Level 1 fit; metadata complete; first release candidate | done 2026-10-27 (`a0ebf5cf`); first release candidate |
-| S5 | G4, as reduced by D01 | Independent reference | D10's direct balanced-flux fit in Python agrees with NQC fits on small problems; comparison report | not started |
+| S5 | G4, as reduced by D01 | Independent reference | D10's direct balanced-flux fit in Python (decision 042) passes its known-answer validation; on four small Level 1 problems it reaches, from NQC's start and from NQC's relaxed endpoint, the peak NQC's own chart reaches, within the calibrated line, with every compared fit converged and NQC's endpoints not above that peak; failures counted; comparison report (`CODE_PLAN.md` sections 3.1, 3.3, 4) | planned 2026-11-07 |
 | SIM-1 | G5 (simulation support), G6 (part) | Simulator check and exact screen (proposed) | AliSim from an exported matrix passes the exact pattern check, or its fallback does; the oracle's NQC objective fitted to exact pattern frequencies returns the true Q within pass lines set first (decision 021); the screen's circulation tabled per scenario; pipeline and pilot run; SIM-2's plan written (`CODE_PLAN.md` section 3.8) and approved by Peter | not started |
 | SIM-2 | G6 (part) | Simulation study (proposed) | the approved plan's studies run at the pilot's replicate counts, failed fits counted, results with Monte Carlo standard errors; outputs for S7's confirmatory plan: reference distributions of the circulation statistic (decision 041), the stopping setting (decision 039), how much of the available data the fit needs | not started |
 | S6 | G5 | Workflow | candidate-set and mixing-guard tests; G5's remaining conditions | not started |
@@ -211,7 +211,7 @@ and S7's two bootstraps complete them. The slices run in the order decision 040 
 
 | # | Item | Resolved by |
 |---|---|---|
-| 9 | Real training data: a small real set for S5, and the full set with a written confirmatory plan for S7 | Peter |
+| 9 | Real training data: the full set, with a written confirmatory plan, for S7 (S5 uses no real set beyond aa_example, decision 042) | Peter |
 | 11 | Scientific success criterion and manuscript details (placeholder above) | Peter, with SIM-2's reference distributions (decision 041) |
 | 23 | Reported by the S3 plan's review, not verified: resuming an `-S` tree search with `+I+G` may restore stale top-level model keys, for every model (`UPSTREAM_FINDINGS.md`, Risk 23). Outside S3's validation paths, which use `-te` | Checked before it becomes a question for the maintainers |
 | 24 | Fits stop short of their peaks under IQ-TREE's stopping rules, for every model, so comparing two fits' scores (box against wide, NQC against NONREV, D08's arms) needs a convergence protocol. IQ-TREE's optimizer stays unchanged (decision 009). The stopping rules and S3c's measurements: `UPSTREAM_FINDINGS.md`, Risk 24 | Testing: S3c's first part (done 2026-10-25). Science: decision 039 |
@@ -311,19 +311,20 @@ audits' low findings are in `CODE_PLAN.md` section 4, "Known and left alone".
   switched off on the fork's Actions page (`ci.yaml` unchanged), so the fork no longer checks the
   macOS, Windows or ARM builds. fixedeq's first run (39817703469, `76dd4301`) passed all jobs, as
   did the run on S4 and its audit (40550150265, `548dad20`).
-- **Plan (2026-11-07):** simulation scope recorded (decisions 040, 041; reasons and literature in
-  `docs/agent/archive/SIM_plan_2026-11-07.md`).
+- **Plans (2026-11-07):** simulation scope recorded (decisions 040, 041; reasons and literature in
+  `docs/agent/archive/SIM_plan_2026-11-07.md`); S5 planned in full (decision 042, decision 021's S5
+  rows, `CODE_PLAN.md` sections 3.1, 3.3 and 4; survey, measurements and review in
+  `docs/agent/archive/S5_plan_2026-11-07.md`).
 
 ## Next step
 
-Plan and implement S5 in a new session, started in plan mode with this prompt:
+Implement S5 in a new session, started in plan mode with this prompt:
 
-> Plan and implement S5, the independent reference of gate G4 as reduced by D01. Read the
-> start-of-session files, then `CODE_PLAN.md` sections 3.1 and 4 (S5) and `DECISIONS.md`, D10,
-> 009 and 021 in particular. S5's list in section 4 is an outline: plan it in full first,
-> setting each test's pass line before the test is written (decision 021), and ask me where
-> the records leave a choice, including the small real data set of risk 9. Use the keep-awake
-> helper for any run longer than a few minutes (CLAUDE.md).
+> Implement S5, the independent reference of gate G4 as reduced by D01, as planned. Read the
+> start-of-session files, then `CODE_PLAN.md` sections 3.1, 3.3 (the S5 block) and 4 (S5), and
+> `DECISIONS.md` 021 and 042. S5's list in section 4 is complete: the session plan is its commits
+> and gate steps. Pass lines are set; none is loosened. Use the keep-awake helper for any run
+> longer than a few minutes (CLAUDE.md); the gate's runs may span sessions, one problem at a time.
 
 After S5 comes SIM-1 (decision 040); risk 25's first inputs are needed before SIM-1's session.
 

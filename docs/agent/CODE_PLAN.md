@@ -417,7 +417,40 @@ The package is `test_scripts/fixedeq/oracle/`, and its tests use the pass lines 
   (NumPy's pairwise sum normalized 2,140 of 5,000 random targets to other bits),
   so the drivers' bitwise target checks hold for any target. A test holds it to the compiled
   parser's fixture, `unittest/fixtures/targets.txt`.
-- A direct balanced-flux reference optimizer for small problems (S5).
+- The direct balanced-flux reference of S5 (D10, decision 042), `oracle/flux.py`:
+  - Chart. Fluxes f_ij = π*_i q_ij in `t3._edges` order; C = [D; 1ᵀ] (balance rows and unit mean
+    rate), b = e_n, rank n, so n(n − 2) free directions, 360 at n = 20; the polytope does not
+    depend on π*. The canonical form (f0 uniform, Z = `null_space(C)`) serves the map tests. The
+    solver works in a re-centred scaled basis f = f_c ⊙ (1 + N_c u), N_c = `null_space(C diag(f_c))`,
+    because fluxes at NQC's peaks span about 1e-13 to 1e-1; it restarts at its endpoint until a
+    restart gains less than 1e-4, at most 10 times, with no projection at a restart. A non-finite
+    or non-positive flux is refused before any likelihood; Q = f/π* off the diagonal, diagonal from
+    row sums, never renormalized. Fitting uses only `t3._edges`, `cases.generator_from_flux`, the
+    likelihood and SciPy.
+  - Domains. Matched: NQC's box for the same references and bounds, written exactly as
+    e^lo f_i,r(i) ≤ f_ij ≤ e^hi f_i,r(i), 720 inequalities that with Cf = b imply strict positivity,
+    so one set in two charts (D03). Open (reported only): f > 0, kept interior by the barrier, with
+    no flux floor, since P_box's fluxes reach about 1e-13.
+  - Gradient. `likelihood.log_likelihood_gradient` returns lnL and G = ∂lnL/∂Q from an upward and a
+    downward pass per rate category and, per branch and category, the adjoint of `expm_frechet`;
+    ∂lnL/∂f_ij = (G_ij − G_ii)/π*_i; the z-gradient through `chart.derivative`. It refuses `+I` and
+    a nonzero root-branch length.
+  - Solver. SciPy `trust-constr`, one `LinearConstraint(..., keep_feasible=True)`; the objective
+    returns +∞ at an infeasible flux and the gradient raises there, recording the fit as failed.
+    Every start is strictly feasible: coordinates within 1e-9 of a bound are moved 1e-9 inside in
+    z, and the lnL change is recorded. Stopping, decision 039's declared setting: a callback when
+    the barrier parameter μ ≤ 1e-10 and the analytic projected z-gradient ≤ 1e-6; `gtol` 1e-14,
+    `xtol` 1e-14, `barrier_tol` 1e-12; caps of 50,000 iterations and 4 h per fit; any other ending
+    is unconverged. Hessian: BFGS in the scaled basis if it passes the validation of section 3.3,
+    else Newton by forward differences of the analytic gradient over a process pool; if BFGS later
+    fails the convergence row on a comparison problem, Newton reruns every problem and decides.
+    Recorded per fit: the KKT residual with bounded-least-squares multipliers, m·μ, evaluations,
+    gradients, iterations, rejected trials, the solver's message and wall time.
+  - Around it: `nqc.Objective.from_patterns` (tip-vector columns, real weights as counts; refuses
+    `+I`); gradients on `Objective` and `LinkedObjective`, which gains `log_likelihood(Q)`; an
+    optional analytic pass in `lbfgsb_fit`, its default unchanged (decision 017's port is not
+    touched). SIM-1 reuses them on exact pattern frequencies; `site_log_likelihoods` still rebuilds
+    the tip matrices on every call, slow at 160,000 patterns.
 
 ### 3.2 Layer 2: C++ unit tests
 
@@ -499,6 +532,34 @@ read from its `-v` output (decision 021). The S2 checks, with decision 021's fur
   Level 1 fit (`-te -blfix -nparam 3`); the oracle's port makes one `optimize_model` call with
   the scaled step, the same bounds and gradient tolerance; both start at LG rebuilt at the
   target. Asserted: the start scores, the first gradients and the final scores (decision 021).
+
+Independent reference (S5; decision 042; lines in decision 021's S5 rows). The driver is
+`test_scripts/fixedeq/reference/reference.py`, with steps `validate`, `calibrate` and `compare`, one
+problem per invocation; it writes results.json and report.md with provenance and exits 1 on any
+asserted failure. Confirmatory.
+- **Problems**, all Level 1 with every nuisance fixed and no identical sequences: toy (`nqc/toy.py`,
+  SHA-256 against the toy calibration's results), toy-300 (its first 300 sites), aa_example (baseline
+  run02's rooted tree, `+G4{0.5}`), twopart under `-S` (`+G4{0.5}`).
+- **Validation**, before any comparison and never compared with NQC: the concave problem
+  max Σ N_e log f_e at n = 3, 4 and 20, open (also solved by the technical plan's dual Newton
+  iteration) and with NQC's ratio constraints binding (n = 4, 20); exact pattern frequencies on a
+  rooted three-taxon tree at n = 20, N = 10⁶ sites, from an interior cycle-flux truth and from an
+  extreme one (LG at π* with about 160 coordinates at the lower bound). pytest runs n = 3 and 4.
+- **Fits per problem**: NQC at defaults (`-vv`) and relaxed (`-me 1e-6`, 300-round caps), both with
+  `--nqc-domain 1e-5,1e5`, ending rule recorded; z climbs from the relaxed endpoint by `lbfgsb_fit`'s
+  analytic pass at L-BFGS-B memory 20 and 5, which calibrate L and are written before any flux fit;
+  the reference from LG at π* and from the relaxed endpoint. Reported only: two seeded random starts
+  on toy and toy-300, and an open-domain fit from the reference's endpoint.
+- **Outcomes.** Each fit is converged, unconverged or failed, and every fit is tabled and counted.
+  With a compared fit unconverged, the same-peak rows are "not evaluable". When a same-peak row
+  fails, each fitter of the pair restarts from the other's endpoint, and the pair is labelled: the
+  lower stopped short; the higher not at a peak; distinct stationary points, then one ridge or
+  distinct peaks by lnL along the feasible segment between them; cross-start unconverged; or
+  undetermined. The row stays failed; the label is the diagnosis.
+- **Reported**: NQC's shortfall below the peak with its ending rule; random-start peaks; z and Q
+  differences (largest |Δz|; relative Q difference above a rate floor of 1e-3); active sets; segment
+  profiles; the open fit's gain and smallest flux; decision 009's label at every endpoint; counts and
+  times.
 
 ### 3.4 Layer 4: regression baseline
 
@@ -953,13 +1014,24 @@ citation and the help line, with the oracle's export functions and the driver's 
 `linked-export` cases (sections 2.1, 2.2, 3.5); ten choices by Peter, recorded in decisions 008 to
 010 and 021 and in sections 1.2, 2.2 and 3.5; printed output reported, not asserted.
 
-S5, an outline to be planned in full in its own session (PLAN.md, next step):
-- D10's direct balanced-flux fit, f = f0 + Zy with a feasible constrained solver, in the oracle
-  (section 3.1), on small problems: few taxa and sites, and the small real set of PLAN.md risk 9 if
-  Peter supplies it.
-- Its agreement with NQC's fits at the same data, nuisances, target and domain, under pass lines
-  set before the comparison (decision 021); decision 039 governs how the endpoints are compared.
-- A comparison report.
+S5 (planned 2026-11-07, decision 042; specification in sections 3.1 and 3.3; the approved plan with
+its survey, measurements and review is frozen in `docs/agent/archive/S5_plan_2026-11-07.md`):
+- Commit 2: `oracle/flux.py`, `likelihood.log_likelihood_gradient`, the `nqc.py` additions and
+  `lbfgsb_fit`'s analytic pass, with `tests/test_oracle_flux.py` (decision 021's S5 rows on the maps,
+  the box, residuals, gradients and validation at n = 3 and 4; `from_patterns` against the alignment
+  constructor; an n = 4 matched comparison against `lbfgsb_fit`; infeasible fluxes refused before any
+  likelihood); section 1.1 updated.
+- Commit 3: `reference/reference.py` and `tests/test_reference.py` (the outcome labels on constructed
+  inputs); the `validate` run, which chooses the Hessian configuration, every configuration tried
+  logged in the commit message.
+- Gate, from a clean commit: `calibrate` then `compare` per problem, IQ-TREE from
+  `~/iqtree3-binaries/25d78d6e/iqtree3`, AliSim from `~/iqtree3-baseline/iqtree3`; the full pytest
+  suite. No rebuild, regression, sanitizer or `nqcchecks.py` run, since IQ-TREE does not change.
+  Outputs under `~/iqtree3-runs/s5-gate/<UTC>-<commit>/`. Compute about 8 to 15 h with BFGS
+  (unverified; the `validate` run measures it), 4 h caps per fit, the keep-awake helper and
+  monitoring for every run; the gate may span sessions.
+- A read-only code review before the gate; at the close, a records-against-gate check, the gate
+  record in the CHANGELOG entry, this list cut to one line, budgets checked, the AI_DISCLOSURE entry.
 
 SIM-1 and SIM-2, outlines to be planned in full in their own sessions, as S5's is (order in
 decision 040, gates in PLAN.md; the reasons and literature are frozen in
