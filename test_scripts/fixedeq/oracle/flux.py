@@ -18,7 +18,7 @@ from collections import OrderedDict
 from dataclasses import dataclass, field
 
 import numpy as np
-from scipy.linalg import LinAlgError, cholesky, lstsq, null_space, solve_triangular
+from scipy.linalg import LinAlgError, cho_factor, cho_solve, cholesky, lstsq, null_space, solve_triangular
 
 from . import cases, chart, nqc, t3
 from .optimize import projected_gradient
@@ -31,7 +31,12 @@ MAX_ITER = 50_000      # Newton steps per fit, over its restarts
 MAX_SECONDS = 4 * 3600.0
 INWARD = 1e-9          # a start's coordinates within this of a bound are moved this far inside
 ACTIVE = 1e-6          # normalized slack at or below which a constraint counts in m (A5 iii)
-MU0, MU_DECAY, MU_FLOOR = 0.1, 0.1, 1e-20  # barrier parameters of each run, and the last tried
+MU0, MU_DECAY = 0.1, 0.1   # the barrier parameter of each run, from MU0 down to MU_STOP
+TAPIA = 0.6            # the finish takes a row whose slack fell to at most this over the last level
+NEAR = 1e-2            # and lies within this normalized slack (about this in z) of its bound
+RELEASE = 1e-7         # the finish releases a face whose multiplier is below -RELEASE
+FINISH_STEPS = 300     # Newton steps of the active-set finish
+CLOSED = 1e-12         # a working row with a larger slack is still being closed
 CENTRED = 0.1          # a subproblem ends when its Newton decrement lambda^2 / 2 <= CENTRED * mu
 INNER_MAX = 100        # Newton steps per barrier parameter
 TO_BOUNDARY = 0.995    # a step keeps this fraction of every slack
@@ -147,7 +152,11 @@ def inward(Q, pi, domain):
     """A strictly feasible start: coordinates within INWARD of a bound, or beyond it, set INWARD
     inside and the flux rebuilt by the chart; otherwise Q's own flux. Returns the flux and the
     number of coordinates moved."""
-    f = flux_of(Q, pi)
+    return inward_flux(flux_of(Q, pi), domain, pi)
+
+
+def inward_flux(f, domain, pi=None):
+    """inward for a flux; the chart's flux nu_i K_ij does not depend on pi (uniform by default)."""
     if domain.kind == "open":
         return f, 0
     z = z_of_flux(f, domain.ref)
@@ -155,6 +164,7 @@ def inward(Q, pi, domain):
     moved = (z < lo) | (z > hi)
     if not moved.any():
         return f, 0
+    pi = np.full(len(domain.ref), 1.0 / len(domain.ref)) if pi is None else pi
     return flux_of(chart.build(np.clip(z, lo, hi), pi, domain.ref)[0], pi), int(moved.sum())
 
 
@@ -270,7 +280,7 @@ def duality_gap(f, N, domain, mu=None):
     C, b = geometry(len(domain.ref))[2:]
     gf, divisor = N / f, np.sqrt(N) / f
     pairs = [_multipliers(f, gf, domain, t, divisor)[1:] for t in KKT_THRESHOLDS]
-    if mu is not None:
+    if mu and np.all(domain.A @ f > 0):
         nu = mu / (domain.A @ f)
         eta = lsq_linear(C.T / divisor[:, None], (gf + domain.A.T @ nu) / divisor).x
         pairs.append((eta, nu, C.T @ eta - domain.A.T @ nu))
@@ -350,7 +360,7 @@ def fit(objective, f_start, domain, objective_map=None, max_iter=MAX_ITER, max_s
     from MU0 down by MU_DECAY; the declared stop is the barrier parameter at most MU_STOP with the
     analytic projected z-gradient at most PG_STOP, checked after every Newton step. Converged: that
     stop, on a restart that gained less than GAIN_STOP. Any other ending is unconverged (caps, the
-    barrier floor, restarts exhausted) or failed (an exception). objective_map(list of f) -> results
+    active-set finish without the stop, restarts exhausted) or failed (an exception). objective_map(list of f) -> results
     spreads the Hessian's probes, serially by default."""
     t0 = time.monotonic()
     deadline = t0 + max_seconds
@@ -359,6 +369,8 @@ def fit(objective, f_start, domain, objective_map=None, max_iter=MAX_ITER, max_s
         raise ValueError("the start is not strictly inside the domain")
     out = FluxFit("unconverged", f"{MAX_RESTARTS} restarts each gained at least {GAIN_STOP}", f, math.nan, math.nan)
     for restart in range(MAX_RESTARTS + 1):
+        if restart:
+            f = inward_flux(f, domain)[0]   # an active-set finish ends exactly on its faces
         if not domain.contains(f):
             out.status, out.message = "failed", "a restart centre is not strictly inside the domain"
             break
@@ -404,13 +416,15 @@ def _run(objective, basis, domain, objective_map, max_iter, deadline, progress=N
     t0 = time.monotonic()
     cache = OrderedDict()
 
-    def evaluate(u):
-        """(F, dF/du, f, value, gf) with F = -value; None outside the domain."""
+    def evaluate(u, face=None):
+        """(F, dF/du, f, value, gf) with F = -value; None outside the domain. With face, the rows
+        it marks are held at zero slack by the caller and only the others must be positive."""
         key = u.tobytes()
         if key in cache:
             return cache[key]
         res = None
-        if np.all(basis.slack(u) > 0):
+        s = basis.slack(u)
+        if np.all(s > 0) if face is None else np.all(s[~face] > 0):
             f = basis.flux(u)
             if np.all(np.isfinite(f)) and np.all(f > 0):
                 rec["evaluations"] += 1
@@ -472,6 +486,114 @@ def _run(objective, basis, domain, objective_map, max_iter, deadline, progress=N
         c = np.r_[-solve_triangular(L, gF, lower=True), np.full(len(s), root)]
         return lstsq(A, c)[0]
 
+    def capped():
+        if rec["iterations"] >= max_iter:
+            rec["ending"], rec["message"] = "iteration cap", f"{MAX_ITER} Newton steps per fit"
+        elif time.monotonic() > deadline:
+            rec["ending"], rec["message"] = "time cap", f"{MAX_SECONDS:.0f} s per fit"
+        return rec["ending"] is not None
+
+    def finish(u, cur, level_slack):
+        """The active-set finish (decision 042, Peter 2026-11-08), a primal active-set Newton method
+        entered when the barrier subproblem at MU_STOP ends without the declared stop. The working set
+        starts as the rows within ACTIVE of their bound, or within NEAR of it with a slack that fell to
+        at most TAPIA of its value one barrier level earlier (binding faces fall about tenfold, faces
+        with zero multipliers about threefold). Each step solves the Newton problem with the working
+        rows as equalities, closing their slacks in the same step (the closing's effect on the other
+        coordinates is part of the step); a row that blocks a step joins the set; at a stationary
+        point the rows whose multiplier is below -RELEASE leave it. No barrier: mu is recorded as 0,
+        and the declared stop is tested after every step."""
+        rec["mu"], rec["finish_steps"], rec["released"] = 0.0, 0, 0
+        slack = level_slack[-1]
+        falling = (slack <= TAPIA * level_slack[-2]) & (slack <= NEAR) if len(level_slack) > 1 else False
+        W = (slack <= ACTIVE) | falling
+        cache.clear()
+        cur = evaluate(u, W)
+        last_pure = None
+        for _ in range(FINISH_STEPS):
+            if declared_stop(cur, 0.0):
+                rec["ending"] = "converged"
+                return u, cur
+            if capped():
+                return u, cur
+            s, g = basis.slack(u), cur[1]
+            HF = hessian(u, g)
+            GW = basis.G[W]
+            dp = lstsq(GW, -s[W])[0] if W.any() else np.zeros(len(u))
+            P = null_space(GW) if W.any() else np.eye(len(u))
+            d = dp + P @ newton_step(P.T @ HF @ P, P.T @ (g + HF @ dp))
+            rec["iterations"] += 1
+            rec["finish_steps"] += 1
+            rounding = ROUNDING * max(1.0, abs(cur[0]))
+            closing = W.any() and float(np.max(s[W])) > CLOSED
+            decrement = float(-(g @ d) / 2)
+            Gd = basis.G @ d
+            block = ~W & (Gd < 0)
+            a_block = float(np.min(-s[block] / Gd[block])) if block.any() else math.inf
+            if not closing:
+                pure = decrement <= rounding
+                stalled = pure and last_pure is not None and decrement > 0.5 * last_pure
+                if pure:
+                    last_pure = decrement
+                if stalled or decrement <= 1e-6 * rounding:
+                    lam = lstsq(GW.T, HF @ d + g)[0] if W.any() else np.zeros(0)
+                    out = np.flatnonzero(W)[lam < -RELEASE]
+                    if not len(out):
+                        break                     # stationary with every multiplier kept
+                    W[out] = False
+                    rec["released"] += len(out)
+                    pin = W.copy()
+                    pin[out] = True       # released rows moved INWARD off their faces, the others kept
+                    u = u + lstsq(basis.G[pin], np.where(W[pin], 0.0, INWARD - s[pin]))[0]
+                    last_pure = None
+                    cache.clear()
+                    cur = evaluate(u, W)
+                    if cur is None:
+                        raise RuntimeError("the active-set finish left the domain at a release")
+                    continue
+            alpha = min(1.0, a_block)
+            blocker = np.flatnonzero(block)[int(np.argmin(-s[block] / Gd[block]))] if block.any() else None
+            while alpha >= ALPHA_MIN:
+                Wn = W.copy()
+                if blocker is not None and alpha >= a_block:
+                    Wn[blocker] = True   # the row that blocks the step joins the working set
+                nxt = evaluate(u + alpha * d, Wn)
+                if nxt is None:
+                    rec["infeasible"] += 1
+                elif closing or nxt[0] <= (cur[0] + rounding if decrement <= rounding
+                                           else cur[0] + ARMIJO * alpha * (g @ d)):
+                    break
+                alpha *= 0.5
+                rec["backtracks"] += 1
+            else:
+                rec["stalls"] += 1
+                break
+            if Wn.sum() > W.sum():
+                cache.clear()
+            u, cur, W = u + alpha * d, nxt, Wn
+            if progress:
+                progress({"step": rec["iterations"], "mu": 0.0, "decrement": decrement, "alpha": alpha,
+                          "pure": decrement <= rounding, "value": cur[3], "recentres": rec["recentres"],
+                          "pg": rec["pg"], "faces": int(W.sum()), "closing": closing})
+        if declared_stop(cur, 0.0):
+            rec["ending"] = "converged"
+        else:
+            rec["ending"], rec["message"] = "finish", f"the active-set finish ended without the declared stop " \
+                                                       f"(projected z-gradient {rec['pg']:.3g}, {int(W.sum())} faces)"
+        return u, cur
+
+    def newton_step(H, g):
+        tau, scale = 0.0, max(1.0, float(np.max(np.abs(np.diag(H))))) if len(H) else 1.0
+        while True:
+            try:
+                c = cho_factor(H + tau * np.eye(len(H)))
+                break
+            except LinAlgError:
+                tau = 1e-12 * scale if tau == 0.0 else 10 * tau
+        if tau:
+            rec["damped"] += 1
+        return -cho_solve(c, g)
+
     def declared_stop(cur, mu):
         if mu > MU_STOP * (1 + 1e-9):   # mu is 0.1 times 0.1 nine times, 1.0000000000000006e-10 at MU_STOP
             return False
@@ -485,6 +607,7 @@ def _run(objective, basis, domain, objective_map, max_iter, deadline, progress=N
             raise ValueError("the run's centre is outside the domain")
         rec["value_start"] = cur[3]
         mu = MU0
+        level_slack = []
         while rec["ending"] is None:
             rec["mu"] = mu
             last_pure = None
@@ -547,9 +670,11 @@ def _run(objective, basis, domain, objective_map, max_iter, deadline, progress=N
             if rec["ending"] is None and declared_stop(cur, mu):
                 rec["ending"] = "converged"
             if rec["ending"] is None:
-                mu *= MU_DECAY
-                if mu < MU_FLOOR:
-                    rec["ending"], rec["message"] = "barrier floor", f"barrier parameter below {MU_FLOOR}"
+                level_slack.append(domain.slack(cur[2]))
+                if mu <= MU_STOP * (1 + 1e-9):
+                    u, cur = finish(u, cur, level_slack)
+                else:
+                    mu *= MU_DECAY
         if rec["ending"] == "converged":
             rec["message"] = f"mu {rec['mu']:.3g} <= {MU_STOP}, projected z-gradient {rec['pg']:.3g} <= {PG_STOP}"
     except Exception as e:  # noqa: BLE001  a failed fit is recorded, not raised

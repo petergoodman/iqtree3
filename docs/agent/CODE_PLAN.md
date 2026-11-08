@@ -446,9 +446,15 @@ The package is `test_scripts/fixedeq/oracle/`, and its tests use the pass lines 
     only when not positive definite; an Armijo line search inside 0.995 of every slack, so no
     evaluation ever leaves the domain; the basis re-centred once a flux moves 50% from its centre.
     Every start is strictly feasible: coordinates within 1e-9 of a bound are moved 1e-9 inside in
-    z, and the lnL change is recorded. Stopping, decision 039's declared setting: μ ≤ 1e-10 and the
-    analytic projected z-gradient ≤ 1e-6, checked after every step; caps of 50,000 Newton steps and
-    4 h per fit; any other ending (the barrier floor 1e-20 included) is unconverged. SciPy's
+    z (restarts too), and the lnL change is recorded. Stopping, decision 039's declared setting: μ ≤
+    1e-10 and the analytic projected z-gradient ≤ 1e-6, checked after every step; caps of 50,000
+    Newton steps and 4 h per fit; any other ending is unconverged. Active-set finish (Peter,
+    2026-11-08), entered when the subproblem at μ = 1e-10 ends without that stop: a primal
+    active-set Newton method with no barrier (μ recorded as 0); working set first the rows within
+    1e-6 of their bound, or within 1e-2 with a slack that fell to at most 0.6 of its value one level
+    earlier; each step solves Newton with the working rows as equalities, closing their slacks in the
+    same step; a row that blocks a step joins; at a stationary point rows with multiplier below
+    −1e-7 leave, moved 1e-9 off their face; at most 300 steps. SciPy's
     `trust-constr`, planned first, failed in development (decision 042). Recorded per fit: the KKT
     residual with bounded-least-squares multipliers, m·μ, evaluations, Hessian gradients, steps,
     backtracks, dampings, re-centrings, the ending and wall time.

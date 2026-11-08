@@ -508,16 +508,16 @@ composition is the kind of target the study uses (D07).
 
 **Rule.** S5's reference (`CODE_PLAN.md` 3.1) fits f = f0 + Zy over NQC's box written exactly as
 linear ratio constraints, with analytic likelihood gradients (oracle only; the compiled model keeps
-finite differences) and a log-barrier Newton method of its own, validated on known answers before
-any comparison. It climbs from NQC's start and from NQC's relaxed endpoint; the same-peak line is
-021's L; NQC's endpoints may not lie above the peak. No real data set is added to aa_example.
+finite differences) and a log-barrier Newton method of its own with an active-set finish, validated
+on known answers before any comparison. It climbs from NQC's start and from NQC's relaxed endpoint;
+the same-peak line is 021's L; NQC's endpoints may not lie above the peak. No real data set is added.
 **Why.** Fluxes at NQC's peaks span 1e-13 to 1e-1, so finite differences are too slow and noisy for
 the tight stopping needed (S3c's climbs at `pgtol` 1e-3 ended up to 0.303 apart). SciPy's
 `trust-constr` failed in development: BFGS asks for gradients at infeasible trials, Newton stalls at
 binding faces. A check from NQC's endpoint alone cannot fail; agreement does not depend on the data.
 **Not chosen.** Finite differences; `trust-constr`, SLSQP, cyipopt; a fixed 1e-3 line; 1e-8 × |lnL|;
 endpoint-anchored checks only; risk 9's small real set.
-**Since** 2026-11-07 (Peter; solver revised the same day); survey in the archived S5 plan.
+**Since** 2026-11-07 (Peter; solver revised that day, finish added 2026-11-08); survey archived.
 
 ## Tooling
 

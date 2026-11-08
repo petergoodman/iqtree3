@@ -10,16 +10,16 @@ development.
 
 ## 2026-11-07 (fourth session): S5 oracle and driver; validation fails on V3
 
-- **Done.** `9971e223` the oracle's flux reference, analytic gradient, `from_patterns`, `z_gradient`,
-  `lbfgsb_fit`'s analytic pass; `fa94c697` the driver; this commit the read-only review's fixes (a
-  blocker, A6's cross-start given Q for a flux; six minor). Suite 330.
-- **Changed (Peter).** 042: a log-barrier Newton method replaces SciPy's `trust-constr`; 021: V1 and
-  V1b judged by the Lagrangian duality gap, same 1e-9 |F| line.
-- **Validate** at `fa94c697` (`~/iqtree3-runs/s5-gate/20261108T042332Z-fa94c697-validate/`, 9 min):
-  V1, V1b, V2, AG pass; V3 fails "converged": it reaches the truth (deficit 3.7e-9) but jams at
-  projected z-gradient 1.06e-5 on 150 near-bound coordinates with zero multipliers (barrier floor).
-- **Failed.** `trust-constr` (BFGS, Newton), the planned certificate, three barrier versions (commit
-  messages); one patch ran in Windows Python. **Next.** Peter's remedy for V3; validate; the gate.
+- **Done.** `9971e223` oracle flux reference, analytic gradient, `z_gradient`, analytic L-BFGS-B;
+  `fa94c697` driver; `7d4c8a90` review fixes (blocker: A6's cross-start given Q for a flux); this
+  commit the active-set finish. Suite 330.
+- **Changed (Peter).** 042: barrier Newton replaces `trust-constr`, then an active-set finish; 021:
+  V1 and V1b by the Lagrangian duality gap, same 1e-9 |F| line.
+- **Validate** at `fa94c697` and `7d4c8a90` (`~/iqtree3-runs/s5-gate/`): V1, V1b, V2, AG pass; V3
+  reaches the truth (deficit 3.7e-9) but not the stop (z-gradient 1.06e-5, jammed at its faces). The
+  finish fixes the faces (125 found) but leaves 2.2e-5: Newton's floor at |lnL| = 5.4e6 (development).
+- **Failed.** `trust-constr`, the planned certificate, three barrier and two finish versions (commit
+  messages); one patch ran in Windows Python. **Next.** Peter's call on V3 (PLAN.md); then the gate.
 
 ## 2026-11-07 (third session): S5 planned (decision 042)
 

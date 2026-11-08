@@ -174,6 +174,8 @@ def fit_record(r):
             "projected_z_gradient": r.pg, "mu": r.mu, "m_active": r.m_active, "m_mu": r.m_active * r.mu,
             "kkt": r.kkt, "runs": len(r.runs), "seconds": round(r.seconds, 1), **r.totals(),
             "run_endings": [run["ending"] for run in r.runs], "run_gains": [run["gain"] for run in r.runs],
+            "finish_steps": [run.get("finish_steps") for run in r.runs],
+            "finish_released": [run.get("released") for run in r.runs],
             "smallest_flux": float(np.min(r.f))}
 
 
