@@ -21,7 +21,7 @@ Labels are those of PLAN.md. Source anchors refer to `63c330d9` and were verifie
 | `model/modelnonrevfixedeq.{h,cpp}` | S2 to S4 | Class `ModelNonrevFixedEq : public ModelProtein`, public name "NQC" held in one constant (decision 002; section 2.2); from S3b also `public LinkedModelHooks`, listed second |
 | `model/linkedmodelhooks.h` | S3b | Header only: the abstract `LinkedModelHooks` through which `PartitionModel::optimizeLinkedModel` lets a linked model check, differentiate and record its fits (decision 005; section 2.2, "Linked hooks"). A separate header because NQC's header is included by `model/modelmixture.cpp` and `partitionmodel.h` pulls in the super tree, so putting the interface in either would create an include cycle |
 | `unittest/` | S1 | Standalone CMake project that compiles `model/fixedeqchart.cpp` directly, with IQ-TREE's clang Release flags and the `model` target's SSE flags (verified, `CMakeLists.txt:420`, `711-718`, `984`), and fetches googletest 1.12.1 at cmaple's pinned commit, checked by the archive's SHA-256 (verified, `cmaple/CMakeLists.txt:283-293`; decision 012); `fixtures/`, 27 chart cases and `targets.txt` in plain text at 17 significant digits with a provenance header (section 3.2); its own `.gitattributes` (decision 014) |
-| `test_scripts/fixedeq/` | S0 onward | `environment.yml` and lock (decision 013); `oracle/`; `tests/`; drivers `regression/`, `differential/`, `probes/`, `sanitizer/`, `unittests/`, `nqc/` and `design_rerun.py`; `manifest/` (G0 manifest); `explore/` (exploratory measurements behind decisions 007, 021, 023, 025 and 038); `make_fixtures.py`; `.gitattributes` and `.gitignore`. Added in S3: `nqc/twopart.py`, the two-partition data (S3b); `explore/convergence.py`, the stopping study and risk 22's converged evidence, with `oracle/optimize.py`'s reference climber `lbfgsb_fit` (S3c's first part); `profile/profiling.py`, the profiling driver (S3c). Added in S4: the oracle's export functions (`chart.first_order_test`, `nqc.export_gradient`, `readers.read_qmat`, `readers.read_info`) and `tests/test_export.py` |
+| `test_scripts/fixedeq/` | S0 onward | `environment.yml` and lock (decision 013); `oracle/`; `tests/`; drivers `regression/`, `differential/`, `probes/`, `sanitizer/`, `unittests/`, `nqc/` and `design_rerun.py`; `manifest/` (G0 manifest); `explore/` (exploratory measurements behind decisions 007, 021, 023, 025 and 038); `make_fixtures.py`; `.gitattributes` and `.gitignore`. Added in S3: `nqc/twopart.py`, the two-partition data (S3b); `explore/convergence.py`, the stopping study and risk 22's converged evidence, with `oracle/optimize.py`'s reference climber `lbfgsb_fit` (S3c's first part); `profile/profiling.py`, the profiling driver (S3c). Added in S4: the oracle's export functions (`chart.first_order_test`, `nqc.export_gradient`, `readers.read_qmat`, `readers.read_info`) and `tests/test_export.py`. Added in S5: `oracle/flux.py`, the balanced-flux reference (section 3.1), with `likelihood.log_likelihood_gradient`, `nqc.Objective.from_patterns`, the analytic gradients and `nqc.z_gradient`, `lbfgsb_fit`'s analytic pass, and `tests/test_oracle_flux.py` |
 | `.github/workflows/fixedeq.yaml` | S1 | Fork-only workflow that builds and runs the unit tests and the oracle's tests on Linux, and from S2 a short NQC run |
 
 Run outputs never go into the working copy; they go under `~/iqtree3-runs/` in WSL. Fixtures and
@@ -435,17 +435,25 @@ The package is `test_scripts/fixedeq/oracle/`, and its tests use the pass lines 
     downward pass per rate category and, per branch and category, the adjoint of `expm_frechet`;
     ∂lnL/∂f_ij = (G_ij − G_ii)/π*_i; the z-gradient through `chart.derivative`. It refuses `+I` and
     a nonzero root-branch length.
-  - Solver. SciPy `trust-constr`, one `LinearConstraint(..., keep_feasible=True)`; the objective
-    returns +∞ at an infeasible flux and the gradient raises there, recording the fit as failed.
+  - Solver (decision 042). A log-barrier Newton method, `flux.fit`: barrier subproblems
+    min −V − μ Σ log s over the normalized slacks, μ from 0.1 down by 0.1, each ended when its Newton
+    decrement λ²/2 ≤ 0.1 μ (or after 100 steps, or when the line search finds no decrease above
+    rounding); the Hessian of −V by forward differences of the analytic gradient (step 1e-6 in u,
+    probes over a process pool, kept at positive fluxes and so up to 1e-6 relative outside the box),
+    the barrier's exactly; the step from the least-squares form [Lᵀ; √μ S⁻¹G], −V's Hessian damped
+    only when not positive definite; an Armijo line search inside 0.995 of every slack, so no
+    evaluation ever leaves the domain; the basis re-centred once a flux moves 50% from its centre.
     Every start is strictly feasible: coordinates within 1e-9 of a bound are moved 1e-9 inside in
-    z, and the lnL change is recorded. Stopping, decision 039's declared setting: a callback when
-    the barrier parameter μ ≤ 1e-10 and the analytic projected z-gradient ≤ 1e-6; `gtol` 1e-14,
-    `xtol` 1e-14, `barrier_tol` 1e-12; caps of 50,000 iterations and 4 h per fit; any other ending
-    is unconverged. Hessian: BFGS in the scaled basis if it passes the validation of section 3.3,
-    else Newton by forward differences of the analytic gradient over a process pool; if BFGS later
-    fails the convergence row on a comparison problem, Newton reruns every problem and decides.
-    Recorded per fit: the KKT residual with bounded-least-squares multipliers, m·μ, evaluations,
-    gradients, iterations, rejected trials, the solver's message and wall time.
+    z, and the lnL change is recorded. Stopping, decision 039's declared setting: μ ≤ 1e-10 and the
+    analytic projected z-gradient ≤ 1e-6, checked after every step; caps of 50,000 Newton steps and
+    4 h per fit; any other ending (the barrier floor 1e-20 included) is unconverged. SciPy's
+    `trust-constr`, planned first, failed in development (decision 042). Recorded per fit: the KKT
+    residual with bounded-least-squares multipliers, m·μ, evaluations, Hessian gradients, steps,
+    backtracks, dampings, re-centrings, the ending and wall time.
+  - Certificate of the concave validation problems (decision 021): the Lagrangian duality gap
+    D(η, ν) − F(f̂), D = bᵀη + Σ N_e(log(N_e/w_e) − 1), w = Cᵀη − Aᵀν > 0, ν ≥ 0, smallest over the
+    barrier's multipliers ν = μ/(Af) and bounded least squares at several active sets, each weighted
+    by √N_e / f_e (`flux.duality_gap`).
   - Around it: `nqc.Objective.from_patterns` (tip-vector columns, real weights as counts; refuses
     `+I`); gradients on `Objective` and `LinkedObjective`, which gains `log_likelihood(Q)`; an
     optional analytic pass in `lbfgsb_fit`, its default unchanged (decision 017's port is not
@@ -542,7 +550,8 @@ asserted failure. Confirmatory.
   run02's rooted tree, `+G4{0.5}`), twopart under `-S` (`+G4{0.5}`).
 - **Validation**, before any comparison and never compared with NQC: the concave problem
   max Σ N_e log f_e at n = 3, 4 and 20, open (also solved by the technical plan's dual Newton
-  iteration) and with NQC's ratio constraints binding (n = 4, 20); exact pattern frequencies on a
+  iteration) and with NQC's ratio constraints binding at a known optimum (n = 4, 20: f* with chosen
+  coordinates at the bounds, N = f* ⊙ (Cᵀη − Aᵀν) for ν > 0 on those rows); exact pattern frequencies on a
   rooted three-taxon tree at n = 20, N = 10⁶ sites, from an interior cycle-flux truth and from an
   extreme one (LG at π* with about 160 coordinates at the lower bound). pytest runs n = 3 and 4.
 - **Fits per problem**: NQC at defaults (`-vv`) and relaxed (`-me 1e-6`, 300-round caps), both with
@@ -1019,16 +1028,16 @@ its survey, measurements and review is frozen in `docs/agent/archive/S5_plan_202
 - Commit 2: `oracle/flux.py`, `likelihood.log_likelihood_gradient`, the `nqc.py` additions and
   `lbfgsb_fit`'s analytic pass, with `tests/test_oracle_flux.py` (decision 021's S5 rows on the maps,
   the box, residuals, gradients and validation at n = 3 and 4; `from_patterns` against the alignment
-  constructor; an n = 4 matched comparison against `lbfgsb_fit`; infeasible fluxes refused before any
-  likelihood); section 1.1 updated.
+  constructor; `nqc.z_gradient` against `chart.derivative`; an n = 4 matched comparison against
+  `lbfgsb_fit`; infeasible fluxes refused before any likelihood); section 1.1 updated.
 - Commit 3: `reference/reference.py` and `tests/test_reference.py` (the outcome labels on constructed
-  inputs); the `validate` run, which chooses the Hessian configuration, every configuration tried
-  logged in the commit message.
+  inputs); then the `validate` run from that clean commit, its outcome recorded in the next commit
+  (review fixes or the close).
 - Gate, from a clean commit: `calibrate` then `compare` per problem, IQ-TREE from
   `~/iqtree3-binaries/25d78d6e/iqtree3`, AliSim from `~/iqtree3-baseline/iqtree3`; the full pytest
   suite. No rebuild, regression, sanitizer or `nqcchecks.py` run, since IQ-TREE does not change.
-  Outputs under `~/iqtree3-runs/s5-gate/<UTC>-<commit>/`. Compute about 8 to 15 h with BFGS
-  (unverified; the `validate` run measures it), 4 h caps per fit, the keep-awake helper and
+  Outputs under `~/iqtree3-runs/s5-gate/<UTC>-<commit>/`. Compute unverified (8 to 15 h was
+  estimated for BFGS; the `validate` run measures the barrier Newton method's cost), 4 h caps per fit, the keep-awake helper and
   monitoring for every run; the gate may span sessions.
 - A read-only code review before the gate; at the close, a records-against-gate check, the gate
   record in the CHANGELOG entry, this list cut to one line, budgets checked, the AI_DISCLOSURE entry.

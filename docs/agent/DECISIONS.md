@@ -427,7 +427,7 @@ files, not from the log, and IQ-TREE's printed final score is reported, not comp
 | S5 analytic gradients, flux and z, against central differences at h and 2h, h = 1e-4 | \|g − D(h)\| ≤ 2 [\|D(2h) − D(h)\|/3 + 2 × 1e-12 × \|lnL\| / h] | 042 |
 | S5 convergence of every compared oracle fit | analytic projected z-gradient ≤ 1e-6; central-difference projected z-gradient (step 1e-4 max(1, \|z\|)) ≤ 1e-3; reference fits m·μ ≤ 1e-6 | 042 |
 | S5 same peak: from NQC's relaxed endpoint, the reference against the z climb; the reference from NQC's start against from its endpoint; NQC's default and relaxed endpoints not above the reference's peak from its start | L = max(1e-3, 10 × s), s the spread of two z climbs (L-BFGS-B memory 20 and 5) from NQC's relaxed endpoint, recorded before any flux fit | 042 (Peter) |
-| S5 validation, concave flux problems, open and with binding ratio constraints | certified gap ν·s + 2‖r‖∞ ≤ 1e-9 × \|F\| | 042 |
+| S5 validation, concave flux problems, open and with binding ratio constraints at a known optimum | duality gap D(η, ν) − F(f̂) ≤ 1e-9 × \|F\|, D the Lagrangian dual at any η and ν ≥ 0 with C^T η − A^T ν > 0, which bounds f̂'s optimality gap | 042 (Peter, 2026-11-07) |
 | S5 validation, exact pattern frequencies at N = 10⁶ sites | lnL deficit against the truth ≤ 1e-3 | 042 |
 
 h_k is the step's displacement (`CODE_PLAN.md` section 2.1); for the export's central differences,
@@ -438,7 +438,7 @@ max(1, |g_ref|), reported at a near-zero start; the oracle reports its central d
 in the archive (1e-10: the synthesis's goal, section 4.3; the κ-scaled Q line: two correct routes).
 **Since** 2026-10-04; merged 026 (2026-10-05), 030 and 034 item 7 (2026-10-20) and 036's
 measure, its claim withdrawn (2026-10-22); later rows are identified in the Set by column; last
-revised 2026-11-07 (S5's rows, 042).
+revised 2026-11-07 (S5's rows, 042; the concave row's statistic, Peter).
 
 ### 012. Test the pure module with googletest in a standalone CMake project
 
@@ -504,20 +504,20 @@ composition is the kind of target the study uses (D07).
 **Not chosen.** `aa_example`'s own composition; an asserted skewed-target test.
 **Since** 2026-10-04; skewed case 2026-10-22 (`explore/skewed_targets.py`).
 
-### 042. S5's flux reference: exact gradients, an interior point, NQC anchored at its start
+### 042. S5's flux reference: exact gradients, a barrier Newton method, NQC anchored at its start
 
 **Rule.** S5's reference (`CODE_PLAN.md` 3.1) fits f = f0 + Zy over NQC's box written exactly as
 linear ratio constraints, with analytic likelihood gradients (oracle only; the compiled model keeps
-finite differences) and SciPy's `trust-constr` interior point; its Hessian (BFGS, else Newton) is
-chosen by known-answer validation alone. It climbs from NQC's start and from NQC's relaxed
-endpoint; the same-peak line is 021's L; NQC's endpoints may not lie above the peak. No real data
-set is added to aa_example.
-**Why.** Fluxes at NQC's peaks span 1e-13 to 1e-1, so finite differences are slow and too noisy for
-the tight stopping needed: S3c's climbs at `pgtol` 1e-3 ended up to 0.303 apart (P2 against P2w).
-A check against a climb from NQC's endpoint cannot fail. Agreement does not depend on the data.
-**Not chosen.** Finite differences; SLSQP, a custom barrier method, cyipopt; a fixed 1e-3 line;
-1e-8 × |lnL|; endpoint-anchored checks only; risk 9's small real set.
-**Since** 2026-11-07 (Peter); survey and review in `docs/agent/archive/S5_plan_2026-11-07.md`.
+finite differences) and a log-barrier Newton method of its own, validated on known answers before
+any comparison. It climbs from NQC's start and from NQC's relaxed endpoint; the same-peak line is
+021's L; NQC's endpoints may not lie above the peak. No real data set is added to aa_example.
+**Why.** Fluxes at NQC's peaks span 1e-13 to 1e-1, so finite differences are too slow and noisy for
+the tight stopping needed (S3c's climbs at `pgtol` 1e-3 ended up to 0.303 apart). SciPy's
+`trust-constr` failed in development: BFGS asks for gradients at infeasible trials, Newton stalls at
+binding faces. A check from NQC's endpoint alone cannot fail; agreement does not depend on the data.
+**Not chosen.** Finite differences; `trust-constr`, SLSQP, cyipopt; a fixed 1e-3 line; 1e-8 × |lnL|;
+endpoint-anchored checks only; risk 9's small real set.
+**Since** 2026-11-07 (Peter; solver revised the same day); survey in the archived S5 plan.
 
 ## Tooling
 

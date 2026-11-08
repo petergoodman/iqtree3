@@ -251,6 +251,8 @@ class Climb:
     pg_max: float          # the largest projected-gradient component of that gradient
     at_lower: np.ndarray   # indices exactly at a bound
     at_upper: np.ndarray
+    analytic_pg: float = None  # the analytic pass's projected gradient at x (S5), else None
+    gradients: int = 0         # analytic gradient calls
 
 
 def projected_gradient(x, g, lower, upper):
@@ -278,15 +280,24 @@ def central_gradient(evaluate, x, step):
     return (values[:len(x)] - values[len(x):]) / (2 * h)
 
 
-def lbfgsb_fit(f, x0, lower, upper, pgtol=1e-3, max_iter=2000, central_step=ERROR_X, evaluate=None):
+def lbfgsb_fit(f, x0, lower, upper, pgtol=1e-3, max_iter=2000, central_step=ERROR_X, evaluate=None,
+               gradient=None, maxcor=20, max_seconds=None):
     """A test reference for where a fit's peak lies (PLAN.md risks 22 and 24), not IQ-TREE's method:
     SciPy's L-BFGS-B minimizing f in the box, stopped by its projected-gradient test at pgtol. The
     first pass uses decision 005's forward differences; when the central-difference gradient at its
     end still fails pgtol, a second pass uses central differences, whose error does not grow with
     the curvature as the forward step's does. Central probes may leave the box by one step, which
     the NQC chart allows (constraint 1). evaluate(points) returns f at each point, in order; a
-    process pool's map spreads a gradient's probes, with the same values as the serial default."""
+    process pool's map spreads a gradient's probes, with the same values as the serial default.
+
+    With gradient (x -> f, g analytic), one pass replaces both (S5, decision 042): L-BFGS-B with
+    that gradient and maxcor memory, stopped by the analytic projected gradient at pgtol (ftol 0),
+    by max_iter iterations or by max_seconds; the central-difference gradient is still taken at x."""
     from scipy.optimize import Bounds, minimize
+
+    if gradient is not None:
+        return _analytic_lbfgsb(f, gradient, x0, lower, upper, pgtol, max_iter, central_step, evaluate, maxcor,
+                                max_seconds)
 
     n = len(x0)
     lower = np.broadcast_to(np.asarray(lower, dtype=float), (n,)).copy()
@@ -322,3 +333,37 @@ def lbfgsb_fit(f, x0, lower, upper, pgtol=1e-3, max_iter=2000, central_step=ERRO
     pg = projected_gradient(x, g, lower, upper)
     return Climb(x, fx, count[0], phases, g, float(np.max(np.abs(pg))), np.flatnonzero(x == lower),
                  np.flatnonzero(x == upper))
+
+
+def _analytic_lbfgsb(f, gradient, x0, lower, upper, pgtol, max_iter, central_step, evaluate, maxcor, max_seconds):
+    import time
+
+    from scipy.optimize import Bounds, minimize
+
+    n = len(x0)
+    lower = np.broadcast_to(np.asarray(lower, dtype=float), (n,)).copy()
+    upper = np.broadcast_to(np.asarray(upper, dtype=float), (n,)).copy()
+    evaluate = evaluate or (lambda pts: [f(p) for p in pts])
+    calls = [0]
+    deadline = None if max_seconds is None else time.monotonic() + max_seconds
+
+    def fun(x):
+        calls[0] += 1
+        fx, g = gradient(np.array(x, dtype=float))
+        return np.float64(fx), np.asarray(g, dtype=float)
+
+    def stop(intermediate_result):
+        if deadline is not None and time.monotonic() > deadline:
+            raise StopIteration
+
+    x = np.clip(np.asarray(x0, dtype=float), lower, upper)
+    r = minimize(fun, x, jac=True, method="L-BFGS-B", bounds=Bounds(lower, upper), callback=stop,
+                 options={"maxiter": max_iter, "maxfun": 4 * max_iter, "gtol": pgtol, "ftol": 0.0,
+                          "maxcor": maxcor})
+    x = np.clip(r.x, lower, upper)
+    fx, ga = fun(x)
+    g = central_gradient(evaluate, x, central_step)
+    pg = projected_gradient(x, g, lower, upper)
+    return Climb(x, float(fx), 2 * n + calls[0], [("analytic", int(r.nit), str(r.message))], g,
+                 float(np.max(np.abs(pg))), np.flatnonzero(x == lower), np.flatnonzero(x == upper),
+                 float(np.max(np.abs(projected_gradient(x, ga, lower, upper)))), calls[0])

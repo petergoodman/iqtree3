@@ -6,7 +6,7 @@ Computed independently: transition matrices by SciPy's matrix exponential, and p
 per-node scaling in log space.
 """
 import numpy as np
-from scipy.linalg import expm
+from scipy.linalg import expm, expm_frechet
 from scipy.special import logsumexp
 
 from .chart import solve_stationary
@@ -94,6 +94,74 @@ def site_log_likelihoods(tree, columns, Q, pi, rates=(1.0,), weights=(1.0,), inv
         inv = np.asarray(invariant, dtype=float)
         site = np.where(inv > 0, np.logaddexp(site, np.log(np.where(inv > 0, inv, 1.0))), site)
     return site
+
+
+def log_likelihood_gradient(tree, columns, Q, pi, rates=(1.0,), weights=(1.0,), counts=None):
+    """lnL = counts . site log-likelihoods and G = dlnL/dQ, every entry of Q free (the diagonal
+    included), for S5's reference (decision 042). One upward and one downward pass per rate
+    category give, per branch c and category k, W = sum_s counts_s B(x) I(y) / L_s, with B the
+    outside partial at c's parent and I c's inside partial, so that dlnL/dP_ck = W; then
+    <W, L(A, E)> = <L(A^T, W), E> for the Frechet derivative L of expm at A = r_k t_c Q. Scaling as
+    in site_log_likelihoods. No +I term and no root branch."""
+    if tree.length:
+        raise ValueError("the analytic gradient takes no root branch")
+    Q, pi = np.asarray(Q, dtype=float), np.asarray(pi, dtype=float)
+    nsite, n = len(columns), len(pi)
+    counts = np.ones(nsite) if counts is None else np.asarray(counts, dtype=float)
+    nodes = list(tree.preorder())
+    zeros = np.zeros(nsite)
+    passes, log_cat = [], []
+    for rate in rates:
+        P, inside, up = {}, {}, {}
+        for nd in reversed(nodes):          # children before parents
+            if nd.children:
+                L, s = np.ones((nsite, n)), zeros.copy()
+                for ch in nd.children:
+                    a, sa = up[id(ch)]
+                    L *= a
+                    s += sa
+                m = L.max(axis=1)
+                inside[id(nd)] = (L / m[:, None], s + np.log(m))
+            else:
+                inside[id(nd)] = (np.array([col[nd.name] for col in columns], dtype=float), zeros)
+            if nd is not tree:
+                key = (rate, _branch(nd))
+                if key not in P:
+                    P[key] = expm(Q * rate * key[1])
+                up[id(nd)] = (inside[id(nd)][0] @ P[key].T, inside[id(nd)][1])
+        I, s = inside[id(tree)]
+        log_cat.append(np.log(I @ pi) + s)
+        passes.append((P, inside, up))
+    site = logsumexp(np.array(log_cat), axis=0, b=np.asarray(weights)[:, None])
+    W = {}
+    for rate, w, (P, inside, up) in zip(rates, weights, passes):
+        out = {id(tree): (np.tile(pi, (nsite, 1)), zeros)}
+        for nd in nodes:                    # parents before children
+            if not nd.children:
+                continue
+            O, so = out[id(nd)]
+            for ch in nd.children:
+                B, sb = O.copy(), so.copy()
+                for d in nd.children:
+                    if d is not ch:
+                        B *= up[id(d)][0]
+                        sb += up[id(d)][1]
+                m = B.max(axis=1)
+                B /= m[:, None]
+                sb += np.log(m)
+                key = (rate, _branch(ch))
+                I, si = inside[id(ch)]
+                factor = counts * np.exp(np.log(w) + sb + si - site)
+                W[key] = W.get(key, 0.0) + (B * factor[:, None]).T @ I
+                if ch.children:
+                    o = B @ P[key]
+                    m = o.max(axis=1)
+                    out[id(ch)] = (o / m[:, None], sb + np.log(m))
+    G = np.zeros((n, n))
+    for (rate, length), Wk in W.items():
+        A = Q * rate * length
+        G += rate * length * expm_frechet(A.T, Wk, compute_expm=False)
+    return float(counts @ site), G
 
 
 def compress(alignment, tree, sites=None):

@@ -39,10 +39,43 @@ class Objective:
                           if p_invar else None)
         self.evaluations = 0
 
+    @classmethod
+    def from_patterns(cls, tree, columns, weights, pi, ref, shape=None, ncat=4, p_invar=0.0, build=chart.build,
+                      free=None, part_rate=1.0):
+        """Tip-vector columns (leaf name -> vector of len(pi)) with real weights in place of an
+        alignment: observed counts, or exact pattern frequencies (S5, SIM-1). +I is refused, since
+        its term reads characters."""
+        if p_invar:
+            raise ValueError("from_patterns refuses +I")
+        names = {leaf.name for leaf in tree.leaves()}
+        if any(set(col) != names or any(len(v) != len(pi) for v in col.values()) for col in columns):
+            raise ValueError("every column needs one vector of len(pi) per leaf")
+        self = cls.__new__(cls)
+        self.tree, self.pi, self.ref, self.build = tree, np.asarray(pi, dtype=float), ref, build
+        self.columns, self.counts = list(columns), np.asarray(weights, dtype=float)
+        self.rates, self.weights = likelihood.rate_categories(shape, ncat, 0.0, free)
+        self.rates = self.rates * part_rate
+        self.invariant = None
+        self.evaluations = 0
+        return self
+
     def log_likelihood(self, Q):
         site = likelihood.site_log_likelihoods(self.tree, self.columns, Q, self.pi, self.rates,
                                                self.weights, self.invariant)
         return float(self.counts @ site)
+
+    def log_likelihood_gradient(self, Q):
+        """lnL and G = dlnL/dQ (likelihood.log_likelihood_gradient); +I is refused."""
+        if self.invariant is not None:
+            raise ValueError("the analytic gradient does not cover +I")
+        return likelihood.log_likelihood_gradient(self.tree, self.columns, Q, self.pi, self.rates, self.weights,
+                                                  self.counts)
+
+    def gradient(self, z):
+        """f(z) and its analytic gradient in z; a failed build raises chart.BuildError."""
+        Q = self.build(z, self.pi, self.ref)[0]
+        lnL, G = self.log_likelihood_gradient(Q)
+        return -lnL, -z_gradient(z, self.pi, self.ref, G)
 
     def __call__(self, z):
         self.evaluations += 1
@@ -61,12 +94,58 @@ class LinkedObjective:
         self.parts = list(parts)
         self.evaluations = 0
 
+    @property
+    def pi(self):
+        return self.parts[0].pi
+
+    @property
+    def ref(self):
+        return self.parts[0].ref
+
     def __call__(self, z):
         self.evaluations += 1
         total = 0.0
         for f in self.parts:
             total += f(z)
         return total
+
+    def log_likelihood(self, Q):
+        total = 0.0
+        for f in self.parts:
+            total += f.log_likelihood(Q)
+        return total
+
+    def log_likelihood_gradient(self, Q):
+        total, G = 0.0, 0.0
+        for f in self.parts:
+            lnL, g = f.log_likelihood_gradient(Q)
+            total += lnL
+            G = G + g
+        return total, G
+
+    def gradient(self, z):
+        Q = self.parts[0].build(z, self.pi, self.ref)[0]
+        lnL, G = self.log_likelihood_gradient(Q)
+        return -lnL, -z_gradient(z, self.pi, self.ref, G)
+
+
+def z_gradient(z, pi, ref, G):
+    """<G, dQ/dz_k> for every coordinate k, as the adjoint of chart.derivative's linear map (tested
+    against it): with H_ij = G_ij - G_ii, a_i = sum_j H_ij K_ij / pi_i and c solving
+    (I - K + 1 nu^T) c = a, the pairing is sum_ij beta_ij dK_ij with beta_ij = H_ij nu_i / pi_i + nu_i c_j,
+    and dK_ij / dz_ik = K_ij (delta_jk - K_ik)."""
+    n = len(ref)
+    pi, G = np.asarray(pi, dtype=float), np.asarray(G, dtype=float)
+    K = chart.jump_matrix(z, ref)
+    nu = chart.generator_from_jump(K, pi)[1]
+    H = G - np.diag(G)[:, None]
+    np.fill_diagonal(H, 0.0)
+    a = (H * K).sum(axis=1) / pi
+    c = np.linalg.solve(np.eye(n) - K + np.outer(np.ones(n), nu), a)
+    beta = H * (nu / pi)[:, None] + np.outer(nu, c)
+    row = (beta * K).sum(axis=1)
+    return np.concatenate([K[i, free] * (beta[i, free] - row[i])
+                           for i, free in enumerate(chart.free_destinations(ref))])
 
 
 def normalize_part_rates(rates, sites):
