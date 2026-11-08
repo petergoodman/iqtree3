@@ -27,6 +27,8 @@ Only when the task needs them:
 6. `docs/agent/ARCHITECTURE.md` and `docs/agent/AA_MODEL_INFERENCE.md`: the relevant section,
    before touching IQ-TREE code not yet read in the session. They describe upstream code and
    prescribe nothing; what to build comes only from items 1 to 5.
+7. `docs/agent/UPSTREAM_FINDINGS.md`: the evidence behind a question for the maintainers or an
+   upstream-behaviour risk, when relaying one or rechecking that behaviour.
 
 Not read at the start: `AI_DISCLOSURE.md`, older `CHANGELOG.md` entries, and
 `docs/agent/archive/` (frozen history, read only to trace how a rule arose). `model/CLAUDE.md`
@@ -88,40 +90,32 @@ cmake --build ~/iqtree3-build -j 4
   `--allow-dirty`, which is for development checks. Commit first only for a gate run whose result
   is recorded, and create or edit no repository file while it runs.
 - **Regression driver**: `test_scripts/fixedeq/regression/regress.py` (`freeze`, `run`,
-  `baseline`, `compare`; `CODE_PLAN.md` section 3.4). The baseline (runs 1 to 11 in
-  `regression/baseline/`, run 12 in `baseline/run12/`, runs 13 to 15 in `baseline/run13/`; raw
-  outputs under `~/iqtree3-runs/baseline/`) came from the frozen unmodified binary
-  `~/iqtree3-baseline/iqtree3` (SHA-256 beside it), never rebuilt or overwritten. After a source
-  change, `run` the new build into a new directory, then `compare --baseline baseline/baseline.json
-  --baseline baseline/run12/baseline.json --baseline baseline/run13/baseline.json`.
-- **Sanitizer build** (decision 022; flags and coverage in `CODE_PLAN.md` section 3.6):
-  `sanitize.py build --build-dir DIR --git git.exe` into a new directory per slice (S2: about 30
-  minutes of compute alone, 4.2 hours of wall time beside other checks; S3a: 15 minutes beside
-  the gate's other checks);
-  `sanitize.py run --binary DIR/iqtree3 --build-dir DIR --out OUT --git git.exe`, with
+  `baseline`, `compare`; the baseline's layout and comparison rules are `CODE_PLAN.md` section
+  3.4). The baseline came from the frozen unmodified binary `~/iqtree3-baseline/iqtree3` (SHA-256
+  beside it), never rebuilt or overwritten. After a source change, `run` the new build into a new
+  directory, then `compare --baseline baseline/baseline.json --baseline
+  baseline/run12/baseline.json --baseline baseline/run13/baseline.json`.
+- **Gate binaries** are frozen under `~/iqtree3-binaries/<SHA-256 prefix>/`; PLAN.md's current
+  state names the latest.
+- **Sanitizer build** (decision 022; flags, coverage, expected upstream reports and build times in
+  `CODE_PLAN.md` section 3.6): `sanitize.py build --build-dir DIR --git git.exe` into a new
+  directory; `sanitize.py run --binary DIR/iqtree3 --build-dir DIR --out OUT --git git.exe`, with
   `--regression-runs`, `--probes`, `--no-differential` and `--nqc-cases` (`--alisim` with the
-  frozen binary for `short`); `sanitize.py scan OUT` groups the reports. Every run so far shows
-  one upstream finding at `model/modelmarkov.cpp:76` (PLAN.md, maintainer question 4), and every
-  run with `-b` (since S4, the `short` case's `-b 2`) one in bootstrap sampling (question 10);
-  any `-S` run at `-v` or above is stopped at IQ-TREE's closing print by another (question 6), so
-  sanitizer runs of `-S` stay at default verbosity. The
-  unmodified sanitizer binary is frozen at `~/iqtree3-baseline-asan/iqtree3` (SHA-256,
-  `sanitizer-build.json` and `CMakeCache.txt` beside it), never rebuilt, so a later finding can
-  be checked against unmodified code.
+  frozen binary for `short`); `sanitize.py scan OUT` groups the reports. Any `-S` run at `-v` or
+  above is stopped at IQ-TREE's closing print (maintainer question 6), so sanitizer runs of `-S`
+  stay at default verbosity. The unmodified sanitizer binary is frozen at
+  `~/iqtree3-baseline-asan/iqtree3` (SHA-256, `sanitizer-build.json` and `CMakeCache.txt` beside
+  it), never rebuilt, so a later finding can be checked against unmodified code.
 - **Probe driver**: `test_scripts/fixedeq/probes/probes.py --binary BIN --out DIR --git git.exe
   [--only a,b,...]` reruns the S0 runtime probes, in about 45 minutes of compute.
   `test_scripts/fixedeq/manifest/manifest.py --out test_scripts/fixedeq/manifest --git git.exe`
   regenerates the G0 manifest. The manifest is the frozen record of S0: later decisions
   supersede it, and it is not regenerated when they change.
-- **Profiling driver** (S3c): `test_scripts/fixedeq/profile/profiling.py`, run as three steps,
-  each with `--git git.exe`:
-  1. `simulate --alisim ~/iqtree3-baseline/iqtree3 --out DATA`;
-  2. `windows --binary BIN --data DATA --out DIR`;
-  3. `fits --binary BIN --data DATA --windows DIR --out DIR2`.
-
-  It runs IQ-TREE under Debian's gdb 13.1, which finds functions in the stripped binary through
-  its dynamic symbols. gdb's shell start must stay on: with it off, gdb keeps the backslashes it
-  puts before braces, and IQ-TREE rejects `+G4{0.5}`.
+- **Profiling driver** (S3c): `test_scripts/fixedeq/profile/profiling.py`, three steps
+  (`simulate --alisim ~/iqtree3-baseline/iqtree3`, `windows`, `fits`), each with `--git git.exe`;
+  the full commands are in its docstring. It runs IQ-TREE under Debian's gdb 13.1, which finds
+  functions in the stripped binary through its dynamic symbols. gdb's shell start must stay on:
+  with it off, gdb keeps the backslashes it puts before braces, and IQ-TREE rejects `+G4{0.5}`.
 - **Long jobs need the laptop awake.** Windows Modern Standby pauses the WSL VM and every job in
   it; idle sleep is set to 3 minutes on battery and 15 minutes plugged in. A job that looks hung
   is usually paused. Compare IQ-TREE's CPU time with its wall-clock time, the VM's `uptime`, and
@@ -133,8 +127,8 @@ cmake --build ~/iqtree3-build -j 4
   - **How it works.** The helper holds the machine awake (`SetThreadExecutionState`) while
     `pgrep -fc PATTERN` in Debian finds the job, waiting up to 5 minutes for the job to appear,
     and releases when the job ends. The pattern must contain no space. A monitor whose command
-    line matches the pattern keeps the helper holding.
-  - **Its log.** `keepawake.log` beside the script is UTF-16: read it with `Get-Content`.
+    line matches the pattern keeps the helper holding. Its log, `keepawake.log` beside the
+    script, is UTF-16: read it with `Get-Content`.
 - **GitHub from the agent** (Windows `gh` 2.102.0, set up 2026-10-20): Peter's fine-grained
   token, read-only on `petergoodman/iqtree3` (Actions and Administration); `gh repo set-default`
   points at the fork. `.claude/settings.json` allows `gh run list`, `gh run view ID --log-failed`
@@ -183,7 +177,8 @@ cmake --build ~/iqtree3-build -j 4
   own `NONREV` and `GTR20`. Keyword searches land there constantly. It is not the model layer
   IQ-TREE's ML search uses.
 - `model/modelnonrev.{cpp,h}` are 0-byte placeholders. `model/modelgtr.cpp` includes a header
-  that does not exist. Neither is in the build.
+  that does not exist, and its contents are superseded by `modelmarkov.cpp`. Neither is in the
+  build; do not read or edit them.
 - `NONREV` is a name string handled inside `ModelProtein::init`, not a class.
 - `-m NONREV+F{...}` currently pins π and skips the stationarity solve, leaving Q unconstrained.
   It is a live path and its behaviour should not be changed without a decision entry.
@@ -224,6 +219,7 @@ Each kind of fact has one home. Other files cite it by section or number and do 
 | `AI_DISCLOSURE.md` | one entry per milestone | 15 lines per entry |
 | this file, `model/CLAUDE.md` | build, environment, commands, conventions, gotchas | `model/CLAUDE.md` 60 lines |
 | `ARCHITECTURE.md`, `AA_MODEL_INFERENCE.md` | upstream code at the baseline, corrected in place, never prescriptive | |
+| `docs/agent/UPSTREAM_FINDINGS.md` | evidence behind the questions for the maintainers and upstream-behaviour risks (what was run or read, outputs, paths), keyed by `PLAN.md` number, never prescriptive | |
 
 - **Decision bar.** A new entry only when Peter chooses between real alternatives and the choice
   constrains later code, tests or method. Corrections, shortfalls, status, measurements and
@@ -235,9 +231,15 @@ Each kind of fact has one home. Other files cite it by section or number and do 
 - **Line numbers** appear only in `CODE_PLAN.md` (section 5 collects them) and the reference
   documents; `PLAN.md` and `DECISIONS.md` cite symbol names.
 - **Stable identifiers.** Code, fixtures and the frozen G0 manifest cite decision numbers,
-  `CODE_PLAN.md` section numbers, `PLAN.md` constraint 2 and risks 7, 12 and 22: keep them valid.
+  `CODE_PLAN.md` section numbers and named blocks, `PLAN.md` constraints 1, 2 and 4, risks 5, 18,
+  19, 22 and 24, maintainer questions 6 and 16, and S0's probe labels (a) to (g): keep them valid.
 - **Closing a slice,** in one pass and one commit: the gate record in its `CHANGELOG.md` entry;
   `PLAN.md`'s current state and next step replaced, not appended to; the slice's list in
   `CODE_PLAN.md` section 4 cut to one line and the next slice's written; `DECISIONS.md` changed
   only where the slice changed a rule; the remaining budgets checked, consolidating anything over;
   the `AI_DISCLOSURE.md` entry.
+- **Between slices,** any session that changes code, tests or rules updates `PLAN.md` and
+  `CODE_PLAN.md` by replacing text, as a slice close does: they state what is true now. Audit
+  chronology and "from <date>" tags go in `CHANGELOG.md` and commit messages; measurements stay
+  only where a home's role needs them (a decision's Why, a risk's evidence,
+  `UPSTREAM_FINDINGS.md`).

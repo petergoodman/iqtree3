@@ -32,9 +32,7 @@ re-verified against that commit on 2026-09-15; anchors added or changed on 2026-
 at the same commit. Names and structure drift far more slowly than line
 numbers; if an anchor misses, grep for the symbol name nearby.
 
-Repository layout as of that date: `origin` is the fork `petergoodman/iqtree3`, `upstream` is
-`iqtree/iqtree3` with its push URL deliberately disabled, work happens on branch
-`nq-constrained-pi`, and `master` is kept as an exact mirror of upstream.
+Remotes and branches: `CLAUDE.md`, "Git".
 
 To check whether a file has moved since the baseline:
 

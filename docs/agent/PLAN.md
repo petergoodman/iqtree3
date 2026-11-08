@@ -1,12 +1,9 @@
 # Plan: π-constrained non-reversible amino-acid models
 
-> **Status, 2026-11-07: S4 complete, so gates G0 to G3 are met and the branch is the first release
-> candidate: NQC writes its fitted matrix at 17 significant digits (`<prefix>.NQC.qmat`, which
-> re-imports through `-m FILE` within 7.8e-16 of the fit) and an export record with a first-order
-> stop label; the release audit's blocker (threaded runs could abort in the export) is fixed, and
-> its other findings and a third audit's are closed, recorded or with the maintainers; S5
-> (independent reference) next, then the simulation slices (decision 040); approach accepted by
-> the IQ-TREE maintainers (reported by Peter, 2026-10-01).** Peter owns this document.
+> **Status, 2026-11-07: S0 to S4 complete, so gates G0 to G3 are met and the branch is the first
+> release candidate; S5 (independent reference) next, then the simulation slices (decision 040);
+> approach accepted by the IQ-TREE maintainers (reported by Peter, 2026-10-01).** Peter owns this
+> document.
 
 This is the project's living core document: what we are building and why, the constraints the
 work must satisfy, where it stands, and the next step. It is read at the start of every task and
@@ -173,11 +170,8 @@ below the 8 decimals IQ-TREE prints (baseline runs 8 and 9). The real π* is com
 the confirmatory plan is in the repository, because computing it reads the training data. S0 to
 S4 use the test target of decision 023, recorded at 17 significant digits in the G0 manifest
 (`test_scripts/fixedeq/manifest/g0_manifest.md`). SIM-1 and SIM-2 simulate at a composition
-taken from data outside the confirmatory sets (risk 25), never at the real π*.
-
-The oracle's port of the estimator, `test_scripts/fixedeq/oracle/target.py`, reproduces IQ-TREE's
-"Mean state frequencies" line, printed at 8 decimals, for the turtle data under both `-p` and
-`-S` (verified 2026-10-05).
+taken from data outside the confirmatory sets (risk 25), never at the real π*. The oracle's port
+of the estimator is checked in `CODE_PLAN.md` section 3.1.
 
 The model receives the target as `NQC+F{p1,...,p20}` or `NQC+F<NAME>` (decision 006). With
 `--model-joint` every partition receives the same string (verified), and a check before linked
@@ -219,151 +213,100 @@ and S7's two bootstraps complete them. The slices run in the order decision 040 
 |---|---|---|
 | 9 | Real training data: a small real set for S5, and the full set with a written confirmatory plan for S7 | Peter |
 | 11 | Scientific success criterion and manuscript details (placeholder above) | Peter, with SIM-2's reference distributions (decision 041) |
-| 23 | Reported by the S3 plan's review, not verified: resuming an `-S` tree search with `+I+G` may restore stale top-level model keys, for every model, because per-partition refits during the search save to the top level (the model re-optimization in `IQTree::doNNISearch`) and the resumed process keeps `opt_gammai` on, so the `+I+G` starts restore from a copy of the checkpoint (`ModelFactory::optimizeParametersGammaInvar`; anchors in `CODE_PLAN.md` section 5). Outside S3's validation paths, which use `-te` | Checked before it becomes a question for the maintainers |
-| 24 | Fits stop short of their peaks under IQ-TREE's stopping rules, for every model. `dfpmin` tests its gradient relative to the log-likelihood with gtol fixed at 1e-4 and starts each call with no curvature memory; the round loops stop at a gain below `-me` (0.01; ten times that under `-S`) or at a cap (10 rounds under `-S`, 99 under `-p` and `-q`). On turtle's `-q` warm start each round was one step gaining about 0.01, so where a fit stops is close to chance; NONREV's turtle `-S` Level 1 fit hit its cap still gaining 3.5 per round (maintainer question 7). Comparing two fits' scores (box against wide, NQC against NONREV, D08's arms) therefore needs a convergence protocol. IQ-TREE's optimizer stays unchanged (decision 009). S3c's first part: NQC's endpoints lie 0.77 to 4.2 below the converged peaks at default settings and 0.67 to 2.5 after 300 relaxed rounds, more than the box costs; its later rounds average 724 evaluations, one step each. S3c's profiling: NONREV's `-S` fits all ended at the 10-round cap, NQC's 10-set `-q` and `-p` fits at the 99-round cap, so time per fit mostly follows where fits stop (NQC to NONREV 0.26 to 1.09) while time per evaluation is equal | Testing: S3c's first part (done 2026-10-25). Science: decision 039 |
+| 23 | Reported by the S3 plan's review, not verified: resuming an `-S` tree search with `+I+G` may restore stale top-level model keys, for every model (`UPSTREAM_FINDINGS.md`, Risk 23). Outside S3's validation paths, which use `-te` | Checked before it becomes a question for the maintainers |
+| 24 | Fits stop short of their peaks under IQ-TREE's stopping rules, for every model, so comparing two fits' scores (box against wide, NQC against NONREV, D08's arms) needs a convergence protocol. IQ-TREE's optimizer stays unchanged (decision 009). The stopping rules and S3c's measurements: `UPSTREAM_FINDINGS.md`, Risk 24 | Testing: S3c's first part (done 2026-10-25). Science: decision 039 |
 | 25 | Inputs for the simulation slices (decision 040). Before SIM-1: the size of the available real data (taxa, genes and their lengths; the real set itself is risk 9), the intended arrangement (`-S` or `-p`) and Level, the external data set for simulation trees and per-gene settings, and the source of the simulated composition. Before SIM-2's plan: the primary circulation statistic and the smallest effect of interest (decision 041), CLOAK's removal statistics from data outside the training and test sets (decision 040), and the range of target perturbations. Recommended: trees and per-gene settings from the mammal data of QMaker and nQMaker (public on Dryad), not OrthoMaM, the training and test source of Wheeler et al. 2025; total net flux over total flux as the statistic; CLOAK's removal statistics from BAliBASE, where CLOAK was benchmarked. The truth matrices (NQ.mammal, Q.mammal, LG) and the C20 and C60 profiles ship with IQ-TREE | Peter |
-| 26 | Compute: SIM-2 and S7 need a cluster. An unverified extrapolation from S3c (`docs/agent/archive/SIM_plan_2026-11-07.md`, Appendix C) gives SIM-2 about 5,000 to 10,000 core-hours and one NQC `-S` fit at 190 taxa and 1000 genes about 80 core-hours | Peter arranges UA HPC access; the agent writes the build and job scripts; Peter submits them |
+| 26 | Compute: SIM-2 and S7 need a cluster. An unverified extrapolation from S3c (`docs/agent/archive/SIM_plan_2026-11-07.md`, Appendix C) gives SIM-2 about 5,000 to 10,000 core-hours and one NQC `-S` fit at 190 taxa and 1000 genes about 80 core-hours. In S3c's profiling NQC's first linked fit from LG took 5,000 to 13,000 evaluations and each later round 700 to 4,400, so a training run's cost is set by its first fit and its round count | Peter arranges UA HPC access; the agent writes the build and job scripts; Peter submits them |
 
-Retired risk numbers: 2, 3, 4, 6, 10 and 13 to 17 were resolved by 2026-10-07 (archived
-decisions and `CHANGELOG.md`); on 2026-10-22, 7 (a linked-round `ASSERT`) and 12 (the switch to
-scaling and squaring) became S3 monitoring checks in `CODE_PLAN.md` section 4, 8 joined 22,
-1, 20 and 21 became maintainer questions 1, 4 and 5 below, and 19 was settled by decision 038;
-on 2026-10-25, 22 (NQC's production domain) was settled by decision 007's revision, default
-[1e-5, 1e5] from S3c's first part's converged peaks; on 2026-10-26, 5 (cost) and 18 (no fallback)
-by S3c's profiling: an NQC evaluation costs what a NONREV one does, and by labelled extrapolation
-a linked NQC `+G4` fit on about a million columns at 20 taxa takes 0.8 to 5.6 hours of evaluation
-time at the round caps on 32 cores, assuming the efficiency measured at `-T 4` (`CHANGELOG.md`, S3c
-entry).
+Retired risk numbers:
+
+| Risk | Subject | Now |
+|---|---|---|
+| 1, 20, 21 | | maintainer questions 1, 4 and 5 below (2026-10-22) |
+| 2, 3, 4, 6, 10, 13 to 17 | | resolved by 2026-10-07 (archived decisions and `CHANGELOG.md`) |
+| 5, 18 | cost; no fallback | retired 2026-10-26 by S3c's profiling: an NQC evaluation costs what a NONREV one does (`CHANGELOG.md`, S3c entry, with the labelled extrapolation to real training) |
+| 7, 12 | a linked-round `ASSERT`; the switch to scaling and squaring | monitoring checks in `CODE_PLAN.md` section 4 (2026-10-22) |
+| 8 | | joined 22 (2026-10-22) |
+| 19 | | settled by decision 038 (2026-10-22) |
+| 22 | NQC's production domain | settled 2026-10-25 by decision 007's revision, default [1e-5, 1e5] from S3c's first part's converged peaks |
 
 ### Questions for the maintainers
 
 Peter relays these if and when he chooses; no agent contacts the maintainers (`CLAUDE.md`).
+Questions 4 to 7 and 9 to 16 are stated here in brief; what was run or read, with commands,
+outputs and anchors, is in `docs/agent/UPSTREAM_FINDINGS.md` under the same number.
 
 1. Final public names for the model and its options.
 2. Whether a dedicated target option, such as `--target-freq FILE`, would be preferred to
    `+F{...}` (decision 006).
 3. Whether the failed-line-search path of `lnsrch` and `dfpmin` should be repaired; NQC reports a
    fall below the start and changes nothing (decision 009).
-4. Upstream finding: `ModelMarkov`'s constructor calls `setReversible`, which reads
-   `is_reversible` before anything sets it (UndefinedBehaviorSanitizer: "load of value 190,
-   which is not a valid value for type 'bool'"). It appears once in every IQ-TREE sanitizer run,
-   the unmodified binary's included; its effect on results was not investigated.
+4. Upstream finding: `ModelMarkov`'s constructor reads `is_reversible` before anything sets it,
+   reported by UndefinedBehaviorSanitizer once in every IQ-TREE sanitizer run, the unmodified
+   binary's included; its effect on results was not investigated.
 5. Upstream observation, S0 probe (g): after a tree search the checkpoint keeps the model from
-   before the final model optimization, and a restart from it prints "Final model parameters
-   restored" (the restart itself was not tested). NQC avoids it by decision 025.
-6. Upstream finding, S3b's sanitizer run: at `-v` and above, `runPhyloAnalysis` ends every
-   partitioned run whose partition type is not edge-unlinked (`-Q`) by casting the tree to
-   `PhyloSuperTreePlen` and printing its NNI counts. An `-S` tree is not one, so
-   `printNNIcasesNUM` reads past the object: AddressSanitizer reports a heap-buffer-overflow
-   and stops IQ-TREE, and a Release build prints meaningless counts. Reproduced on the
-   unmodified sanitizer binary with turtle, `-S`, `LG+G4{0.5}`, `-te -blfix -v`.
-7. Upstream observation, S0 probe (c2), unmodified binary: NONREV's turtle `-S` Level 1 fit
-   (`--model-joint NONREV -te -blfix -m LG+G4{0.5}`) ends at the default 10-round cap
-   (`--loop-model`) still gaining 3.51 per round, at −4815.29, while NQC, whose unbounded family
-   lies inside NONREV's, reaches −4806.09 on the same setup (risk 24). With the round rules relaxed
-   (`-me 1e-6`, 300 rounds; S3c's first part, S3b's binary, NONREV's path unchanged), NONREV's turtle
-   `-S` and `-q` fits stopped at rounds 41 and 47 on a round that gained exactly nothing, after
-   rounds gaining 2.9e-3 and 5.1e-3; on `aa_example` it ran to the cap still gaining. In S3c's
-   profiling (binary `81729f4b`, NONREV's path unchanged) its `-S` fits ended at the 10-round cap
-   in all six turtle and 10-set configurations. Cause not investigated.
+   before the final model optimization. NQC avoids it by decision 025.
+6. Upstream finding, S3b's sanitizer run: at `-v` and above an `-S` run ends by printing NNI
+   counts from a tree it casts to the wrong type: AddressSanitizer stops IQ-TREE, and a Release
+   build prints meaningless counts. Reproduced on the unmodified sanitizer binary.
+7. Upstream observation, unmodified binary: NONREV's `-S` fits ended at the default 10-round cap
+   in every configuration tested, on turtle still gaining and below the score NQC reaches on the
+   same setup, although NQC's unbounded family lies inside NONREV's (risk 24). Cause not
+   investigated.
 8. NQC's report lines (the `.iqtree` "Model of substitution", a partitioned run's
    `.best_model.nex`, the `.iqtree` AliSim command) carry neither the target nor the fitted matrix,
    so none re-runs the fit; the fork points to `<prefix>.NQC.qmat` instead (Peter, 2026-10-26).
    Would the maintainers prefer the model string to carry the target, or the report a
    full-precision matrix?
-9. Not verified: with `-mstore`, `ModelFactory` serves transition matrices cached by branch length
-   from the end of each model optimization, so a linked fit that follows a partition's own update
-   may evaluate stale matrices, for NONREV as for any linked model. NQC refuses `-mstore`
+9. Not verified: with `-mstore`, a linked fit that follows a partition's own update may evaluate
+   stale cached transition matrices, for NONREV as for any linked model. NQC refuses `-mstore`
    (decision 008).
-10. Upstream finding, S4's sanitizer run: `Alignment::createBootstrapAlignment`, which
-    `runStandardBootstrap` calls for each `-b` replicate, copies a `pomo_sampling_method` the
-    source alignment never set (UndefinedBehaviorSanitizer: "load of value 3200171710, which is not
-    a valid value for type 'SamplingType'", reported once per run). Reproduced on the unmodified
-    sanitizer binary with `-m LG -b 2`; its effect on results was not investigated.
-11. Upstream finding, 2026-10-28, unmodified binary: `--runs` with `-S` crashes. On the
-    two-partition data with `NONREV -te -blfix --runs 2` both runs finish and the crash comes as
-    the best run is restored; a backtrace of the same crash with NQC shows
-    `PhyloSuperTreeUnlinked::printResultTree`, called by `runMultipleTreeReconstruction`. On turtle
-    with `LG+G4 --runs 2` and a tree search it comes in run 1's parsimony start tree
-    (`PhyloTree::computeParsimonyTree`). By reading, not verified: `runMultipleTreeReconstruction`
-    builds each run's tree as a `PhyloSuperTreePlen` for every partition type but `-p`, `-S`
-    included.
+10. Upstream finding, S4's sanitizer run: each `-b` replicate's alignment copies a
+    `pomo_sampling_method` the source alignment never set. Reproduced on the unmodified sanitizer
+    binary; its effect on results was not investigated.
+11. Upstream finding, 2026-10-28, unmodified binary: `--runs` with `-S` crashes, as the best run
+    is restored or, with a tree search, in run 1's parsimony start tree.
 12. Upstream observation, 2026-10-29 audit: at more than one thread the non-reversible tree
-    log-likelihood is not bitwise reproducible from one call to the next, for NONREV as for NQC.
-    `computeNonrevLikelihoodBranchSIMD` adds its packets' sums under `schedule(dynamic,1)` with an
-    OpenMP `reduction`, while the reversible kernel stores each packet's sum and adds them in packet
-    order. The differences are rounding (1.3e-16 relative at `-T 4`, decision 038), but a bitwise
-    recheck in NQC's export aborted 3 of 8 runs at `-T 4`; NQC now compares within decision 038's
-    line. Would the maintainers want the non-reversible kernel to add its packets in order?
+    log-likelihood is not bitwise reproducible from one call to the next, for NONREV as for NQC,
+    because the non-reversible kernel adds its packets' sums in the order threads finish them;
+    NQC compares within decision 038's line. Would the maintainers want the non-reversible kernel
+    to add its packets in order?
 13. Upstream observation, 2026-10-29, unmodified binary: a rate model written inside
-    `--model-joint` is not applied. On turtle with `-te -blfix`, `--model-joint "NONREV+G4{0.5}"`
-    fits `NONREV+FO` with no rate model under `-S`, `-Q` and `-p`, exit 0, while a bare
-    `"NONREV+G4"` stops `-p` with "File not found NONREV+G4"; the rate model takes effect only
-    through `-m`. NQC now refuses one (decision 008). Should `--model-joint` reject a rate model, or
-    apply it?
+    `--model-joint` is not applied; it takes effect only through `-m`. NQC now refuses one
+    (decision 008). Should `--model-joint` reject a rate model, or apply it?
 14. Upstream finding, 2026-10-29, unmodified binary: `--lie-markov` with a non-reversible model
-    (NONREV on aa_example, UNREST on `example.phy`) stops at `ASSERT(0 && "this line should not be
-    reached")` in `ModelMarkov::computeTransMatrixNonrev`; LG runs. NQC now refuses it (decision
+    stops at an `ASSERT` in `ModelMarkov::computeTransMatrixNonrev`. NQC now refuses it (decision
     008). Should it be refused for non-reversible models, or fall back to scaling and squaring?
 15. Upstream finding, 2026-10-29, unmodified binary: a one-alignment `-te` run that stops after its
-    model fit and before its end-of-run dump (killed at `reportPhyloAnalysis`) resumes with "Model
-    parameters restored", reports the fitted model on the input tree's branch lengths and exits 0:
-    aa_example on baseline run 2's tree, `LG+G4` −7330.3269 against −7302.3888 for the run that
-    finished, `NONREV+G4` −6820.0884 against −6811.2908; NQC the same. By reading, `computeInitialTree`
-    saves the `-te` tree into the checkpoint before `runTreeReconstruction` restores the tree from
-    it, and the fitted tree reaches the candidate set only after the fit's dump; resuming with the
-    fitted tree as `-te` gives the finished run's score. Linked runs not tested. Script and outputs:
-    `~/iqtree3-audit/followup-20261030T054825Z/`. Should the restore keep the fitted tree?
+    model fit and before its end-of-run dump resumes, reports the fitted model on the input tree's
+    branch lengths and exits 0, for every model. Should the restore keep the fitted tree?
 16. Upstream finding, 2026-10-30, unmodified binary: `--root-test` re-optimizes every branch length
-    after the model fit, `-blfix` included, and the report then mixes two states. On aa_example with
-    baseline run 2's tree, `NONREV+G4{0.5} -te -blfix --root-test` ends with tree length 3.4968
-    against 3.0282 without the option, its root test reaching −6819.462 at the original root, while
-    the `.iqtree` prints the pre-test −6825.6805 beside the re-optimized tree. With a reversible
-    model on an unrooted tree (`LG+G4{0.5}`) `testRootPosition` writes no `.roottest.trees` and the
-    run stops with "File not found" (exit 2). NQC refuses `--root-test` (decision 008), since its
-    export would describe the re-optimized state. Script and outputs:
-    `~/iqtree3-audit/rootfix-20261030T174542Z/step0a/`. Should the root test honour `-blfix` and
-    leave the tree as it found it?
+    after the model fit, `-blfix` included, and the report then mixes two states. NQC refuses
+    `--root-test` (decision 008), since its export would describe the re-optimized state. Should
+    the root test honour `-blfix` and leave the tree as it found it?
 
 ## Current state
 
 S0 to S4 are complete, so gates G0 to G3 and the first release's scope are met, and the branch is
 the first release candidate. S3 ran as three slices (the approved plan is frozen in
-`docs/agent/archive/S3_plan_2026-10-22.md`). S4's gate ran from the clean tree at `a0ebf5cf` on
-2026-10-27 (`~/iqtree3-runs/s4-gate/20261027T043226Z-a0ebf5cf/`, binary frozen in
-`~/iqtree3-binaries/e31974dd/`); its record and the release audit are the S4 entry of
-`CHANGELOG.md`. A second release audit (2026-10-29) found one blocker: NQC runs at more than one
-thread could abort in the export diagnostic. It is fixed in `6b69c125` (decision 038) and gated
-from that commit (binary `~/iqtree3-binaries/db4e7aff/`; record in the 2026-10-29 entry of
-`CHANGELOG.md`). Its lower-priority findings were addressed on 2026-10-30 and gated from
-`743b6eab` (binary `~/iqtree3-binaries/3db13f51/`; record in the 2026-10-30 entry of
-`CHANGELOG.md`); the upstream behaviours they exposed are maintainer questions 13 to 15. A third
-audit (2026-10-30) found no blocker: its four medium findings were fixed in `7cdb9fd6` and
-`36a43711` (NQC refuses `--root-test`, maintainer question 16) and gated from `36a43711` (binary
-`~/iqtree3-binaries/25d78d6e/`; record in the second 2026-10-30 entry of `CHANGELOG.md`); its
-low findings are in `CODE_PLAN.md` section 4, "Known and left alone".
+`docs/agent/archive/S3_plan_2026-10-22.md`). The latest gate ran from `36a43711` (binary
+`~/iqtree3-binaries/25d78d6e/`), the reference build for the next comparison. S4's gate record,
+the three release audits and their gated fixes are the `CHANGELOG.md` entries from 2026-10-26 to
+2026-10-30; the upstream behaviours they exposed are maintainer questions 10 to 16, and the
+audits' low findings are in `CODE_PLAN.md` section 4, "Known and left alone".
 
-- **In the repository:** the NQC class `model/modelnonrevfixedeq.{h,cpp}`, with its 17-digit
-  checkpoint record, its fit records, its linked hooks (`model/linkedmodelhooks.h`, two calls in
-  `PartitionModel::optimizeLinkedModel` and its `derivativeFunk`), its export (`reportRun`:
-  `<prefix>.NQC.qmat`, the first-order diagnostic and stop label, the end-of-run summary and
-  `<prefix>.NQC.info`; S4), and its hooks in other shared files; the pure module
-  `model/fixedeqchart.*` and its unit tests (S1); the oracle with its linked objective, reference
-  climber and export functions, the drivers, the two-partition data, regression baseline, probes,
-  frozen binaries and G0 manifest (S0).
+- **Code and tests:** the inventory is `CODE_PLAN.md` sections 1.1 and 1.2.
 - **Export (S4):** the re-import reproduces a Level 1 fit to rounding, under one alignment, `-S`
   and `-q`; the fitted Level 1 exports are labelled "first-order stationary at the optimizer's
-  tolerance", which certifies no peak (decision 039); all other outputs are as S3c's binary wrote
-  them. The diagnostic's evaluations (`CODE_PLAN.md` section 2.2) add to every NQC run.
+  tolerance", which certifies no peak (decision 039). The diagnostic's evaluations (`CODE_PLAN.md`
+  section 2.2) add to every NQC run.
 - **Domain and comparisons:** default domain [1e-5, 1e5] (decision 007, `0e9fb159`); compared fits
   follow decision 039's protocol (risk 24). S3c's first part left S-3 recorded as failed in case
   B (relaxed `-S` run stopped by its round threshold 0.479 below the box's peak, not shown
   NQC-specific).
-- **Cost (S3c's profiling):** time per evaluation equal to NONREV's at every size (0.97 to 1.02),
-  so the code is not slower; time per fit 0.26 to 1.09 of NONREV's, mostly following where the
-  round rules stop each model. All thresholds met; risks 5 and 18 retired. NQC's first linked fit
-  from LG takes 5,000 to 13,000 evaluations and each later round 700 to 4,400, so a training
-  run's cost is set by its first fit and its round count.
+- **Cost (S3c's profiling):** an NQC evaluation costs what a NONREV one does, and time per fit
+  mostly follows where the round rules stop each model; all thresholds met (`CHANGELOG.md`, S3c
+  entry; training cost in risk 26).
 - **Continuous integration:** Actions is back on since 2026-10-22. Upstream's Build workflow is
   switched off on the fork's Actions page (`ci.yaml` unchanged), so the fork no longer checks the
   macOS, Windows or ARM builds. fixedeq's first run (39817703469, `76dd4301`) passed all jobs, as

@@ -3,12 +3,8 @@
 Loaded automatically when working on files in this directory. Map of upstream code:
 `docs/agent/ARCHITECTURE.md`. This project's model is NQC, in `modelnonrevfixedeq.{h,cpp}` with
 its pure module `fixedeqchart.{h,cpp}`; its specification is `docs/agent/CODE_PLAN.md` section 2.
-
-## Dead files in this directory, do not read or edit
-
-- `modelnonrev.cpp` and `modelnonrev.h` are 0 bytes and absent from `CMakeLists.txt`.
-- `modelgtr.cpp` is absent from `CMakeLists.txt` and includes `modelgtr.h`, which does not
-  exist, so it cannot compile. Its contents are superseded by `modelmarkov.cpp`.
+The root `CLAUDE.md` always loads with this file; its conventions and gotchas (dead files
+included) are not repeated here, except where this file adds detail.
 
 ## Build
 
@@ -36,8 +32,7 @@ a link error rather than a missing-file error.
 
 ## Conventions
 
-Use `outError`, `outWarning`, and `ASSERT` rather than `throw`, `assert`, or `std::cerr`. Gate
-diagnostics on `verbose_mode >= VB_MED`. Read global options through `Params::getInstance()`
+Gate diagnostics on `verbose_mode >= VB_MED`. Read global options through `Params::getInstance()`
 rather than threading new constructor arguments. Match the indentation of the file you are
 editing, since older files use tabs and newer ones use four spaces.
 

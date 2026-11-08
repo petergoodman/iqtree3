@@ -284,8 +284,7 @@ Second, `-m NONREV+F{...}` is the one case where a supplied pi survives, and it 
 unsoundly. A literal frequency vector sets `freq_type = FREQ_USER_DEFINED`, which makes both
 guards false, so the solve is skipped and `state_freq` stays at the user's vector while Q is
 estimated with no constraint tying the two together. The root distribution used in the
-likelihood is then **not** the stationary distribution of the fitted Q. This path is live and
-should not be changed without a decision entry.
+likelihood is then **not** the stationary distribution of the fitted Q. This path is live.
 
 Third, for `-m NQ.pfam` the pi printed in the NEXUS block is read, immediately discarded, and
 replaced by the solved stationary vector. `readParameters` compares the two and prints a warning
@@ -1678,10 +1677,7 @@ Found while reading, listed because each one can change a number or waste a week
     the live one. `PartitionModel::reportLinkedModel` has no callers. `Optimization::brent` and
     `Optimization::dbrent` are declared but undefined, so calling either is a link error.
 
-13. **`mutsel_rust/` is 9 files and 10,839 lines**, not the 13 files and roughly 13k lines stated
-    in `docs/agent/ARCHITECTURE.md`. That document's "arrived upstream and not yet reviewed"
-    section should now be updated: the subproject has been read, and Section 11 records what it
-    does.
+13. **`mutsel_rust/` is 9 files and 10,839 lines**; Section 11 records what it does.
 
 ---
 

@@ -282,8 +282,8 @@ in any form, AliSim, unlinked partitions, `-mstore`, `--runs` above 1, `--root-t
 `--root-test` re-fits (`-blfix` too), `--lie-markov` hits an `ASSERT`, IQ-TREE drops a joint rate model.
 **Not chosen.** Allowing them silently; supporting them now (Peter: testing unlinked partitions,
 readying `--runs`'s tree, NONREV's `ASSERT`, moving the export); detecting mixtures from the string.
-**Since** 2026-09-23; revised 2026-10-20 (032, 034), 2026-10-22, 2026-10-23, 2026-10-26, 2026-10-28,
-2026-10-29 (`--lie-markov`, reversing 034 item 5; the joint rate model), 2026-10-30 (`--root-test`).
+**Since** 2026-09-23; 032 and 034 items 2, 4 and 5 merged 2026-10-20; `--lie-markov`, reversing 034 item 5, and
+the joint rate model 2026-10-29; last revised 2026-10-30 (`--root-test`).
 
 ### 009. Check every fit afterwards, report a fall below the start, restore nothing
 
@@ -426,9 +426,9 @@ step-size line cannot show that a small step fails, so D02's point is measured b
 max(1, |g_ref|), reported at a near-zero start; the oracle reports its central differences' spread.
 **Why.** A line chosen after seeing results is not a test; each rests on a measurement or derivation
 in the archive (1e-10: the synthesis's goal, section 4.3; the κ-scaled Q line: two correct routes).
-**Since** 2026-10-04 (021), 2026-10-05 (026), 2026-10-20 (030, 034 item 7), 2026-10-22 (036's
-withdrawn claim, 038's thread row), 2026-10-26 (S4's export rows), 2026-10-29 (038's export rows;
-the restore, default-domain and options rows), 2026-10-30 (the permuted row).
+**Since** 2026-10-04; merged 026 (2026-10-05), 030 and 034 item 7 (2026-10-20) and 036's
+measure, its claim withdrawn (2026-10-22); later rows are identified in the Set by column; last
+revised 2026-10-30 (the permuted row).
 
 ### 012. Test the pure module with googletest in a standalone CMake project
 

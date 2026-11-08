@@ -8,6 +8,19 @@ gate record and may run to 25 lines. The next session starts from the top entry.
 This is a fork of `iqtree/iqtree3`. Entries here describe work on the fork, not upstream
 development.
 
+## 2026-11-07 (second session): agent records cleaned up
+
+- **Done.** Records audited against their roles, then cleaned by an approved plan: the questions'
+  and risks 23 and 24's evidence moved word for word to the new `docs/agent/UPSTREAM_FINDINGS.md`;
+  PLAN.md's status, current state and retired risks cut to what is true now (387 to 330 lines);
+  CODE_PLAN.md's date tags dropped, section 4's working rules lifted out of the S3 block, section
+  5's offsets replaced by a `git diff` command; CLAUDE.md's driver detail moved to CODE_PLAN 3.4
+  and 3.6, its stable identifiers corrected, a between-slices replace rule added (Peter).
+- **Checked.** The plan was audited by two fresh agents (25 problems fixed first); a token check
+  found nothing lost beyond planned removals; every code citation resolves; a diff review's 12
+  wording and pointer fixes were made. **Failed.** CODE_PLAN.md shrank 3%, not the estimated 10%:
+  most of its text had no other home. **Next.** S5 (PLAN.md, next step).
+
 ## 2026-11-07: simulation scope recorded (decisions 040, 041)
 
 - **Done.** A walk-through of the project's state for Peter; a literature search on simulation in
