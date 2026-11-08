@@ -249,7 +249,7 @@ def kkt(f, gf, domain):
         act, eta, nu, fitted = _multipliers(f, gf, domain, t)
         r = float(np.max(np.abs(gf - fitted)))
         if best is None or r < best["residual"]:
-            best = {"residual": r, "threshold": t, "active": int(len(act)),
+            best = {"residual": r, "threshold": t if math.isfinite(t) else "all rows", "active": int(len(act)),
                     "complementarity": float(nu @ (domain.A[act] @ f)), "gradient_norm": float(np.max(np.abs(gf)))}
     return best
 
@@ -362,26 +362,38 @@ def fit(objective, f_start, domain, objective_map=None, max_iter=MAX_ITER, max_s
         if not domain.contains(f):
             out.status, out.message = "failed", "a restart centre is not strictly inside the domain"
             break
-        run = _run(objective, Basis(f, domain), domain, objective_map, max_iter - out.iterations, deadline, progress)
+        try:
+            basis = Basis(f, domain)
+        except Exception as e:  # noqa: BLE001  a failed fit is recorded, not raised
+            out.status, out.message = "failed", f"{type(e).__name__}: {e}"
+            break
+        run = _run(objective, basis, domain, objective_map, max_iter - out.iterations, deadline, progress)
         out.runs.append(run)
-        f = run["f"]
         if restart == 0:
             out.start_value = run["value_start"]
         if run["ending"] != "converged":
+            f = run["f"]
             out.status = "failed" if run["ending"] == "failed" else "unconverged"
             out.message = f"{run['ending']}: {run['message']}"
             break
+        if restart > 0 and run["gain"] < -GAIN_STOP:   # the restart ended lower: keep the higher endpoint
+            out.status, out.message = "unconverged", f"restart {restart} ended {-run['gain']:.3g} lower"
+            break
+        f = run["f"]
         if restart > 0 and run["gain"] < GAIN_STOP:
             out.status, out.message = "converged", f"declared stop; restart {restart} gained {run['gain']:.3g}"
             break
     out.f = f
     out.seconds = time.monotonic() - t0
-    value, gf = objective(f)
-    out.value = float(value)
-    out.pg = projected_z_gradient(f, gf, domain)
-    out.kkt = kkt(f, gf, domain)
-    out.m_active = int(np.sum(domain.slack(f) <= ACTIVE))
-    out.mu = out.runs[-1]["mu"]
+    out.mu = out.runs[-1]["mu"] if out.runs else math.nan
+    try:
+        value, gf = objective(f)
+        out.value = float(value)
+        out.pg = projected_z_gradient(f, gf, domain)
+        out.kkt = kkt(f, gf, domain)
+        out.m_active = int(np.sum(domain.slack(f) <= ACTIVE))
+    except Exception as e:  # noqa: BLE001
+        out.status, out.message = "failed", f"{out.message}; endpoint not evaluable: {type(e).__name__}: {e}"
     return out
 
 
@@ -461,7 +473,7 @@ def _run(objective, basis, domain, objective_map, max_iter, deadline, progress=N
         return lstsq(A, c)[0]
 
     def declared_stop(cur, mu):
-        if mu > MU_STOP:
+        if mu > MU_STOP * (1 + 1e-9):   # mu is 0.1 times 0.1 nine times, 1.0000000000000006e-10 at MU_STOP
             return False
         rec["pg"] = projected_z_gradient(cur[2], cur[4], domain)
         return rec["pg"] <= PG_STOP
@@ -508,8 +520,11 @@ def _run(objective, basis, domain, objective_map, max_iter, deadline, progress=N
                     nxt = evaluate(v)
                     if nxt is None:
                         rec["infeasible"] += 1
-                    elif pure or nxt[0] - mu * float(np.sum(np.log(basis.slack(v)))) <= phi0 + ARMIJO * alpha * (g @ d):
-                        break
+                    else:
+                        phi = nxt[0] - mu * float(np.sum(np.log(basis.slack(v))))
+                        if (phi <= phi0 + ROUNDING * max(1.0, abs(phi0)) if pure
+                                else phi <= phi0 + ARMIJO * alpha * (g @ d)):
+                            break
                     alpha *= 0.5
                     rec["backtracks"] += 1
                 else:
@@ -539,7 +554,7 @@ def _run(objective, basis, domain, objective_map, max_iter, deadline, progress=N
             rec["message"] = f"mu {rec['mu']:.3g} <= {MU_STOP}, projected z-gradient {rec['pg']:.3g} <= {PG_STOP}"
     except Exception as e:  # noqa: BLE001  a failed fit is recorded, not raised
         rec["ending"], rec["message"] = "failed", f"{type(e).__name__}: {e}"
-        cur = evaluate(u) or (None, None, basis.flux(u), math.nan, None)
+        cur = cache.get(u.tobytes()) or (None, None, basis.flux(u), math.nan, None)   # no second evaluation
     rec["f"], rec["value_end"] = cur[2], cur[3]
     rec["gain"] = rec["value_end"] - rec["value_start"]
     rec["seconds"] = time.monotonic() - t0

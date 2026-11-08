@@ -200,6 +200,11 @@ def label_pair(lnl_h, lnl_w, from_w, from_h, profile_min, L):
     return "undetermined"
 
 
+def flux_lnl(obj, p, Q):
+    """The value the flux fit climbs: log_likelihood_gradient's lnL at Q's flux (A4)."""
+    return float(flux.LikelihoodFlux(obj, p.pi)(flux.flux_of(Q, p.pi))[0])
+
+
 def segment_profile(obj, pi, fa, fb, points=21):
     """lnL along the feasible segment between two fluxes (P_box is convex)."""
     return [obj.log_likelihood(flux.generator((1 - t) * fa + t * fb, pi)) for t in np.linspace(0, 1, points)]
@@ -364,7 +369,7 @@ class Problem:
             return made
         if self.case == "aa":
             write(self.data / "input.tree", tree_text(baseline_runs(), "run02"))
-            return {"input.tree": sha256(self.data / "input.tree"), "aa_example.phy": sha256(AA)}
+            return {"sha256": {"input.tree": sha256(self.data / "input.tree"), "aa_example.phy": sha256(AA)}}
         made = twopart.make(self.data, alisim, self.pi)
         write(self.data / "partition.trees", read(self.data / "twopart.nwk") * 2)
         return made
@@ -426,9 +431,10 @@ def cmd_calibrate(a):
         z = floats(ck["coordinates"])
         ends[setting] = {"z": z.tolist(), "accepted_score": float(ck["accepted_score"]),
                          "ended_by": states[setting].get("ended_by"), "rounds": states[setting].get("rounds")}
-        rows.append(check(f"A4: -lnL at N_{setting[0]}'s endpoint against accepted_score",
-                          abs(-obj(z) - float(ck["accepted_score"])) <= TOL_LNL * abs(float(ck["accepted_score"])),
-                          oracle=-obj(z), iqtree=float(ck["accepted_score"])))
+        lnl_flux = flux_lnl(obj, p, chart.build(z, p.pi, p.ref)[0])
+        rows.append(check(f"A4: the reference's lnL (flux map) at N_{setting[0]}'s endpoint against accepted_score",
+                          abs(lnl_flux - float(ck["accepted_score"])) <= TOL_LNL * abs(float(ck["accepted_score"])),
+                          reference=lnl_flux, chart_objective=-obj(z), iqtree=float(ck["accepted_score"])))
         if ck.get("references") is not None:
             rows.append(check(f"N_{setting[0]} references equal the oracle's", list(map(int, ck["references"].split(",")))
                               == [int(v) for v in p.ref]))
@@ -436,10 +442,10 @@ def cmd_calibrate(a):
             rows.append(check(f"N_{setting[0]} target bitwise equal to the parsed one",
                               np.array_equal(floats(ck["target"]), p.pi)))
     got = first_gradient(runs["default"].stdout()) if runs["default"].code == 0 else None
-    start = obj(chart.inverse(p.seed, p.ref))   # -lnL, as the -vv head prints it
-    rows.append(check("A4: -lnL at LG at pi* against N_d's first -lnL (-vv)",
+    start = -flux_lnl(obj, p, p.seed)   # -lnL, as the -vv head prints it
+    rows.append(check("A4: the reference's -lnL (flux map) at LG at pi* against N_d's first -lnL (-vv)",
                       got is not None and abs(got[0] - start) <= TOL_LNL * abs(start),
-                      oracle=start, iqtree=got[0] if got else None))
+                      reference=start, chart_objective=obj(chart.inverse(p.seed, p.ref)), iqtree=got[0] if got else None))
     climbs = {}
     if "relaxed" in ends:
         pool = Pool(obj, a.workers)
@@ -479,12 +485,22 @@ def cmd_compare(a):
     if L is None or "relaxed" not in cal["endpoints"] or "default" not in cal["endpoints"]:
         sys.exit("the calibration has no L or no NQC endpoints; nothing to compare")
     p = Problem(case, cal_dir / "data")
+    rows, fits = [], {}
+    made = cal["made"]["sha256"]
+    found = {k: sha256(AA if k == "aa_example.phy" else p.data / k) for k in made}
+    rows += [check("data identical to the calibration's", found == made, found=found),
+             check("calibrated at this commit", cal["provenance"]["git_commit"] == prov["git_commit"],
+                   calibrated=cal["provenance"]["git_commit"])]
     obj = p.objective()
     pi, ref = p.pi, p.ref
     pool = Pool(obj, a.workers)
     dom = flux.matched(ref)
     lf = flux.LikelihoodFlux(obj, pi)
-    rows, fits = [], {}
+
+    def save_partial():
+        write(out / "partial.json", json.dumps({"rows": rows, "fits": {k: {x: y for x, y in v.items() if x != "f"}
+                                                                       for k, v in fits.items()}},
+                                               indent=1, default=_json))
 
     def run_fit(name, Q, domain=dom):
         f0, moved = flux.inward(Q, pi, domain)
@@ -497,6 +513,7 @@ def cmd_compare(a):
         rows.append(check(f"A3 {name}: residuals <= 1e-10", max(res.values()) <= RESIDUAL, **res))
         print(f"{name}: {r.status}, lnL {rec['lnl_documented']:.10f}, {r.seconds:.0f} s", flush=True)
         fits[name] = rec
+        save_partial()
         return r, rec
 
     def converged_row(name, r, rec):
@@ -529,11 +546,13 @@ def cmd_compare(a):
                  check("A8: NQC's default and relaxed endpoints not above lnL(F_s) + L", a8, n_d=nd, n_r=nr,
                        f_s=lnl_s, L=L)]
         if not a6:
-            rows.append(cross_starts("A6", (r_e.f, lnl_e, "flux"), (q_of(ze["z"]), ze["lnl"], "z"), obj, pi, ref, dom,
-                                     lf, pool, L))
+            rows.extend(cross_starts("A6", (r_e.f, lnl_e, "flux"), (flux.flux_of(q_of(ze["z"]), pi), ze["lnl"], "z"),
+                                     obj, pi, ref, dom, lf, pool, L))
+            save_partial()
         if not a7:
-            rows.append(cross_starts("A7", (r_s.f, lnl_s, "flux"), (r_e.f, lnl_e, "flux"), obj, pi, ref, dom, lf,
+            rows.extend(cross_starts("A7", (r_s.f, lnl_s, "flux"), (r_e.f, lnl_e, "flux"), obj, pi, ref, dom, lf,
                                      pool, L))
+            save_partial()
         if not a8:
             rows.append(check("A8 failed: where the climbs part (report)", None, f_e=lnl_e, f_s=lnl_s, n_d=nd, n_r=nr))
     rows.append(check("NQC's shortfall below the reference's peak, with its ending rule (report)", None,
@@ -563,29 +582,35 @@ def cmd_compare(a):
 
 def cross_starts(row, H, W, obj, pi, ref, dom, lf, pool, L):
     """A failed same-peak row: each fitter from the other's endpoint, moved 1e-9 inside. H and W are
-    (flux, lnL, fitter) with fitter "flux" (the reference) or "z" (the analytic z climb)."""
+    (flux vector, lnL, fitter) with fitter "flux" (the reference) or "z" (the analytic z climb).
+    Returns each cross-start's A5 rows and the diagnosis."""
     if H[1] < W[1]:
         H, W = W, H
+    rows = []
 
-    def refit(fitter, start_flux):
+    def refit(label, fitter, start_flux):
         Q = flux.generator(start_flux, pi)
         if fitter == "flux":
             r = flux.fit(lf, flux.inward(Q, pi, dom)[0], dom, objective_map=pool.fluxes)
-            z = flux.z_of_flux(r.f, ref)
-            _, ok = a5_rows("cross-start", z, r.pg, pool, r.m_active * r.mu)
-            return obj.log_likelihood(flux.generator(r.f, pi)), ok and r.status == "converged", r.f
+            a5, ok = a5_rows(label, flux.z_of_flux(r.f, ref), r.pg, pool, r.m_active * r.mu)
+            rows.extend(a5)
+            return obj.log_likelihood(flux.generator(r.f, pi)), ok and r.status == "converged"
         z0 = np.clip(chart.inverse(Q, ref), LO + 1e-9, HI - 1e-9)
         c = optimize.lbfgsb_fit(obj, z0, LO, HI, pgtol=PG_ANALYTIC, max_iter=50_000, central_step=CENTRAL_STEP,
                                 evaluate=pool.values, gradient=obj.gradient, maxcor=20, max_seconds=CAP_SECONDS)
-        ok = c.analytic_pg <= PG_ANALYTIC and c.pg_max <= PG_CENTRAL
-        return -c.f, ok, flux.flux_of(chart.build(c.x, pi, ref)[0], pi)
+        a5 = [check(f"A5 {label}: analytic projected z-gradient <= {PG_ANALYTIC:g}", c.analytic_pg <= PG_ANALYTIC,
+                    value=c.analytic_pg),
+              check(f"A5 {label}: central-difference projected z-gradient <= {PG_CENTRAL:g}", c.pg_max <= PG_CENTRAL,
+                    value=c.pg_max)]
+        rows.extend(a5)
+        return -c.f, all(x["passed"] for x in a5)
 
-    hw, hw_ok, _ = refit(H[2], W[0])
-    wh, wh_ok, _ = refit(W[2], H[0])
+    hw, hw_ok = refit(f"{row} cross-start, H's fitter from W", H[2], W[0])
+    wh, wh_ok = refit(f"{row} cross-start, W's fitter from H", W[2], H[0])
     profile = segment_profile(obj, pi, H[0], W[0])
     label = label_pair(H[1], W[1], (hw, hw_ok), (wh, wh_ok), min(profile), L)
-    return check(f"{row} failed: cross-start diagnosis (report)", None, label=label, h=H[1], w=W[1],
-                 h_fitter_from_w=hw, w_fitter_from_h=wh, converged=(hw_ok, wh_ok), profile=profile)
+    return rows + [check(f"{row} failed: cross-start diagnosis (report)", None, label=label, h=H[1], w=W[1],
+                         h_fitter_from_w=hw, w_fitter_from_h=wh, converged=(hw_ok, wh_ok), profile=profile)]
 
 
 def differences(name, fa, fb, pi, ref):
@@ -599,7 +624,9 @@ def differences(name, fa, fb, pi, ref):
 
 
 def export_label(name, obj, z, pool):
-    """Decision 009's label at an endpoint, from the export's central differences."""
+    """Decision 009's label at an endpoint, from the export's central differences. A reference endpoint
+    lies strictly inside the box, so a coordinate at a binding face counts its outward gradient and the
+    label can read "failed" there; it is reported, not asserted."""
     x = np.clip(z, LO, HI)
     h = chart.FIRST_ORDER_ETA * np.maximum(1.0, np.abs(x))
     up, down = x + h, x - h
@@ -608,7 +635,8 @@ def export_label(name, obj, z, pool):
     g = (np.array(values[:n]) - np.array(values[n:])) / ((up - x) + (x - down))
     res = chart.first_order_test(x, g, LO, HI, float(obj(x)))
     return check(f"{name}: decision 009's export label (report)", None, label="passed" if res["passed"] else "failed",
-                 statistic=res["statistic"], at_lower=res["at_lower"], at_upper=res["at_upper"])
+                 statistic=res["statistic"], at_lower=res["at_lower"], at_upper=res["at_upper"],
+                 within_1e6_of_a_bound=int(np.sum((x - LO < 1e-6) | (HI - x < 1e-6))))
 
 
 # ---------------------------------------------------------------- main

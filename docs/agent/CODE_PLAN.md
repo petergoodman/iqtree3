@@ -438,7 +438,9 @@ The package is `test_scripts/fixedeq/oracle/`, and its tests use the pass lines 
   - Solver (decision 042). A log-barrier Newton method, `flux.fit`: barrier subproblems
     min −V − μ Σ log s over the normalized slacks, μ from 0.1 down by 0.1, each ended when its Newton
     decrement λ²/2 ≤ 0.1 μ (or after 100 steps, or when the line search finds no decrease above
-    rounding); the Hessian of −V by forward differences of the analytic gradient (step 1e-6 in u,
+    rounding); below the objective's rounding (λ²/2 ≤ 1e-12 |φ|) the Newton step is taken whole if φ
+    rises by no more than that rounding, until a step stops halving λ²; a restart that ends more than
+    1e-4 lower is unconverged and the higher endpoint kept; the Hessian of −V by forward differences of the analytic gradient (step 1e-6 in u,
     probes over a process pool, kept at positive fluxes and so up to 1e-6 relative outside the box),
     the barrier's exactly; the step from the least-squares form [Lᵀ; √μ S⁻¹G], −V's Hessian damped
     only when not positive definite; an Armijo line search inside 0.995 of every slack, so no

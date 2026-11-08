@@ -1,7 +1,7 @@
 # Plan: π-constrained non-reversible amino-acid models
 
 > **Status, 2026-11-07: S0 to S4 complete, so gates G0 to G3 are met and the branch is the first
-> release candidate; S5 (independent reference) planned and next, then the simulation slices
+> release candidate; S5 (independent reference) in progress, then the simulation slices
 > (decision 040); approach accepted by the IQ-TREE maintainers (reported by Peter, 2026-10-01).**
 > Peter owns this document.
 
@@ -199,7 +199,7 @@ and S7's two bootstraps complete them. The slices run in the order decision 040 
 | S3b | G3 | Linked training and lifecycle | two partitions with different compositions under `-S` and `-p`, one target and one Q in every object; each linked fit checked and reported once (S3-1's linked half); 360 counted once; the linked gradient uses the scaled step; thread counts compared at a fixed point (decision 038); permuted order; mid-run and `--undo` restarts, incompatible ones refused; turtle's risk 22 runs and the warm starts from the box fits reported; regression reproduces; sanitizers clean for new code | done 2026-10-23 (`054914de`, reruns at `fb5bf76d`) |
 | S3c | G3 | Stopping, risk 22's evidence, cost against NONREV | first part: the stopping study's asserted checks and the converged risk 22 evidence (`CODE_PLAN.md` section 4); then profiling against NONREV within its blocking threshold, or, above 3 per fit, fixed in NQC's code or accepted by Peter; any ratio above 1.25 per evaluation or 2 per fit explained (risks 5, 18, 24) | done 2026-10-26 (first part 2026-10-25, domain `0e9fb159`; profiling gate at `0b0048af`) |
 | S4 | G3 | Export, re-import and report | export then `-m FILE` reproduces the log-likelihood of a Level 1 fit; metadata complete; first release candidate | done 2026-10-27 (`a0ebf5cf`); first release candidate |
-| S5 | G4, as reduced by D01 | Independent reference | D10's direct balanced-flux fit in Python (decision 042) passes its known-answer validation; on four small Level 1 problems it reaches, from NQC's start and from NQC's relaxed endpoint, the peak NQC's own chart reaches, within the calibrated line, with every compared fit converged and NQC's endpoints not above that peak; failures counted; comparison report (`CODE_PLAN.md` sections 3.1, 3.3, 4) | planned 2026-11-07 |
+| S5 | G4, as reduced by D01 | Independent reference | D10's direct balanced-flux fit in Python (decision 042) passes its known-answer validation; on four small Level 1 problems it reaches, from NQC's start and from NQC's relaxed endpoint, the peak NQC's own chart reaches, within the calibrated line, with every compared fit converged and NQC's endpoints not above that peak; failures counted; comparison report (`CODE_PLAN.md` sections 3.1, 3.3, 4) | in progress: oracle, driver and review fixes committed; validation fails V3's declared stop |
 | SIM-1 | G5 (simulation support), G6 (part) | Simulator check and exact screen (proposed) | AliSim from an exported matrix passes the exact pattern check, or its fallback does; the oracle's NQC objective fitted to exact pattern frequencies returns the true Q within pass lines set first (decision 021); the screen's circulation tabled per scenario; pipeline and pilot run; SIM-2's plan written (`CODE_PLAN.md` section 3.8) and approved by Peter | not started |
 | SIM-2 | G6 (part) | Simulation study (proposed) | the approved plan's studies run at the pilot's replicate counts, failed fits counted, results with Monte Carlo standard errors; outputs for S7's confirmatory plan: reference distributions of the circulation statistic (decision 041), the stopping setting (decision 039), how much of the available data the fit needs | not started |
 | S6 | G5 | Workflow | candidate-set and mixing-guard tests; G5's remaining conditions | not started |
@@ -318,13 +318,11 @@ audits' low findings are in `CODE_PLAN.md` section 4, "Known and left alone".
 
 ## Next step
 
-Implement S5 in a new session, started in plan mode with this prompt:
-
-> Implement S5, the independent reference of gate G4 as reduced by D01, as planned. Read the
-> start-of-session files, then `CODE_PLAN.md` sections 3.1, 3.3 (the S5 block) and 4 (S5), and
-> `DECISIONS.md` 021 and 042. S5's list in section 4 is complete: the session plan is its commits
-> and gate steps. Pass lines are set; none is loosened. Use the keep-awake helper for any run
-> longer than a few minutes (CLAUDE.md); the gate's runs may span sessions, one problem at a time.
+S5's validation fails one asserted check: on V3 (LG at π* with 160 coordinates at the lower bound,
+zero multipliers) the barrier Newton fit reaches the truth but not the declared stop, because its
+steps jam against near-bound coordinates (`CHANGELOG.md`, top entry). Peter chooses the remedy;
+then `validate` again from a clean commit, and the gate (`CODE_PLAN.md` section 4, S5), one problem
+at a time with the keep-awake helper. Pass lines are set; none is loosened.
 
 After S5 comes SIM-1 (decision 040); risk 25's first inputs are needed before SIM-1's session.
 

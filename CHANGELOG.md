@@ -8,17 +8,18 @@ gate record and may run to 25 lines. The next session starts from the top entry.
 This is a fork of `iqtree/iqtree3`. Entries here describe work on the fork, not upstream
 development.
 
-## 2026-11-07 (fourth session): S5 commits 2 and 3; the reference's solver replaced
+## 2026-11-07 (fourth session): S5 oracle and driver; validation fails on V3
 
-- **Done.** `9971e223`: the oracle's balanced-flux reference (`oracle/flux.py`), the analytic
-  likelihood gradient, `from_patterns`, `z_gradient`, `lbfgsb_fit`'s analytic pass, 23 tests (suite
-  329). This commit: the driver `reference/reference.py` (`validate`, `calibrate`, `compare`), label tests.
-- **Changed (Peter).** Decision 042: a log-barrier Newton method of the oracle's own replaces SciPy's
-  `trust-constr`; 021: V1 and V1b judged by the Lagrangian duality gap, same 1e-9 |F| line.
-- **Failed.** `trust-constr` with BFGS (gradients asked at infeasible trials) and with Newton (stalls
-  at binding faces); the planned certificate ν·s + 2‖r‖∞, unreachable at the optimum; three barrier
-  versions before the fourth converged (`9971e223`'s message). One text patch ran in Windows Python.
-- **Next.** `validate` from this commit, a read-only code review, then the gate per problem.
+- **Done.** `9971e223` the oracle's flux reference, analytic gradient, `from_patterns`, `z_gradient`,
+  `lbfgsb_fit`'s analytic pass; `fa94c697` the driver; this commit the read-only review's fixes (a
+  blocker, A6's cross-start given Q for a flux; six minor). Suite 330.
+- **Changed (Peter).** 042: a log-barrier Newton method replaces SciPy's `trust-constr`; 021: V1 and
+  V1b judged by the Lagrangian duality gap, same 1e-9 |F| line.
+- **Validate** at `fa94c697` (`~/iqtree3-runs/s5-gate/20261108T042332Z-fa94c697-validate/`, 9 min):
+  V1, V1b, V2, AG pass; V3 fails "converged": it reaches the truth (deficit 3.7e-9) but jams at
+  projected z-gradient 1.06e-5 on 150 near-bound coordinates with zero multipliers (barrier floor).
+- **Failed.** `trust-constr` (BFGS, Newton), the planned certificate, three barrier versions (commit
+  messages); one patch ran in Windows Python. **Next.** Peter's remedy for V3; validate; the gate.
 
 ## 2026-11-07 (third session): S5 planned (decision 042)
 
