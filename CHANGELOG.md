@@ -8,6 +8,18 @@ gate record and may run to 25 lines. The next session starts from the top entry.
 This is a fork of `iqtree/iqtree3`. Entries here describe work on the fork, not upstream
 development.
 
+## 2026-11-07 (fourth session): S5 commits 2 and 3; the reference's solver replaced
+
+- **Done.** `9971e223`: the oracle's balanced-flux reference (`oracle/flux.py`), the analytic
+  likelihood gradient, `from_patterns`, `z_gradient`, `lbfgsb_fit`'s analytic pass, 23 tests (suite
+  329). This commit: the driver `reference/reference.py` (`validate`, `calibrate`, `compare`), label tests.
+- **Changed (Peter).** Decision 042: a log-barrier Newton method of the oracle's own replaces SciPy's
+  `trust-constr`; 021: V1 and V1b judged by the Lagrangian duality gap, same 1e-9 |F| line.
+- **Failed.** `trust-constr` with BFGS (gradients asked at infeasible trials) and with Newton (stalls
+  at binding faces); the planned certificate ν·s + 2‖r‖∞, unreachable at the optimum; three barrier
+  versions before the fourth converged (`9971e223`'s message). One text patch ran in Windows Python.
+- **Next.** `validate` from this commit, a read-only code review, then the gate per problem.
+
 ## 2026-11-07 (third session): S5 planned (decision 042)
 
 - **Done.** S5 planned and recorded: the balanced-flux reference (NQC's box as 720 linear ratio
