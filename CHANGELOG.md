@@ -8,6 +8,30 @@ gate record and may run to 25 lines. The next session starts from the top entry.
 This is a fork of `iqtree/iqtree3`. Entries here describe work on the fork, not upstream
 development.
 
+## 2026-11-09: S5 closed; gate at `13799127`
+
+Gate record (binary `25d78d6e`, AliSim baseline; outputs `~/iqtree3-runs/s5-gate/20261109T*-13799127-*`):
+- **validate:** V1, V1b, AG, V2, V3 pass (V3 deficit 9.3e-10), 836 s.
+- **toy:** pass. L 1e-3 (spread 0); Z_e, Z_e5 one finish step each (pg 9.0e-8, 9.1e-9); F_s, F_e and
+  both random starts at −38797.0263964354; open domain +0.031. 381 s + 2654 s.
+- **toy300:** pass. L 1e-3; A6 2.5e-11, A7 4.5e-13; random starts at the peak; open +0.014. 108 + 557 s.
+- **aa_example:** A6 FAILS, 0.299 > L = 1e-3: Z_e (Z_e5 6e-6 from it) met A5 below F_s = F_e =
+  −6958.7324. Label "W stopped short": the flux reference from Z_e reaches the peak, the z climb
+  from F_e stays there, lnL rises monotonically along the segment. A7 0, A8 pass; open +0.025.
+  844 + 7283 s. Counted; Peter accepted it and S5's close.
+- **twopart:** pass. L 1e-3 (spread 0); Z_e5 three finish steps; A6 0, A7 3.6e-12; open +0.044.
+  1595 s + 21951 s wall, of which the VM ran about 1.3 h (fits 4447 s): paused about 4.8 h (guest
+  uptime 1 h 42 min against 6.5 h), helper holding, no standby logged; values unaffected.
+- **Counts:** 26 oracle fits (8 z climbs, 8 F_s and F_e, 4 open, 4 random starts, 2 cross-starts) and
+  4 validation fits, all converged; 8 NQC runs exit 0; 1 of 12 same-peak and anchoring rows failed.
+- **NQC below the peak** (default, relaxed): toy 10.61, 6.80; toy300 1.35, 0.92; aa 1.48, 1.35;
+  twopart 7.92, 4.03; relaxed at the round cap, defaults at the cap (toy) or round threshold; never
+  above it (A8); decision 009's first-order label at all 20 labelled endpoints. pytest 332 passed.
+- **Face check** (`explore/z_face_check.py`, exploratory; output in `~/iqtree3-runs/s5-z-diagnosis/`):
+  at aa's Z_e no lower-bound coordinate gains moved inward alone (best −5.5e-12); cause undetermined
+  (PLAN.md risk 27). **Review** of the z finish: no confirmed defect; shortfalls in CODE_PLAN.md 4.
+- **Next.** SIM-1 in its own session; risk 25's first inputs and risk 27 from Peter.
+
 ## 2026-11-09: S5 gate begun; toy's z climbs fail A5(i); projected Newton finish added
 
 - **Recorded.** `validate` at clean `feec3cd5` (`~/iqtree3-runs/s5-gate/20261108T233337Z-feec3cd5-validate/`):

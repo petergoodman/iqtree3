@@ -11,6 +11,26 @@ lines: tool and model, operator, up to five "what it did" bullets, files touched
 No AI-generated scientific claim, numerical result, or citation in this project has been accepted
 without human verification against source.
 
+## 2026-11-09: S5 milestone, gate G4 as reduced by D01
+
+**Tool:** Claude Code (VS Code extension). **Model:** Claude Opus 5.5, model id `claude-opus-5-5`
+(commit trailers). **Operator:** Peter Goodman.
+
+**What it did.**
+- **Plan.** It surveyed and planned the independent reference with a fresh review; the operator
+  chose the analytic gradients, the solver and both finishes, the same-peak line and the anchoring.
+- **Code.** It wrote the balanced-flux reference, the analytic gradients, `lbfgsb_fit`'s analytic
+  pass and its Newton finish, and the reference driver, with their tests. IQ-TREE's C++ unchanged.
+- **Validation.** It ran validation and the gate from clean commits under a keep-awake helper,
+  diagnosed each unmet stop with kept exploratory scripts before the operator chose a remedy, and
+  had subagents review the finishes. One patch in an earlier session ran in Windows Python.
+- **Records.** It wrote the plan records, the gate record with aa_example's counted failure, risk 27
+  and this entry.
+
+**Files touched.** `test_scripts/fixedeq/`: `oracle/{flux,likelihood,nqc,optimize}.py`,
+`reference/reference.py`, `tests/{test_oracle_flux,test_reference}.py`,
+`explore/{v3_diagnosis,z_climb_diagnosis,z_face_check}.py`; `docs/agent/` records.
+
 ## 2026-10-27: S4 milestone, gate G3 and the first release candidate
 
 **Tool:** Claude Code (VS Code extension). **Model:** Claude Opus 5.5, 1M context, model id

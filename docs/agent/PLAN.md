@@ -1,8 +1,9 @@
 # Plan: π-constrained non-reversible amino-acid models
 
-> **Status, 2026-11-07: S0 to S4 complete, so gates G0 to G3 are met and the branch is the first
-> release candidate; S5 (independent reference) in progress, then the simulation slices
-> (decision 040); approach accepted by the IQ-TREE maintainers (reported by Peter, 2026-10-01).**
+> **Status, 2026-11-09: S0 to S5 complete, so gates G0 to G3 and G4 as reduced by D01 are met (one
+> S5 comparison failed, counted and accepted by Peter, risk 27) and the branch is the first release
+> candidate; next the simulation slices, SIM-1 first (decision 040); approach accepted by the
+> IQ-TREE maintainers (reported by Peter, 2026-10-01).**
 > Peter owns this document.
 
 This is the project's living core document: what we are building and why, the constraints the
@@ -112,8 +113,7 @@ One refinement to the synthesis's default (proposed): Level 1 fits use existing 
 Tree search with NQC runs through ordinary IQ-TREE code but is not a first-release validation
 target.
 
-Deferred, still in the project: a small direct-flux reference in Python (D10; S5, gate G4 as
-reduced by D01); the simulation slices SIM-1 and SIM-2 (decision 040); target-rebuilt guide
+Deferred, still in the project: the simulation slices SIM-1 and SIM-2 (decision 040); target-rebuilt guide
 candidates, fixed learned candidates in ModelFinder, the reversible/non-reversible mixing guard,
 the root policy for scientific runs (decision 016), incumbent protection and an optional Level 3
 outer driver (S6, gate G5's remaining conditions); domain sensitivity of the scientific fits (S3a
@@ -199,7 +199,7 @@ and S7's two bootstraps complete them. The slices run in the order decision 040 
 | S3b | G3 | Linked training and lifecycle | two partitions with different compositions under `-S` and `-p`, one target and one Q in every object; each linked fit checked and reported once (S3-1's linked half); 360 counted once; the linked gradient uses the scaled step; thread counts compared at a fixed point (decision 038); permuted order; mid-run and `--undo` restarts, incompatible ones refused; turtle's risk 22 runs and the warm starts from the box fits reported; regression reproduces; sanitizers clean for new code | done 2026-10-23 (`054914de`, reruns at `fb5bf76d`) |
 | S3c | G3 | Stopping, risk 22's evidence, cost against NONREV | first part: the stopping study's asserted checks and the converged risk 22 evidence (`CODE_PLAN.md` section 4); then profiling against NONREV within its blocking threshold, or, above 3 per fit, fixed in NQC's code or accepted by Peter; any ratio above 1.25 per evaluation or 2 per fit explained (risks 5, 18, 24) | done 2026-10-26 (first part 2026-10-25, domain `0e9fb159`; profiling gate at `0b0048af`) |
 | S4 | G3 | Export, re-import and report | export then `-m FILE` reproduces the log-likelihood of a Level 1 fit; metadata complete; first release candidate | done 2026-10-27 (`a0ebf5cf`); first release candidate |
-| S5 | G4, as reduced by D01 | Independent reference | D10's direct balanced-flux fit in Python (decision 042) passes its known-answer validation; on four small Level 1 problems it reaches, from NQC's start and from NQC's relaxed endpoint, the peak NQC's own chart reaches, within the calibrated line, with every compared fit converged and NQC's endpoints not above that peak; failures counted; comparison report (`CODE_PLAN.md` sections 3.1, 3.3, 4) | in progress: oracle, driver, active-set finish with a central-difference Hessian (V3's remedy) and the review's fixes committed; the z climbs' projected Newton finish committed (the remedy for toy's A5(i) failure in the gate from `feec3cd5`); next the gate from it |
+| S5 | G4, as reduced by D01 | Independent reference | D10's direct balanced-flux fit in Python (decision 042) passes its known-answer validation; on four small Level 1 problems it reaches, from NQC's start and from NQC's relaxed endpoint, the peak NQC's own chart reaches, within the calibrated line, with every compared fit converged and NQC's endpoints not above that peak; failures counted; comparison report (`CODE_PLAN.md` sections 3.1, 3.3, 4) | done 2026-11-09 (gate at `13799127`); aa_example's A6 failed, labelled "W stopped short", counted and accepted by Peter (risk 27) |
 | SIM-1 | G5 (simulation support), G6 (part) | Simulator check and exact screen (proposed) | AliSim from an exported matrix passes the exact pattern check, or its fallback does; the oracle's NQC objective fitted to exact pattern frequencies returns the true Q within pass lines set first (decision 021); the screen's circulation tabled per scenario; pipeline and pilot run; SIM-2's plan written (`CODE_PLAN.md` section 3.8) and approved by Peter | not started |
 | SIM-2 | G6 (part) | Simulation study (proposed) | the approved plan's studies run at the pilot's replicate counts, failed fits counted, results with Monte Carlo standard errors; outputs for S7's confirmatory plan: reference distributions of the circulation statistic (decision 041), the stopping setting (decision 039), how much of the available data the fit needs | not started |
 | S6 | G5 | Workflow | candidate-set and mixing-guard tests; G5's remaining conditions | not started |
@@ -217,6 +217,7 @@ and S7's two bootstraps complete them. The slices run in the order decision 040 
 | 24 | Fits stop short of their peaks under IQ-TREE's stopping rules, for every model, so comparing two fits' scores (box against wide, NQC against NONREV, D08's arms) needs a convergence protocol. IQ-TREE's optimizer stays unchanged (decision 009). The stopping rules and S3c's measurements: `UPSTREAM_FINDINGS.md`, Risk 24 | Testing: S3c's first part (done 2026-10-25). Science: decision 039 |
 | 25 | Inputs for the simulation slices (decision 040). Before SIM-1: the size of the available real data (taxa, genes and their lengths; the real set itself is risk 9), the intended arrangement (`-S` or `-p`) and Level, the external data set for simulation trees and per-gene settings, and the source of the simulated composition. Before SIM-2's plan: the primary circulation statistic and the smallest effect of interest (decision 041), CLOAK's removal statistics from data outside the training and test sets (decision 040), and the range of target perturbations. Recommended: trees and per-gene settings from the mammal data of QMaker and nQMaker (public on Dryad), not OrthoMaM, the training and test source of Wheeler et al. 2025; total net flux over total flux as the statistic; CLOAK's removal statistics from BAliBASE, where CLOAK was benchmarked. The truth matrices (NQ.mammal, Q.mammal, LG) and the C20 and C60 profiles ship with IQ-TREE | Peter |
 | 26 | Compute: SIM-2 and S7 need a cluster. An unverified extrapolation from S3c (`docs/agent/archive/SIM_plan_2026-11-07.md`, Appendix C) gives SIM-2 about 5,000 to 10,000 core-hours and one NQC `-S` fit at 190 taxa and 1000 genes about 80 core-hours. In S3c's profiling NQC's first linked fit from LG took 5,000 to 13,000 evaluations and each later round 700 to 4,400, so a training run's cost is set by its first fit and its round count | Peter arranges UA HPC access; the agent writes the build and job scripts; Peter submits them |
+| 27 | Decision 039's check and SIM-1's outline (`CODE_PLAN.md` section 4) name the oracle's z climb (`lbfgsb_fit`) as the reference climb. In S5's gate, on aa_example, it met its first-order test (projected z-gradient 8.9e-7) 0.299 below the box's peak, which S5's flux reference reached from the same endpoint (A6, "W stopped short"; `CHANGELOG.md`, S5 close). No single lower-bound coordinate gains when moved inward (`explore/z_face_check.py`); the cause is undetermined. Where a check needs the peak, use the flux reference or several starts | Peter, before SIM-1's plan and before decision 039's check is used in SIM-2 or S7 |
 
 Retired risk numbers:
 
@@ -287,10 +288,12 @@ outputs and anchors, is in `docs/agent/UPSTREAM_FINDINGS.md` under the same numb
 
 ## Current state
 
-S0 to S4 are complete, so gates G0 to G3 and the first release's scope are met, and the branch is
+S0 to S5 are complete, so gates G0 to G3, G4 as reduced by D01 (with aa_example's A6 failure
+counted and accepted by Peter, risk 27), and the first release's scope are met, and the branch is
 the first release candidate. S3 ran as three slices (the approved plan is frozen in
-`docs/agent/archive/S3_plan_2026-10-22.md`). The latest gate ran from `36a43711` (binary
-`~/iqtree3-binaries/25d78d6e/`), the reference build for the next comparison. S4's gate record,
+`docs/agent/archive/S3_plan_2026-10-22.md`). The latest IQ-TREE build gated is from `36a43711`
+(binary `~/iqtree3-binaries/25d78d6e/`), the reference build for the next comparison; S5 changed
+only Python test code and ran its gate at `13799127` against that binary. S4's gate record,
 the three release audits and their gated fixes are the `CHANGELOG.md` entries from 2026-10-26 to
 2026-10-30; the upstream behaviours they exposed are maintainer questions 10 to 16, and the
 audits' low findings are in `CODE_PLAN.md` section 4, "Known and left alone".
@@ -311,19 +314,19 @@ audits' low findings are in `CODE_PLAN.md` section 4, "Known and left alone".
   switched off on the fork's Actions page (`ci.yaml` unchanged), so the fork no longer checks the
   macOS, Windows or ARM builds. fixedeq's first run (39817703469, `76dd4301`) passed all jobs, as
   did the run on S4 and its audit (40550150265, `548dad20`).
-- **Plans (2026-11-07):** simulation scope recorded (decisions 040, 041; reasons and literature in
-  `docs/agent/archive/SIM_plan_2026-11-07.md`); S5 planned in full (decision 042, decision 021's S5
-  rows, `CODE_PLAN.md` sections 3.1, 3.3 and 4; survey, measurements and review in
-  `docs/agent/archive/S5_plan_2026-11-07.md`).
+- **Independent reference (S5):** the balanced-flux reference (decision 042) passed its known-answer
+  validation and, on toy, toy300 and twopart, reached the peak that the z climbs from NQC's relaxed
+  endpoint reached; on aa_example the z climb met its first-order test 0.299 below the reference's
+  peak (A6 failed, counted; risk 27). NQC's own endpoints lay 0.92 to 10.6 below the peak, never
+  above it (gate record: `CHANGELOG.md`, S5 close).
+- **Plans:** simulation scope recorded (decisions 040, 041; reasons and literature in
+  `docs/agent/archive/SIM_plan_2026-11-07.md`); S5's approved plan, survey and review are frozen in
+  `docs/agent/archive/S5_plan_2026-11-07.md`.
 
 ## Next step
 
-S5's gate (`CODE_PLAN.md` section 4, S5) from the commit that gave the z climbs their projected
-Newton finish (decision 042), after the gate from `feec3cd5` stopped on toy's A5(i): `validate`, then
-`calibrate` and `compare` per problem, toy first to measure the compute, one problem at a time with
-the keep-awake helper, and the full pytest suite. Results under `~/iqtree3-runs/s5-gate/`, recorded
-in the gate's `CHANGELOG.md` entry.
-
-After S5 comes SIM-1 (decision 040); risk 25's first inputs are needed before SIM-1's session.
+SIM-1 (decision 040; outline in `CODE_PLAN.md` section 4), planned in full in its own session in
+plan mode, as S5 was. Before that session Peter supplies risk 25's first inputs and decides risk 27,
+which fitter certifies a peak in SIM-1's checks.
 
 The working rules are in `CODE_PLAN.md` section 4, "Implementation".
