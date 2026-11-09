@@ -93,6 +93,10 @@ def _z_value(z):
     return _OBJ(np.asarray(z))
 
 
+def _z_gradient(z):
+    return _OBJ.gradient(np.asarray(z))
+
+
 class Pool:
     """Worker processes holding one objective; spreads the Newton Hessian's probes and the central
     differences, which changes no value."""
@@ -113,6 +117,9 @@ class Pool:
 
     def values(self, zs):
         return self._map(_z_value, zs)
+
+    def gradients(self, zs):
+        return self._map(_z_gradient, zs)
 
     def close(self):
         if self.pool is not None:
@@ -456,7 +463,7 @@ def cmd_calibrate(a):
             t0 = time.monotonic()
             c = optimize.lbfgsb_fit(obj, np.array(ends["relaxed"]["z"]), LO, HI, pgtol=PG_ANALYTIC, max_iter=50_000,
                                     central_step=CENTRAL_STEP, evaluate=pool.values, gradient=obj.gradient,
-                                    maxcor=memory, max_seconds=CAP_SECONDS)
+                                    maxcor=memory, max_seconds=CAP_SECONDS, gradient_map=pool.gradients)
             climbs[name] = {"lnl": -c.f, "z": c.x.tolist(), "analytic_pg": c.analytic_pg, "central_pg": c.pg_max,
                             "phases": c.phases, "gradients": c.gradients, "evaluations": c.evaluations,
                             "at_lower": len(c.at_lower), "at_upper": len(c.at_upper),
@@ -600,7 +607,8 @@ def cross_starts(row, H, W, obj, pi, ref, dom, lf, pool, L):
             return obj.log_likelihood(flux.generator(r.f, pi)), ok and r.status == "converged"
         z0 = np.clip(chart.inverse(Q, ref), LO + 1e-9, HI - 1e-9)
         c = optimize.lbfgsb_fit(obj, z0, LO, HI, pgtol=PG_ANALYTIC, max_iter=50_000, central_step=CENTRAL_STEP,
-                                evaluate=pool.values, gradient=obj.gradient, maxcor=20, max_seconds=CAP_SECONDS)
+                                evaluate=pool.values, gradient=obj.gradient, maxcor=20, max_seconds=CAP_SECONDS,
+                                gradient_map=pool.gradients)
         a5 = [check(f"A5 {label}: analytic projected z-gradient <= {PG_ANALYTIC:g}", c.analytic_pg <= PG_ANALYTIC,
                     value=c.analytic_pg),
               check(f"A5 {label}: central-difference projected z-gradient <= {PG_CENTRAL:g}", c.pg_max <= PG_CENTRAL,

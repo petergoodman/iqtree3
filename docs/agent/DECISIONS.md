@@ -506,18 +506,18 @@ composition is the kind of target the study uses (D07).
 
 ### 042. S5's flux reference: exact gradients, a barrier Newton method, NQC anchored at its start
 
-**Rule.** S5's reference (`CODE_PLAN.md` 3.1), with no data set added, fits f = f0 + Zy over NQC's
-box written exactly as linear ratio constraints, with analytic likelihood gradients (oracle only;
-the compiled model keeps finite differences) and a log-barrier Newton method of its own with an
-active-set finish (central Hessian), validated on known answers first. It climbs from NQC's start
-and relaxed endpoint; the same-peak line is 021's L; NQC's endpoints may not lie above the peak.
+**Rule.** S5's reference (`CODE_PLAN.md` 3.1), no data set added, fits f = f0 + Zy over NQC's box as
+exact linear ratio constraints with analytic likelihood gradients (oracle only; the compiled model
+keeps finite differences): a log-barrier Newton method with an active-set finish, validated on known
+answers first; the z climbs are L-BFGS-B with a projected Newton finish; both finishes take central
+Hessians. It climbs from NQC's start and relaxed endpoint; same-peak line 021's L; NQC not above it.
 **Why.** Fluxes at NQC's peaks span 1e-13 to 1e-1, too wide for finite differences at the tight stop
-needed (S3c's climbs at `pgtol` 1e-3 ended up to 0.303 apart). `trust-constr` failed (BFGS asks for
-gradients at infeasible trials, Newton stalls at binding faces), as did the finish's forward Hessian
-on V3 (`explore/v3_diagnosis.py`). An endpoint-only check cannot fail; agreement is data-independent.
+needed (S3c's climbs at `pgtol` 1e-3 ended up to 0.303 apart). Failed: `trust-constr`; a forward
+Hessian on V3; L-BFGS-B's own stop on toy (`explore/v3_diagnosis.py`, `z_climb_diagnosis.py`). An
+endpoint-only check cannot fail; agreement is data-independent.
 **Not chosen.** Finite differences; `trust-constr`, SLSQP, cyipopt; a fixed 1e-3 line; 1e-8 × |lnL|;
-endpoint-anchored checks only; risk 9's small real set; for V3, a smaller N or a relative stop.
-**Since** 2026-11-07 (Peter; solver revised then; finish 2026-11-08, central that day); survey archived.
+endpoint-anchored checks only; risk 9's small real set; a smaller N or relative stop (V3); looser A5(i).
+**Since** 2026-11-07 (Peter; solver revised then; finishes 2026-11-08 and 2026-11-09); survey archived.
 
 ## Tooling
 

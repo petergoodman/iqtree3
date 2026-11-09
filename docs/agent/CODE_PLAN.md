@@ -472,7 +472,12 @@ The package is `test_scripts/fixedeq/oracle/`, and its tests use the pass lines 
   - Around it: `nqc.Objective.from_patterns` (tip-vector columns, real weights as counts; refuses
     `+I`); gradients on `Objective` and `LinkedObjective`, which gains `log_likelihood(Q)`; an
     optional analytic pass in `lbfgsb_fit`, its default unchanged (decision 017's port is not
-    touched). SIM-1 reuses them on exact pattern frequencies; `site_log_likelihoods` still rebuilds
+    touched), which, when L-BFGS-B ends above `pgtol`, ends with a projected Newton finish: the
+    Hessian by central differences of the analytic gradient on the free coordinates (those not at a
+    bound the gradient pushes against), spread over the driver's pool; a coordinate the step would
+    push out of the box held for that step; the step cut at the first bound; `flux.py`'s finish's
+    acceptance; at most 20 steps, its entry point kept if lower without the stop (decision 042,
+    `explore/z_climb_diagnosis.py`). SIM-1 reuses them on exact pattern frequencies; `site_log_likelihoods` still rebuilds
     the tip matrices on every call, slow at 160,000 patterns.
 
 ### 3.2 Layer 2: C++ unit tests
@@ -1060,8 +1065,10 @@ its survey, measurements and review is frozen in `docs/agent/archive/S5_plan_202
   join, re-centring and entry-point branches have no unit test; `validate`'s V1b and V3 exercise
   the finish end to end.
 - Gate from `feec3cd5` (2026-11-09): `validate` passed; toy's `calibrate` failed A5(i) on Z_e and
-  Z_e5 and the gate stopped; diagnosed by `explore/z_climb_diagnosis.py`. Next commit: the climber's
-  remedy once Peter chooses it (PLAN.md next step), then `validate` and the gate from that commit.
+  Z_e5 and the gate stopped; diagnosed by `explore/z_climb_diagnosis.py`.
+- Commit 7 (2026-11-09): the z climbs' projected Newton finish (Peter; section 3.1), with a unit test
+  on an ill-conditioned box quadratic; `validate`, then the gate, from that commit. Known shortfall:
+  the finish's near-bound move, stall and kept-entry branches have no unit test.
 - At the close, a records-against-gate check, the gate record in the CHANGELOG entry, this list cut
   to one line, budgets checked, the AI_DISCLOSURE entry.
 

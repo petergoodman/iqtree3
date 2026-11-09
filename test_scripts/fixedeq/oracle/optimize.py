@@ -281,7 +281,7 @@ def central_gradient(evaluate, x, step):
 
 
 def lbfgsb_fit(f, x0, lower, upper, pgtol=1e-3, max_iter=2000, central_step=ERROR_X, evaluate=None,
-               gradient=None, maxcor=20, max_seconds=None):
+               gradient=None, maxcor=20, max_seconds=None, gradient_map=None):
     """A test reference for where a fit's peak lies (PLAN.md risks 22 and 24), not IQ-TREE's method:
     SciPy's L-BFGS-B minimizing f in the box, stopped by its projected-gradient test at pgtol. The
     first pass uses decision 005's forward differences; when the central-difference gradient at its
@@ -292,12 +292,14 @@ def lbfgsb_fit(f, x0, lower, upper, pgtol=1e-3, max_iter=2000, central_step=ERRO
 
     With gradient (x -> f, g analytic), one pass replaces both (S5, decision 042): L-BFGS-B with
     that gradient and maxcor memory, stopped by the analytic projected gradient at pgtol (ftol 0),
-    by max_iter iterations or by max_seconds; the central-difference gradient is still taken at x."""
+    by max_iter iterations or by max_seconds, then _newton_finish while still above pgtol;
+    gradient_map(points) returns gradient at each point, in order (serially by default). The
+    central-difference gradient is still taken at x."""
     from scipy.optimize import Bounds, minimize
 
     if gradient is not None:
         return _analytic_lbfgsb(f, gradient, x0, lower, upper, pgtol, max_iter, central_step, evaluate, maxcor,
-                                max_seconds)
+                                max_seconds, gradient_map or (lambda pts: [gradient(p) for p in pts]))
 
     n = len(x0)
     lower = np.broadcast_to(np.asarray(lower, dtype=float), (n,)).copy()
@@ -335,7 +337,8 @@ def lbfgsb_fit(f, x0, lower, upper, pgtol=1e-3, max_iter=2000, central_step=ERRO
                  np.flatnonzero(x == upper))
 
 
-def _analytic_lbfgsb(f, gradient, x0, lower, upper, pgtol, max_iter, central_step, evaluate, maxcor, max_seconds):
+def _analytic_lbfgsb(f, gradient, x0, lower, upper, pgtol, max_iter, central_step, evaluate, maxcor, max_seconds,
+                     gradient_map):
     import time
 
     from scipy.optimize import Bounds, minimize
@@ -362,8 +365,110 @@ def _analytic_lbfgsb(f, gradient, x0, lower, upper, pgtol, max_iter, central_ste
                           "maxcor": maxcor})
     x = np.clip(r.x, lower, upper)
     fx, ga = fun(x)
+    phases, probes = [("analytic", int(r.nit), str(r.message))], 0
+    if np.max(np.abs(projected_gradient(x, ga, lower, upper))) > pgtol:
+        x, fx, ga, steps, ending, probes = _newton_finish(fun, gradient_map, x, fx, ga, lower, upper, pgtol, deadline)
+        phases.append(("newton", steps, ending))
     g = central_gradient(evaluate, x, central_step)
     pg = projected_gradient(x, g, lower, upper)
-    return Climb(x, float(fx), 2 * n + calls[0], [("analytic", int(r.nit), str(r.message))], g,
+    return Climb(x, float(fx), 2 * n + calls[0] + probes, phases, g,
                  float(np.max(np.abs(pg))), np.flatnonzero(x == lower), np.flatnonzero(x == upper),
-                 float(np.max(np.abs(projected_gradient(x, ga, lower, upper)))), calls[0])
+                 float(np.max(np.abs(projected_gradient(x, ga, lower, upper)))), calls[0] + probes)
+
+
+NEWTON_STEPS = 20   # steps of the analytic pass's projected Newton finish
+
+
+def _newton_direction(H, g):
+    """-H^-1 g by Cholesky, H + tau I with tau raised by 10 from 1e-12 max|diag H| while H is not
+    positive definite, as flux.py's finish."""
+    from scipy.linalg import LinAlgError, cho_factor, cho_solve
+
+    if not len(g):
+        return np.zeros(0)
+    tau, scale = 0.0, max(1.0, float(np.max(np.abs(np.diag(H)))))
+    while True:
+        try:
+            return -cho_solve(cho_factor(H + tau * np.eye(len(H))), g)
+        except LinAlgError:
+            tau = 1e-12 * scale if tau == 0.0 else 10 * tau
+
+
+def _newton_finish(fun, gradient_map, x, fx, g, lower, upper, pgtol, deadline):
+    """The analytic pass's finish (S5, decision 042): projected Newton in the box, for the tail where
+    L-BFGS-B's steps gain at most a unit of f's spacing and its zero-reduction test ends the pass above
+    pgtol (explore/z_climb_diagnosis.py). Each step takes the Hessian by central differences of the
+    analytic gradient (step HESSIAN_STEP max(1, |x|)) on the free coordinates, those not at a bound
+    the gradient pushes against; holds for that step a free coordinate at a bound that the Newton step
+    would push out; cuts the step at the first bound it reaches (coordinates that reach one within
+    ALPHA_MIN of the step are first put on it); and accepts as flux.py's finish: Armijo above
+    ROUNDING |f|, below it no rise above that, with the decrement at least halving from one full step
+    to the next. Ends at pgtol, a stall, the deadline or NEWTON_STEPS steps, keeping its entry point
+    if lower when pgtol is not met. Returns x, f, g, steps, ending and the Hessian's gradients taken."""
+    import time
+
+    from .flux import ALPHA_MIN, ARMIJO, HESSIAN_STEP, ROUNDING
+
+    entry, probes, last_pure, ending, step = (x, fx, g), 0, None, f"{NEWTON_STEPS} steps", 0
+    while step < NEWTON_STEPS:
+        if np.max(np.abs(projected_gradient(x, g, lower, upper))) <= pgtol:
+            break
+        if deadline is not None and time.monotonic() > deadline:
+            ending = "time cap"
+            break
+        step += 1
+        free = np.flatnonzero(~(((x <= lower) & (g > 0)) | ((x >= upper) & (g < 0))))
+        h = HESSIAN_STEP * np.maximum(1.0, np.abs(x[free]))
+        pts = []
+        for k, hk in zip(free, h):
+            for s in (hk, -hk):
+                v = x.copy()
+                v[k] += s
+                pts.append(v)
+        G = np.array([gk for _, gk in gradient_map(pts)])
+        probes += len(pts)
+        H = ((G[0::2] - G[1::2]) / (2 * h)[:, None])[:, free]
+        H = (H + H.T) / 2
+        keep = np.ones(len(free), dtype=bool)
+        while True:
+            sub = free[keep]
+            d_sub = _newton_direction(H[np.ix_(keep, keep)], g[sub])
+            out = ((x[sub] <= lower[sub]) & (d_sub < 0)) | ((x[sub] >= upper[sub]) & (d_sub > 0))
+            if not out.any():
+                break
+            keep[np.flatnonzero(keep)[out]] = False
+        d = np.zeros_like(x)
+        d[sub] = d_sub
+        ratio = np.full(len(x), np.inf)
+        ratio[d < 0] = (lower - x)[d < 0] / d[d < 0]
+        ratio[d > 0] = (upper - x)[d > 0] / d[d > 0]
+        if np.min(ratio) < ALPHA_MIN:   # within rounding of a bound: put those coordinates on it
+            x = np.where(ratio < ALPHA_MIN, np.where(d < 0, lower, upper), x)
+            fx, g = fun(x)
+            last_pure = None
+            continue
+        slope = float(g @ d)
+        decrement = -slope / 2
+        rounding = ROUNDING * max(1.0, abs(fx))
+        pure = decrement <= rounding
+        if decrement <= 0 or (pure and last_pure is not None and decrement > 0.5 * last_pure):
+            ending = "stalled"
+            break
+        alpha = min(1.0, float(np.min(ratio)))
+        while alpha >= ALPHA_MIN:
+            xn = np.clip(x + alpha * d, lower, upper)
+            fn, gn = fun(xn)
+            if fn <= fx + (rounding if pure else ARMIJO * alpha * slope):
+                break
+            alpha *= 0.5
+        else:
+            ending = "no acceptable step"
+            break
+        last_pure = decrement if pure and alpha == 1.0 else None
+        x, fx, g = xn, fn, gn
+    if np.max(np.abs(projected_gradient(x, g, lower, upper))) <= pgtol:
+        return x, fx, g, step, "reached pgtol", probes
+    if entry[1] < fx:
+        x, fx, g = entry
+        ending += "; kept its entry point"
+    return x, fx, g, step, ending, probes

@@ -262,3 +262,29 @@ def test_lbfgsb_analytic_pass_on_a_clipped_quadratic():
                            gradient=lambda x: (f(x), a * (x - m)))
     assert np.allclose(climb.x, np.clip(m, lower, upper), rtol=0, atol=1e-6 / a.min())   # pg 1e-6 at curvature a
     assert climb.analytic_pg <= 1e-6 and climb.gradients > 0 and climb.phases[0][0] == "analytic"
+
+
+def test_newton_finish_on_an_ill_conditioned_box_quadratic():
+    """The analytic pass's finish reaches a known box-constrained optimum: coordinates 2 and 5 on the
+    lower bound, 3 on the upper, curvature from 1e-3 to 100. From the centre its steps are cut at
+    bounds; from the optimum with coordinate 0 moved onto the lower bound it must leave that bound."""
+    rng = np.random.default_rng(5)
+    R = np.linalg.qr(rng.normal(size=(6, 6)))[0]
+    A = R @ np.diag([1e-3, 1e-2, 0.1, 1.0, 10.0, 100.0]) @ R.T
+    lower, upper = np.full(6, -1.0), np.full(6, 1.0)
+    x_opt = np.array([0.3, -0.2, -1.0, 1.0, 0.5, -1.0])
+    c = x_opt - np.linalg.solve(A, np.array([0.0, 0.0, 0.05, -0.07, 0.0, 0.02]))   # gradient there pushes out
+
+    def fg(x):
+        return float(0.5 * (x - c) @ A @ (x - c)), A @ (x - c)
+
+    on_face = x_opt.copy()
+    on_face[0] = -1.0
+    for x0 in (np.zeros(6), on_face):
+        f0, g0 = fg(x0)
+        x, f, g, steps, ending, probes = opt._newton_finish(fg, lambda pts: [fg(p) for p in pts], x0, f0, g0,
+                                                            lower, upper, 1e-9, None)
+        assert ending == "reached pgtol" and 0 < steps <= opt.NEWTON_STEPS and probes > 0
+        assert f <= f0
+        assert np.allclose(x, x_opt, rtol=0, atol=1e-5)   # pg 1e-9 at curvature 1e-3 bounds the error by 1e-6
+        assert x[2] == -1.0 and x[3] == 1.0 and x[5] == -1.0
