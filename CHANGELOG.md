@@ -8,6 +8,19 @@ gate record and may run to 25 lines. The next session starts from the top entry.
 This is a fork of `iqtree/iqtree3`. Entries here describe work on the fork, not upstream
 development.
 
+## 2026-11-09: S5 gate begun; toy's z climbs fail A5(i); diagnosed
+
+- **Recorded.** `validate` at clean `feec3cd5` (`~/iqtree3-runs/s5-gate/20261108T233337Z-feec3cd5-validate/`):
+  V1, V1b, AG, V2, V3 pass (V3 deficit 9.3e-10, projected z-gradient 3.2e-8).
+- **Gate, toy `calibrate`** at clean `feec3cd5` (`20261109T011054Z-feec3cd5-toy-calibrate/`, 346 s): A4,
+  A5(ii) pass; A5(i) fails on Z_e (2.1e-5) and Z_e5 (1.3e-5), both ended by L-BFGS-B's zero-reduction
+  test. L = 1e-3 (spread 9.2e-10); N_d 10.6 and N_r 6.8 below Z_e, at round caps. Stopped; no `compare`.
+- **Diagnosis** (`explore/z_climb_diagnosis.py`, exploratory, 23 s): slope on interior coordinates only;
+  free Hessian positive definite, eigenvalues 3.7e-4 to 161; Newton decrement 1.6e-9. Restarted
+  L-BFGS-B gains one spacing of f (7.3e-12) or nothing and stops at 5.6e-6, 9.0e-6; one projected
+  Newton step (central Hessian) reaches 9.0e-8, 9.1e-9, the two endpoints then 1e-5 apart in z.
+- **Next.** Peter's call on the climber's remedy (PLAN.md); then `validate` and the gate from it.
+
 ## 2026-11-08: V3 diagnosed; the finish's Hessian made central; finish reviewed
 
 - **Recorded.** `validate` at clean `775dea60` (`~/iqtree3-runs/s5-gate/20261108T062232Z-775dea60-validate/`):
