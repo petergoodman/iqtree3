@@ -1,7 +1,8 @@
 # Plan: π-constrained non-reversible amino-acid models
 
-> **Status, 2026-11-09: S0 to S5 complete, so gates G0 to G3 and G4 as reduced by D01 are met (one
-> S5 comparison failed, counted and accepted by Peter, risk 27) and the branch is the first release
+> **Status, 2026-11-16: S0 to S5 complete, so gates G0 to G3 and G4 as reduced by D01 are met (one
+> S5 comparison failed, counted and accepted by Peter; its cause, retired risk 27, settled by
+> decision 039's revision) and the branch is the first release
 > candidate; next the simulation slices, SIM-1 first (decision 040); approach accepted by the
 > IQ-TREE maintainers (reported by Peter, 2026-10-01).**
 > Peter owns this document.
@@ -217,7 +218,6 @@ and S7's two bootstraps complete them. The slices run in the order decision 040 
 | 24 | Fits stop short of their peaks under IQ-TREE's stopping rules, for every model, so comparing two fits' scores (box against wide, NQC against NONREV, D08's arms) needs a convergence protocol. IQ-TREE's optimizer stays unchanged (decision 009). The stopping rules and S3c's measurements: `UPSTREAM_FINDINGS.md`, Risk 24 | Testing: S3c's first part (done 2026-10-25). Science: decision 039 |
 | 25 | Inputs for the simulation slices (decision 040). Before SIM-1: the size of the available real data (taxa, genes and their lengths; the real set itself is risk 9), the intended arrangement (`-S` or `-p`) and Level, the external data set for simulation trees and per-gene settings, and the source of the simulated composition. Before SIM-2's plan: the primary circulation statistic and the smallest effect of interest (decision 041), CLOAK's removal statistics from data outside the training and test sets (decision 040), and the range of target perturbations. Recommended: trees and per-gene settings from the mammal data of QMaker and nQMaker (public on Dryad), not OrthoMaM, the training and test source of Wheeler et al. 2025; total net flux over total flux as the statistic; CLOAK's removal statistics from BAliBASE, where CLOAK was benchmarked. The truth matrices (NQ.mammal, Q.mammal, LG) and the C20 and C60 profiles ship with IQ-TREE | Peter |
 | 26 | Compute: SIM-2 and S7 need a cluster. An unverified extrapolation from S3c (`docs/agent/archive/SIM_plan_2026-11-07.md`, Appendix C) gives SIM-2 about 5,000 to 10,000 core-hours and one NQC `-S` fit at 190 taxa and 1000 genes about 80 core-hours. In S3c's profiling NQC's first linked fit from LG took 5,000 to 13,000 evaluations and each later round 700 to 4,400, so a training run's cost is set by its first fit and its round count | Peter arranges UA HPC access; the agent writes the build and job scripts; Peter submits them |
-| 27 | Decision 039's check and SIM-1's outline (`CODE_PLAN.md` section 4) name the oracle's z climb (`lbfgsb_fit`) as the reference climb. In S5's gate, on aa_example, it met its first-order test (projected z-gradient 8.9e-7) 0.299 below the box's peak, which S5's flux reference reached from the same endpoint (A6, "W stopped short"; `CHANGELOG.md`, S5 close). No single lower-bound coordinate gains when moved inward (`explore/z_face_check.py`); the cause is undetermined. Where a check needs the peak, use the flux reference or several starts | Peter, before SIM-1's plan and before decision 039's check is used in SIM-2 or S7 |
 
 Retired risk numbers:
 
@@ -230,6 +230,7 @@ Retired risk numbers:
 | 8 | | joined 22 (2026-10-22) |
 | 19 | | settled by decision 038 (2026-10-22) |
 | 22 | NQC's production domain | settled 2026-10-25 by decision 007's revision, default [1e-5, 1e5] from S3c's first part's converged peaks |
+| 27 | the z climb (`lbfgsb_fit`) as reference climb | retired 2026-11-16 by decision 039's revision: on aa_example it passed its z-gradient test 0.30 below the peak because a near-zero flux hid the slope, and it did not converge on S5's exact problems (`explore/risk27_probe.py`); peaks are certified by `flux.certificate`, SIM-1's by the flux reference |
 
 ### Questions for the maintainers
 
@@ -318,7 +319,9 @@ audits' low findings are in `CODE_PLAN.md` section 4, "Known and left alone".
   validation and, on toy, toy300 and twopart, reached the peak that the z climbs from NQC's relaxed
   endpoint reached; on aa_example the z climb met its first-order test 0.299 below the reference's
   peak (A6 failed, counted; risk 27). NQC's own endpoints lay 0.92 to 10.6 below the peak, never
-  above it (gate record: `CHANGELOG.md`, S5 close).
+  above it (gate record: `CHANGELOG.md`, S5 close). That z climb's stop was an artifact of the
+  log-ratio chart, so an oracle endpoint now counts as a peak only when `flux.certificate` passes
+  (decision 039; retired risk 27).
 - **Plans:** simulation scope recorded (decisions 040, 041; reasons and literature in
   `docs/agent/archive/SIM_plan_2026-11-07.md`); S5's approved plan, survey and review are frozen in
   `docs/agent/archive/S5_plan_2026-11-07.md`.
@@ -326,7 +329,6 @@ audits' low findings are in `CODE_PLAN.md` section 4, "Known and left alone".
 ## Next step
 
 SIM-1 (decision 040; outline in `CODE_PLAN.md` section 4), planned in full in its own session in
-plan mode, as S5 was. Before that session Peter supplies risk 25's first inputs and decides risk 27,
-which fitter certifies a peak in SIM-1's checks.
+plan mode, as S5 was. Before that session Peter supplies risk 25's first inputs.
 
 The working rules are in `CODE_PLAN.md` section 4, "Implementation".

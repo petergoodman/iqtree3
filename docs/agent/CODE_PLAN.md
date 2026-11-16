@@ -21,7 +21,7 @@ Labels are those of PLAN.md. Source anchors refer to `63c330d9` and were verifie
 | `model/modelnonrevfixedeq.{h,cpp}` | S2 to S4 | Class `ModelNonrevFixedEq : public ModelProtein`, public name "NQC" held in one constant (decision 002; section 2.2); from S3b also `public LinkedModelHooks`, listed second |
 | `model/linkedmodelhooks.h` | S3b | Header only: the abstract `LinkedModelHooks` through which `PartitionModel::optimizeLinkedModel` lets a linked model check, differentiate and record its fits (decision 005; section 2.2, "Linked hooks"). A separate header because NQC's header is included by `model/modelmixture.cpp` and `partitionmodel.h` pulls in the super tree, so putting the interface in either would create an include cycle |
 | `unittest/` | S1 | Standalone CMake project that compiles `model/fixedeqchart.cpp` directly, with IQ-TREE's clang Release flags and the `model` target's SSE flags (verified, `CMakeLists.txt:420`, `711-718`, `984`), and fetches googletest 1.12.1 at cmaple's pinned commit, checked by the archive's SHA-256 (verified, `cmaple/CMakeLists.txt:283-293`; decision 012); `fixtures/`, 27 chart cases and `targets.txt` in plain text at 17 significant digits with a provenance header (section 3.2); its own `.gitattributes` (decision 014) |
-| `test_scripts/fixedeq/` | S0 onward | `environment.yml` and lock (decision 013); `oracle/`; `tests/`; drivers `regression/`, `differential/`, `probes/`, `sanitizer/`, `unittests/`, `nqc/` and `design_rerun.py`; `manifest/` (G0 manifest); `explore/` (exploratory measurements behind decisions 007, 021, 023, 025 and 038); `make_fixtures.py`; `.gitattributes` and `.gitignore`. Added in S3: `nqc/twopart.py`, the two-partition data (S3b); `explore/convergence.py`, the stopping study and risk 22's converged evidence, with `oracle/optimize.py`'s reference climber `lbfgsb_fit` (S3c's first part); `profile/profiling.py`, the profiling driver (S3c). Added in S4: the oracle's export functions (`chart.first_order_test`, `nqc.export_gradient`, `readers.read_qmat`, `readers.read_info`) and `tests/test_export.py`. Added in S5: `oracle/flux.py`, the balanced-flux reference (section 3.1), with `likelihood.log_likelihood_gradient`, `nqc.Objective.from_patterns`, the analytic gradients and `nqc.z_gradient`, `lbfgsb_fit`'s analytic pass, and `tests/test_oracle_flux.py`; the driver `reference/reference.py` with `tests/test_reference.py`; `explore/v3_diagnosis.py`, the exploratory diagnosis of validation's V3, `explore/z_climb_diagnosis.py`, that of the z climbs' unmet A5(i) on toy, and `explore/z_face_check.py`, the check of aa_example's z climb endpoint on the lower face |
+| `test_scripts/fixedeq/` | S0 onward | `environment.yml` and lock (decision 013); `oracle/`; `tests/`; drivers `regression/`, `differential/`, `probes/`, `sanitizer/`, `unittests/`, `nqc/` and `design_rerun.py`; `manifest/` (G0 manifest); `explore/` (exploratory measurements behind decisions 007, 021, 023, 025 and 038); `make_fixtures.py`; `.gitattributes` and `.gitignore`. Added in S3: `nqc/twopart.py`, the two-partition data (S3b); `explore/convergence.py`, the stopping study and risk 22's converged evidence, with `oracle/optimize.py`'s reference climber `lbfgsb_fit` (S3c's first part); `profile/profiling.py`, the profiling driver (S3c). Added in S4: the oracle's export functions (`chart.first_order_test`, `nqc.export_gradient`, `readers.read_qmat`, `readers.read_info`) and `tests/test_export.py`. Added in S5: `oracle/flux.py`, the balanced-flux reference (section 3.1), with `likelihood.log_likelihood_gradient`, `nqc.Objective.from_patterns`, the analytic gradients and `nqc.z_gradient`, `lbfgsb_fit`'s analytic pass, and `tests/test_oracle_flux.py`; the driver `reference/reference.py` with `tests/test_reference.py`; `explore/v3_diagnosis.py`, the exploratory diagnosis of validation's V3, `explore/z_climb_diagnosis.py`, that of the z climbs' unmet A5(i) on toy, and `explore/z_face_check.py`, the check of aa_example's z climb endpoint on the lower face. Added after S5: `flux.certificate` with its test, and `explore/risk27_probe.py`, the exploratory probe behind decision 039's revision (PLAN.md retired risk 27) |
 | `.github/workflows/fixedeq.yaml` | S1 | Fork-only workflow that builds and runs the unit tests and the oracle's tests on Linux, and from S2 a short NQC run |
 
 Run outputs never go into the working copy; they go under `~/iqtree3-runs/` in WSL. Fixtures and
@@ -464,7 +464,10 @@ The package is `test_scripts/fixedeq/oracle/`, and its tests use the pass lines 
     returns its entry point if that is higher (the 2026-11-08 review's fixes). SciPy's
     `trust-constr`, planned first, failed in development (decision 042). Recorded per fit: the KKT
     residual with bounded-least-squares multipliers, m·μ, evaluations, Hessian gradients, steps,
-    backtracks, dampings, re-centrings, the ending and wall time.
+    backtracks, dampings, re-centrings, the ending and wall time. That residual (`flux.kkt`)
+    minimizes over active thresholds, an all-rows fit included, so it is a record; the test is
+    `flux.certificate`, the same residual with the active rows fixed at normalized slack ≤ 1e-12
+    (decision 039, line in 021).
   - Certificate of the concave validation problems (decision 021): the Lagrangian duality gap
     D(η, ν) − F(f̂), D = bᵀη + Σ N_e(log(N_e/w_e) − 1), w = Cᵀη − Aᵀν > 0, ν ≥ 0, smallest over the
     barrier's multipliers ν = μ/(Af) and bounded least squares at several active sets, each weighted
@@ -477,7 +480,7 @@ The package is `test_scripts/fixedeq/oracle/`, and its tests use the pass lines 
     bound the gradient pushes against), spread over the driver's pool; a coordinate the step would
     push out of the box held for that step; the step cut at the first bound; `flux.py`'s finish's
     acceptance; at most 20 steps, its entry point kept if lower without the stop (decision 042,
-    `explore/z_climb_diagnosis.py`). SIM-1 reuses them on exact pattern frequencies; `site_log_likelihoods` still rebuilds
+    `explore/z_climb_diagnosis.py`). SIM-1 reuses the gradients and the flux reference, not the z climb (decision 039), on exact pattern frequencies; `site_log_likelihoods` still rebuilds
     the tip matrices on every call, slow at 160,000 patterns.
 
 ### 3.2 Layer 2: C++ unit tests
@@ -984,6 +987,9 @@ Known and left alone:
 - the report lines that cannot re-run an NQC fit (PLAN.md maintainer question 8);
 - the export diagnostic's evaluations (section 2.2), with no switch to skip them unless SIM-2 or
   S7 needs one (SIM-2 runs thousands of NQC fits, each paying them);
+- decision 009's label reads "first-order stationary" far from flux stationarity, at aa_example's
+  N_r (1.35 below the peak) and the z climb's Z_e (0.30 below; `explore/risk27_probe.py`), as a
+  z-gradient test certifies no peak;
 - `--link-alpha`, and `-Q` with `--model-joint` (which takes `-S`'s `PartitionModel` path), are
   tested by exit code and export files only (the `options` case);
 - after a tree search IQ-TREE checkpoints no final model (anchors in section 5), so `--undo`
@@ -1071,9 +1077,12 @@ SIM-1 (laptop):
   as NQC does is unverified;
   `nqc/toy.py`'s `simulate` (used by `nqc/twopart.py` and `profile/profiling.py`) already
   simulates this way.
-- The oracle's NQC objective with `lbfgsb_fit`, fitted to exact expected pattern frequencies on
-  3- and 4-taxon trees, returns the true Q (S5's direct-flux reference may serve as a second
-  fitter; which fitter certifies a peak is PLAN.md risk 27). Rough cost one to two hours a fit on 160,000 patterns (unverified).
+- The oracle's NQC objective, fitted by S5's flux reference to exact expected pattern frequencies
+  on 3- and 4-taxon trees, returns the true Q: `flux.certificate` (021), lnL against the truth and
+  a Q line above a rate floor set first, each truth checked inside the box (references from LG at
+  π*, decision 011). Not the z climb, which did not converge on V2 or V3 (decision 039). One
+  4-taxon fit is timed first: at V2's and V3's iteration counts (179 s and 621 s on 8,000
+  patterns), 1 to 3.5 h a fit on 160,000 patterns at 10 workers, near the 4 h cap (unverified).
 - The exact screen of misspecification with the same fits, each scenario built on a reversible and
   on an NQ.mammal-strength truth: global target shift, per-gene composition, site profiles mixed
   over the truth's exchange pattern, content-dependent residue masking; circulation per scenario;

@@ -8,6 +8,18 @@ gate record and may run to 25 lines. The next session starts from the top entry.
 This is a fork of `iqtree/iqtree3`. Entries here describe work on the fork, not upstream
 development.
 
+## 2026-11-16: risk 27 retired; peaks certified in flux space (decision 039)
+
+- **Probe** (`explore/risk27_probe.py`, exploratory, run 2026-11-09 at `ca28887d`; outputs in
+  `~/iqtree3-runs/risk27-probe/`): aa_example's Z_e is a chart artifact. Cysteine's dominant
+  destination is N at Z_e and K at the peak; C→K's flux at Z_e is 2e-10, so its z-gradient stays
+  under pgtol. Flux residual, active set fixed: 2169 at Z_e, 3.2e-8 at the peak. The z climb from LG
+  at π* stops at the same point; at pgtol 1e-9 its Newton finish reaches 0.0075 below in 20 steps;
+  on V2 and V3 it does not converge (pg 3.6, 0.013), where the flux reference did.
+- **Dropped:** `flux.kkt` as the test; its all-rows fit passed N_d (7.6e-7), 1.48 below the peak.
+- **Changed (Peter):** `flux.certificate` and its test (pytest 333 passed); decisions 039 and 021
+  (line 1e-9 max(1, |lnL|)); risk 27 retired; SIM-1's outline. **Next.** Risk 25's inputs, then SIM-1.
+
 ## 2026-11-09: S5 closed; gate at `13799127`
 
 Gate record (binary `25d78d6e`, AliSim baseline; outputs `~/iqtree3-runs/s5-gate/20261109T*-13799127-*`):

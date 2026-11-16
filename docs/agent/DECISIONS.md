@@ -155,16 +155,16 @@ infrastructure.
 
 **Rule.** NQC's matrix fit uses NONREV's optimization process (IQ-TREE's optimizer and round
 rules) unless there is a clear reason to depart; problems found in it are noted for the
-maintainers, not fixed. SIM-2's plan and S7's confirmatory plan require, for every compared fit,
-one declared stopping setting, each fit's ending rule reported, and a check that the conclusions
-survive relaxed settings or a reference climb (the oracle's `lbfgsb_fit`) on a subset.
-**Why.** S3c's first part: endpoints 0.77 to 4.2 below converged peaks at default settings, 0.67
-to 2.5 after 300 relaxed rounds (one step a round), more than the domain's cost; where fits stop
-reversed a comparison in two of three cases. Every endpoint is still a valid matrix.
-**Not chosen.** IQ-TREE's existing L-BFGS-B routine for NQC (a departure from NONREV), revisited
-if SIM-1's pilot, SIM-2 or S7's pilot shows arm differences the size of the stopping shortfall,
-a few log-likelihood units; relaxed settings alone (still short, at 5 to 12 times the time).
-**Since** 2026-10-25 (Peter); SIM-1 and SIM-2 added 2026-11-07 (040).
+maintainers, not fixed. SIM-2's and S7's plans require, for every compared fit, one declared
+stopping setting, each fit's ending rule and a check that conclusions survive relaxed settings or
+a reference fit on a subset. An oracle endpoint is a peak only if `flux.certificate` passes
+(021); SIM-1's reference fit is the flux reference (042); SIM-2's plan sets the one at scale.
+**Why.** S3c: endpoints 0.77 to 4.2 below converged peaks at defaults, 0.67 to 2.5 after 300
+relaxed rounds; where fits stop reversed two of three comparisons. Risk 27: the z climb passed its
+test 0.30 below aa_example's peak (a near-zero flux hid the slope) and did not converge on V2, V3.
+**Not chosen.** IQ-TREE's L-BFGS-B for NQC, revisited if a pilot or SIM-2 shows arm differences the
+size of the stopping shortfall; relaxed settings alone (5 to 12 times the time); `lbfgsb_fit`.
+**Since** 2026-10-25 (Peter); SIM 2026-11-07 (040); reference fit 2026-11-16 (Peter, risk 27).
 
 ### 040. Validate the estimator by simulation in two slices after S5
 
@@ -429,6 +429,7 @@ files, not from the log, and IQ-TREE's printed final score is reported, not comp
 | S5 same peak: from NQC's relaxed endpoint, the reference against the z climb; the reference from NQC's start against from its endpoint; NQC's default and relaxed endpoints not above the reference's peak from its start | L = max(1e-3, 10 × s), s the spread of two z climbs (L-BFGS-B memory 20 and 5) from NQC's relaxed endpoint, recorded before any flux fit | 042 (Peter) |
 | S5 validation, concave flux problems, open and with binding ratio constraints at a known optimum | duality gap D(η, ν) − F(f̂) ≤ 1e-9 × \|F\|, D the Lagrangian dual at any η and ν ≥ 0 with C^T η − A^T ν > 0, which bounds f̂'s optimality gap | 042 (Peter, 2026-11-07) |
 | S5 validation, exact pattern frequencies at N = 10⁶ sites | lnL deficit against the truth ≤ 1e-3 | 042 |
+| Flux-space certificate at an oracle endpoint read as a peak, from SIM-1 (`flux.certificate`, active rows at normalized slack ≤ 1e-12) | residual ≤ 1e-9 × max(1, \|lnL\|) | 039 (Peter, 2026-11-16) |
 
 h_k is the step's displacement (`CODE_PLAN.md` section 2.1); for the export's central differences,
 h⁺_k + h⁻_k. S4 applies the compiled-Q row to the exported Q and the residual row to its file. The
@@ -438,7 +439,8 @@ max(1, |g_ref|), reported at a near-zero start; the oracle reports its central d
 in the archive (1e-10: the synthesis's goal, section 4.3; the κ-scaled Q line: two correct routes).
 **Since** 2026-10-04; merged 026 (2026-10-05), 030 and 034 item 7 (2026-10-20) and 036's
 measure, its claim withdrawn (2026-10-22); later rows are identified in the Set by column; last
-revised 2026-11-07 (S5's rows, 042; the concave row's statistic, Peter).
+revised 2026-11-07 (S5's rows, 042; the concave row's statistic, Peter); the certificate row
+2026-11-16 (039).
 
 ### 012. Test the pure module with googletest in a standalone CMake project
 

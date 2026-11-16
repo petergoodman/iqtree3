@@ -253,7 +253,9 @@ def _multipliers(f, gf, domain, threshold, divisor=None):
 
 def kkt(f, gf, domain):
     """The KKT residual at f, recorded per fit: r = d objective / df - C^T eta + A_act^T nu with the
-    multipliers of _multipliers, for the threshold in KKT_THRESHOLDS giving the smallest ||r||_inf."""
+    multipliers of _multipliers, for the threshold in KKT_THRESHOLDS giving the smallest ||r||_inf.
+    A record, not a test: the "all rows" fit drops complementarity (risk 27's probe: 7.6e-7 at an
+    NQC endpoint 1.48 below aa_example's peak); certificate is the test."""
     best = None
     for t in KKT_THRESHOLDS:
         act, eta, nu, fitted = _multipliers(f, gf, domain, t)
@@ -262,6 +264,16 @@ def kkt(f, gf, domain):
             best = {"residual": r, "threshold": t if math.isfinite(t) else "all rows", "active": int(len(act)),
                     "complementarity": float(nu @ (domain.A[act] @ f)), "gradient_norm": float(np.max(np.abs(gf)))}
     return best
+
+
+def certificate(f, gf, domain, threshold=1e-12):
+    """Decision 039's flux-space first-order test (line in 021): max |d objective / df - C^T eta +
+    A_act^T nu|, nu >= 0, the active rows fixed as those with normalized slack <= threshold. Unlike a
+    z-gradient, it does not shrink with a flux, so it fails where a near-zero flux should grow
+    (PLAN.md risk 27, retired)."""
+    act, _, nu, fitted = _multipliers(f, gf, domain, threshold)
+    return {"residual": float(np.max(np.abs(gf - fitted))), "active": int(len(act)),
+            "complementarity": float(nu @ (domain.A[act] @ f))}
 
 
 def duality_gap(f, N, domain, mu=None):

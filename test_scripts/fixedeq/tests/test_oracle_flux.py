@@ -221,6 +221,15 @@ def test_v1b_binding_ratio_constraints_at_a_known_optimum():
     assert max(flux.residuals(r.f, pi).values()) <= 1e-10
 
 
+def test_certificate_passes_a_known_optimum_and_fails_elsewhere():
+    rng = np.random.default_rng(11)
+    pi, Qs, dom, fstar, N = kkt_problem(4, rng, 2, 1)
+    F = float(N @ np.log(fstar))
+    assert flux.certificate(fstar, N / fstar, dom)["residual"] <= 1e-9 * abs(F)
+    other = kkt_problem(4, rng, 2, 1)[4]
+    assert flux.certificate(fstar, other / fstar, dom)["residual"] >= 1.0
+
+
 @pytest.mark.parametrize("n", [3, 4])
 def test_v2_exact_frequencies_recover_the_truth(n):
     rng = np.random.default_rng(200 + n)
