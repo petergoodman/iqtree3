@@ -1065,8 +1065,8 @@ counts iterations begun.
 SIM-1 and SIM-2, outlines to be planned in full in their own sessions, as S5's was (order in
 decision 040, gates in PLAN.md; the reasons and literature are frozen in
 `docs/agent/archive/SIM_plan_2026-11-07.md`, read only where these outlines are unclear). In
-these two outlines π* denotes the simulated target composition of PLAN.md risk 25, never the real
-target.
+these two outlines π* denotes the simulated composition, NQ.bird's stationary distribution
+(decision 040), never the real target.
 
 SIM-1 (laptop):
 - Exact check of AliSim from an exported `.qmat` through `-m FILE`: about a million sites on a
@@ -1084,21 +1084,27 @@ SIM-1 (laptop):
   4-taxon fit is timed first: at V2's and V3's iteration counts (179 s and 621 s on 8,000
   patterns), 1 to 3.5 h a fit on 160,000 patterns at 10 workers, near the 4 h cap (unverified).
 - The exact screen of misspecification with the same fits, each scenario built on a reversible and
-  on an NQ.mammal-strength truth: global target shift, per-gene composition, site profiles mixed
+  on an NQ.bird-strength truth: global target shift, per-gene composition, site profiles mixed
   over the truth's exchange pattern, content-dependent residue masking; circulation per scenario;
   it selects SIM-2's scenarios. The design documents ran a three-state version (P-positive section
   8, check 11).
-- The pipeline: a truth family dialling circulation from zero to NQ.mammal strength at fixed
+- The pipeline: a truth family dialling circulation from zero to NQ.bird strength at fixed
   composition (scaling the antisymmetric part of the balanced flux within positivity, a
-  proposal); trees and per-gene settings from the data set of PLAN.md risk 25; AliSim runs with
-  one recorded seed per repetition and provenance; metrics; reusing `nqc/toy.py`'s helpers.
-- A pilot for Monte Carlo standard errors and cost; SIM-2's plan written as section 3.8 in ADEMP
+  proposal); trees and per-gene settings from the bird data of QMaker and nQMaker (decision 040;
+  nQMaker's Dryad deposit, unverified until fetched); AliSim runs with one recorded seed per
+  repetition and provenance, every simulated gene carrying the scaffold tree's species names so
+  that `-p` matches genes, and no run's files colliding with another's (a caution from the
+  maintainers, via Peter; AliSim's naming not yet read); metrics; reusing `nqc/toy.py`'s helpers.
+- A pilot for Monte Carlo standard errors and cost, varying taxa and columns (the maintainers
+  suggested more sequences and variable columns; the exact checks stay at 3 and 4 taxa, since the
+  patterns number 20^taxa); SIM-2's plan written as section 3.8 in ADEMP
   form (Morris et al. 2019) before any large run, reporting failed fits and every failed
   validation attempt (Mendes et al. 2024), and approved by Peter.
 
 SIM-2 (cluster; decisions 039, 040, 041), per section 3.8 once approved:
-- Lean recovery: reversible and NQ.mammal-strength truths at π*; 30, 100, 300 and 1000 genes;
-  Level 1 on true trees, one size at Level 2; starts LG at π*, the GTR20 fit and a distant start;
+- Lean recovery: reversible and NQ.bird-strength truths at π*; 30, 100, 300 and 1000 genes; `-p`
+  on the true rooted tree, Level 1, one size at Level 2 (decision 043); starts LG at π*, the GTR20
+  fit and a distant start;
   per-rate log error (Pearson correlation alone hides twofold errors in small rates, Tinh et al.
   2024), net-flux error, held-out log-likelihood against the truth, ending rules and
   relaxed-setting checks.

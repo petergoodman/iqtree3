@@ -8,6 +8,18 @@ gate record and may run to 25 lines. The next session starts from the top entry.
 This is a fork of `iqtree/iqtree3`. Entries here describe work on the fork, not upstream
 development.
 
+## 2026-11-16: risk 25's SIM-1 inputs settled; study fit design (decision 043)
+
+- **Settled (Peter).** Study data OrthoMaM v12 expected, about 1,000 training alignments; `-p` at
+  Level 2 on a fixed, rooted species tree, which is also 016's scientific root policy (043).
+  Simulation from bird data (QMaker's set: 52 taxa, mean 545 columns), truths NQ.bird, Q.bird and
+  LG at NQ.bird's composition; no mammal-derived scaffold or truths, Pfam ruled out (no shared
+  species tree; NQ.pfam lost to Q.pfam in nQMaker) (040). Statistic C, summed net flux over total
+  flux (041). Sources read: QMaker, nQMaker, Wheeler et al. (MBE), IQ-TREE's partition guidance.
+- **Maintainers (via Peter).** More sequences and variable columns go to SIM-1's pilot and SIM-2,
+  not the exact checks (20^taxa patterns); AliSim naming checked in SIM-1's pipeline.
+- **Next.** Plan SIM-1; risk 25's open items (effect size, perturbations, CLOAK, a taxa arm) by SIM-2's plan.
+
 ## 2026-11-16: risk 27 retired; peaks certified in flux space (decision 039)
 
 - **Probe** (`explore/risk27_probe.py`, exploratory, run 2026-11-09 at `ca28887d`; outputs in

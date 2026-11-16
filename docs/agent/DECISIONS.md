@@ -169,31 +169,47 @@ size of the stopping shortfall; relaxed settings alone (5 to 12 times the time);
 ### 040. Validate the estimator by simulation in two slices after S5
 
 **Rule.** Two simulation slices follow S5 (contents: PLAN.md's slice table, `CODE_PLAN.md`
-section 4): SIM-1, then SIM-2, whose cluster runs may overlap S6 if S6 changes no code NQC's
-fits use; both close before S7. SIM-2 runs only after Peter approves its written plan
-(`CODE_PLAN.md` section 3.8, written in SIM-1). Trees, per-gene settings and removal statistics
-used in simulation come from data outside the confirmatory training and test sets. S7 adds 041's
-null bootstrap and a recovery bootstrap from the real NQC fit.
-**Why.** QMaker and nQMaker validate only on held-out data, and no source found measures
-circulation under a wrong target (`docs/agent/archive/SIM_plan_2026-11-07.md`). The slices need
-nothing from S6, and fits to exact pattern frequencies choose SIM-2's scenarios first.
-**Not chosen.** Simulation inside S7; simulating root placement, non-stationary lineages or
-realignment with CLOAK; a second simulator; an estimated-target arm; full-workflow recovery.
-**Since** 2026-11-07 (Peter).
+section 4): SIM-1, then SIM-2, whose cluster runs may overlap S6 if S6 changes no code NQC's fits
+use; both close before S7; SIM-2 runs only once Peter approves its plan (section 3.8, from SIM-1).
+Trees, per-gene settings, truths (NQ.bird, Q.bird, LG) and composition (NQ.bird's) come from bird
+data, removal statistics from outside the mammal study data. S7 adds 041's null bootstrap and a
+recovery bootstrap from the real NQC fit.
+**Why.** QMaker and nQMaker validate only on held-out data; no source found measures circulation
+under a wrong target (archive, SIM plan); the slices need nothing from S6; exact fits pick SIM-2's
+scenarios. Mammal-derived truths would presuppose the answer; S7's bootstraps carry the study data.
+**Not chosen.** Simulation inside S7; simulating root placement, non-stationary lineages or CLOAK
+realignment; a second simulator; an estimated-target arm; full-workflow recovery; mammal or Pfam data.
+**Since** 2026-11-07 (Peter); bird data 2026-11-16 (Peter).
 
 ### 041. Judge non-reversibility by its size against simulated distributions
 
 **Rule.** Non-reversibility is claimed from one primary circulation statistic, fixed before any
-real data are read, compared with its distribution under reversible truths: SIM-2's
-false-circulation scenarios and, decisively, S7's parametric bootstrap from the real cleaned
-data's reversible fit. The likelihood-ratio statistic is reported, not used as the test.
+real data are read: C = Σ_{i<j} |f_ij − f_ji| / Σ_{i≠j} f_ij, f_ij = π*_i q_ij, 0 when reversible.
+C is compared with its distribution under reversible truths: SIM-2's false-circulation scenarios
+and, decisively, S7's parametric bootstrap from the real cleaned data's reversible fit. The
+likelihood-ratio statistic is reported, not used as the test.
 **Why.** At about a million columns any misspecification makes the test significant; a 5% tail
 needs hundreds of full-scale replicates; chi-square references need not hold (D09 item 5).
 Held-out likelihood does not guard against a wrong target, which shifts training and test data
-alike.
+alike. C is scale-free and reads as the share of all flux that is net one-way flow.
 **Not chosen.** A likelihood-ratio test calibrated by parametric bootstrap at 5%; chi-square
-references.
-**Since** 2026-11-07 (Peter).
+references; per-pair net fluxes as the primary statistic.
+**Since** 2026-11-07 (Peter); C 2026-11-16 (Peter, on the agent's recommendation).
+
+### 043. Fit the study with `-p` at Level 2 on a fixed, rooted species tree
+
+**Rule.** The study's empirical fits (S7; about 1,000 training alignments, OrthoMaM v12 expected)
+use the edge-linked partition model (`-p`) at Level 2, the matrix alternated with branch lengths
+and rate parameters, on a fixed, rooted species tree; SIM-2's fits use `-p` on the true rooted
+tree (Level 1, one size at Level 2). This is 016's root policy for scientific runs: the species
+tree's root, not searched.
+**Why.** QMaker and nQMaker fitted clade data with `-p`; IQ-TREE recommends `-p` for typical
+analyses; a non-reversible likelihood needs one defensible root, which `-S` gene trees rooted one
+by one (016) lack. Level 2 is nQMaker's step 3, the step NQC changes. Accepted cost: about 31% of
+mammal ortholog gene trees disagree with the species tree (Wheeler et al.), which `-p` ignores.
+**Not chosen.** `-S` (a sensitivity arm is S7's to decide); Level 1 (branch lengths from another
+model); Level 3 (S6's driver, up to three rounds); a topology estimated within the study.
+**Since** 2026-11-16 (Peter).
 
 ## Model class
 
@@ -345,12 +361,12 @@ becomes Q. The maintainers advised caution with changes to `ModelMarkov`.
 (midpoint of the longest path, or the `-o` outgroup's branch); a rooted one keeps its root. No
 root-edge search: fits run under `-te` without tree search or `--root-find`, and `--root-test` is
 refused (008). The root split is fixed in Level 1 (`-blfix`) and left to IQ-TREE's branch-length
-optimization in Level 2. The policy for scientific runs is set at gate G5.
+optimization in Level 2. The policy for scientific runs is 043's.
 **Why.** A non-reversible likelihood depends on the root, so comparisons need a stated policy
 (synthesis section 7.5); this inherits nQMaker's practice under `-te`. S0 probe (f) found the
 root unchanged.
 **Not chosen.** Searching the root; requiring an outgroup; fixing the split in Level 2.
-**Since** 2026-10-03; the `--root-test` reference 2026-10-30 (wording only).
+**Since** 2026-10-03; the `--root-test` reference 2026-10-30 (wording only); scientific runs 043.
 
 ### 024. Run Level 1 with existing options
 

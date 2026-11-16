@@ -116,7 +116,7 @@ target.
 
 Deferred, still in the project: the simulation slices SIM-1 and SIM-2 (decision 040); target-rebuilt guide
 candidates, fixed learned candidates in ModelFinder, the reversible/non-reversible mixing guard,
-the root policy for scientific runs (decision 016), incumbent protection and an optional Level 3
+incumbent protection and an optional Level 3
 outer driver (S6, gate G5's remaining conditions); domain sensitivity of the scientific fits (S3a
 and S3b report it on test data for risk 22), multiple starts, held-out evaluation, the parametric
 bootstraps of decisions 040 and 041, and gene resampling of π* as a sensitivity analysis, since
@@ -170,8 +170,8 @@ smoothing, and the vector at 17 significant digits. For the turtle test data the
 below the 8 decimals IQ-TREE prints (baseline runs 8 and 9). The real π* is computed only after
 the confirmatory plan is in the repository, because computing it reads the training data. S0 to
 S4 use the test target of decision 023, recorded at 17 significant digits in the G0 manifest
-(`test_scripts/fixedeq/manifest/g0_manifest.md`). SIM-1 and SIM-2 simulate at a composition
-taken from data outside the confirmatory sets (risk 25), never at the real π*. The oracle's port
+(`test_scripts/fixedeq/manifest/g0_manifest.md`). SIM-1 and SIM-2 simulate at NQ.bird's
+stationary distribution (decision 040), never at the real π*. The oracle's port
 of the estimator is checked in `CODE_PLAN.md` section 3.1.
 
 The model receives the target as `NQC+F{p1,...,p20}` or `NQC+F<NAME>` (decision 006). With
@@ -216,7 +216,7 @@ and S7's two bootstraps complete them. The slices run in the order decision 040 
 | 11 | Scientific success criterion and manuscript details (placeholder above) | Peter, with SIM-2's reference distributions (decision 041) |
 | 23 | Reported by the S3 plan's review, not verified: resuming an `-S` tree search with `+I+G` may restore stale top-level model keys, for every model (`UPSTREAM_FINDINGS.md`, Risk 23). Outside S3's validation paths, which use `-te` | Checked before it becomes a question for the maintainers |
 | 24 | Fits stop short of their peaks under IQ-TREE's stopping rules, for every model, so comparing two fits' scores (box against wide, NQC against NONREV, D08's arms) needs a convergence protocol. IQ-TREE's optimizer stays unchanged (decision 009). The stopping rules and S3c's measurements: `UPSTREAM_FINDINGS.md`, Risk 24 | Testing: S3c's first part (done 2026-10-25). Science: decision 039 |
-| 25 | Inputs for the simulation slices (decision 040). Before SIM-1: the size of the available real data (taxa, genes and their lengths; the real set itself is risk 9), the intended arrangement (`-S` or `-p`) and Level, the external data set for simulation trees and per-gene settings, and the source of the simulated composition. Before SIM-2's plan: the primary circulation statistic and the smallest effect of interest (decision 041), CLOAK's removal statistics from data outside the training and test sets (decision 040), and the range of target perturbations. Recommended: trees and per-gene settings from the mammal data of QMaker and nQMaker (public on Dryad), not OrthoMaM, the training and test source of Wheeler et al. 2025; total net flux over total flux as the statistic; CLOAK's removal statistics from BAliBASE, where CLOAK was benchmarked. The truth matrices (NQ.mammal, Q.mammal, LG) and the C20 and C60 profiles ship with IQ-TREE | Peter |
+| 25 | Inputs for SIM-2's plan (decision 040). Settled 2026-11-16 (Peter): the study data, OrthoMaM v12 expected (Wheeler et al.: 190 species, 6,769 loci; the exact set is risk 9), about 1,000 training alignments, most of 100 to 2,000 columns; the fit design (decision 043); bird data, truths and composition (040); the statistic C (041). Open: the smallest effect of interest (041), the range of target perturbations, CLOAK's removal statistics (recommended: from BAliBASE, where CLOAK was benchmarked), and whether a larger-tree arm near 190 species joins the 52-taxon bird scaffold (the maintainers suggested more sequences, in conversation with Peter) | Peter, before SIM-2's plan |
 | 26 | Compute: SIM-2 and S7 need a cluster. An unverified extrapolation from S3c (`docs/agent/archive/SIM_plan_2026-11-07.md`, Appendix C) gives SIM-2 about 5,000 to 10,000 core-hours and one NQC `-S` fit at 190 taxa and 1000 genes about 80 core-hours. In S3c's profiling NQC's first linked fit from LG took 5,000 to 13,000 evaluations and each later round 700 to 4,400, so a training run's cost is set by its first fit and its round count | Peter arranges UA HPC access; the agent writes the build and job scripts; Peter submits them |
 
 Retired risk numbers:
@@ -329,6 +329,6 @@ audits' low findings are in `CODE_PLAN.md` section 4, "Known and left alone".
 ## Next step
 
 SIM-1 (decision 040; outline in `CODE_PLAN.md` section 4), planned in full in its own session in
-plan mode, as S5 was. Before that session Peter supplies risk 25's first inputs.
+plan mode, as S5 was; risk 25's open inputs are needed only by SIM-2's plan.
 
 The working rules are in `CODE_PLAN.md` section 4, "Implementation".
