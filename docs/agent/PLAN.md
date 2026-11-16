@@ -3,8 +3,8 @@
 > **Status, 2026-11-16: S0 to S5 complete, so gates G0 to G3 and G4 as reduced by D01 are met (one
 > S5 comparison failed, counted and accepted by Peter; its cause, retired risk 27, settled by
 > decision 039's revision) and the branch is the first release
-> candidate; next the simulation slices, SIM-1 first (decision 040); approach accepted by the
-> IQ-TREE maintainers (reported by Peter, 2026-10-01).**
+> candidate; SIM-1, the first simulation slice, is planned (decision 040) and next to implement;
+> approach accepted by the IQ-TREE maintainers (reported by Peter, 2026-10-01).**
 > Peter owns this document.
 
 This is the project's living core document: what we are building and why, the constraints the
@@ -201,7 +201,7 @@ and S7's two bootstraps complete them. The slices run in the order decision 040 
 | S3c | G3 | Stopping, risk 22's evidence, cost against NONREV | first part: the stopping study's asserted checks and the converged risk 22 evidence (`CODE_PLAN.md` section 4); then profiling against NONREV within its blocking threshold, or, above 3 per fit, fixed in NQC's code or accepted by Peter; any ratio above 1.25 per evaluation or 2 per fit explained (risks 5, 18, 24) | done 2026-10-26 (first part 2026-10-25, domain `0e9fb159`; profiling gate at `0b0048af`) |
 | S4 | G3 | Export, re-import and report | export then `-m FILE` reproduces the log-likelihood of a Level 1 fit; metadata complete; first release candidate | done 2026-10-27 (`a0ebf5cf`); first release candidate |
 | S5 | G4, as reduced by D01 | Independent reference | D10's direct balanced-flux fit in Python (decision 042) passes its known-answer validation; on four small Level 1 problems it reaches, from NQC's start and from NQC's relaxed endpoint, the peak NQC's own chart reaches, within the calibrated line, with every compared fit converged and NQC's endpoints not above that peak; failures counted; comparison report (`CODE_PLAN.md` sections 3.1, 3.3, 4) | done 2026-11-09 (gate at `13799127`); aa_example's A6 failed, labelled "W stopped short", counted and accepted by Peter (risk 27) |
-| SIM-1 | G5 (simulation support), G6 (part) | Simulator check and exact screen (proposed) | AliSim from an exported matrix passes the exact pattern check, or its fallback does; the oracle's NQC objective fitted to exact pattern frequencies returns the true Q within pass lines set first (decision 021); the screen's circulation tabled per scenario; pipeline and pilot run; SIM-2's plan written (`CODE_PLAN.md` section 3.8) and approved by Peter | not started |
+| SIM-1 | G5 (simulation support), G6 (part) | Simulator check, exact recovery and screen, pipeline and pilot | AliSim's two-taxon exact check (three joint-law configurations, the root composition, frozen and gate binaries byte-identical) passes, or its fallback does; the oracle's NQC objective fitted to exact pattern frequencies returns the true Q in R1 to R6 within decision 021's SIM-1 rows; the screen's 14 fits tabled with flags and follow-ups; bird scaffold committed; pipeline with its reproducibility and wiring checks; pilot run; SIM-2's plan written (`CODE_PLAN.md` section 3.8) and approved by Peter | planned 2026-11-16 |
 | SIM-2 | G6 (part) | Simulation study (proposed) | the approved plan's studies run at the pilot's replicate counts, failed fits counted, results with Monte Carlo standard errors; outputs for S7's confirmatory plan: reference distributions of the circulation statistic (decision 041), the stopping setting (decision 039), how much of the available data the fit needs | not started |
 | S6 | G5 | Workflow | candidate-set and mixing-guard tests; G5's remaining conditions | not started |
 | S7 | G6 | Science | the confirmatory plan's checks, with decision 039's convergence protocol; the parametric bootstraps of decisions 040 and 041 and the gene resampling of π*; G6's remaining conditions | not started |
@@ -216,8 +216,8 @@ and S7's two bootstraps complete them. The slices run in the order decision 040 
 | 11 | Scientific success criterion and manuscript details (placeholder above) | Peter, with SIM-2's reference distributions (decision 041) |
 | 23 | Reported by the S3 plan's review, not verified: resuming an `-S` tree search with `+I+G` may restore stale top-level model keys, for every model (`UPSTREAM_FINDINGS.md`, Risk 23). Outside S3's validation paths, which use `-te` | Checked before it becomes a question for the maintainers |
 | 24 | Fits stop short of their peaks under IQ-TREE's stopping rules, for every model, so comparing two fits' scores (box against wide, NQC against NONREV, D08's arms) needs a convergence protocol. IQ-TREE's optimizer stays unchanged (decision 009). The stopping rules and S3c's measurements: `UPSTREAM_FINDINGS.md`, Risk 24 | Testing: S3c's first part (done 2026-10-25). Science: decision 039 |
-| 25 | Inputs for SIM-2's plan (decision 040). Settled 2026-11-16 (Peter): the study data, OrthoMaM v12 expected (Wheeler et al.: 190 species, 6,769 loci; the exact set is risk 9), about 1,000 training alignments, most of 100 to 2,000 columns; the fit design (decision 043); bird data, truths and composition (040); the statistic C (041). Open: the smallest effect of interest (041), the range of target perturbations, CLOAK's removal statistics (recommended: from BAliBASE, where CLOAK was benchmarked), and whether a larger-tree arm near 190 species joins the 52-taxon bird scaffold (the maintainers suggested more sequences, in conversation with Peter) | Peter, before SIM-2's plan |
-| 26 | Compute: SIM-2 and S7 need a cluster. An unverified extrapolation from S3c (`docs/agent/archive/SIM_plan_2026-11-07.md`, Appendix C) gives SIM-2 about 5,000 to 10,000 core-hours and one NQC `-S` fit at 190 taxa and 1000 genes about 80 core-hours. In S3c's profiling NQC's first linked fit from LG took 5,000 to 13,000 evaluations and each later round 700 to 4,400, so a training run's cost is set by its first fit and its round count | Peter arranges UA HPC access; the agent writes the build and job scripts; Peter submits them |
+| 25 | Inputs for SIM-2's plan (decision 040). Settled 2026-11-16 (Peter): the study data, OrthoMaM v12 expected (Wheeler et al.: 190 species, 6,769 loci; the exact set is risk 9), about 1,000 training alignments, most of 100 to 2,000 columns; the fit design (decision 043); bird data, truths and composition (040); the statistic C (041). Open: the smallest effect of interest (041), the range of target perturbations, CLOAK's removal statistics (recommended: from BAliBASE, where CLOAK was benchmarked), whether a larger-tree arm near 190 species joins the 52-taxon bird scaffold (the maintainers suggested more sequences, in conversation with Peter), and whether SIM-2 carries a gene-tree discordance arm (SIM-1's screen informs it) | Peter, before SIM-2's plan |
+| 26 | Compute: SIM-2 and S7 need a cluster. An unverified extrapolation from S3c (`docs/agent/archive/SIM_plan_2026-11-07.md`, Appendix C) gives SIM-2 about 5,000 to 10,000 core-hours and one NQC `-S` fit at 190 taxa and 1000 genes about 80 core-hours. In S3c's profiling NQC's first linked fit from LG took 5,000 to 13,000 evaluations and each later round 700 to 4,400, so a training run's cost is set by its first fit and its round count. SIM-1's pilot measures cost on the bird scaffold | Peter arranges UA HPC access; the agent writes the build and job scripts; Peter submits them |
 
 Retired risk numbers:
 
@@ -324,11 +324,14 @@ audits' low findings are in `CODE_PLAN.md` section 4, "Known and left alone".
   (decision 039; retired risk 27).
 - **Plans:** simulation scope recorded (decisions 040, 041; reasons and literature in
   `docs/agent/archive/SIM_plan_2026-11-07.md`); S5's approved plan, survey and review are frozen in
-  `docs/agent/archive/S5_plan_2026-11-07.md`.
+  `docs/agent/archive/S5_plan_2026-11-07.md`. SIM-1 is planned: specification in `CODE_PLAN.md`
+  section 3.8, transport rule decision 044, pass lines in 021; the approved plan, with its planning
+  measurements and review, is frozen in `docs/agent/archive/SIM1_plan_2026-11-16.md`.
 
 ## Next step
 
-SIM-1 (decision 040; outline in `CODE_PLAN.md` section 4), planned in full in its own session in
-plan mode, as S5 was; risk 25's open inputs are needed only by SIM-2's plan.
+SIM-1's implementation from its commit 2 (`CODE_PLAN.md` section 3.8 and section 4's SIM-1 list), in a
+new session started in plan mode, as S5's was; the long runs span sessions. Risk 25's open inputs are
+asked for at SIM-1's close, before SIM-2's plan.
 
 The working rules are in `CODE_PLAN.md` section 4, "Implementation".

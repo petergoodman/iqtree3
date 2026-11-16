@@ -8,6 +8,18 @@ gate record and may run to 25 lines. The next session starts from the top entry.
 This is a fork of `iqtree/iqtree3`. Entries here describe work on the fork, not upstream
 development.
 
+## 2026-11-16 (third session): SIM-1 planned (decision 044)
+
+- **Done.** SIM-1 planned: AliSim's two-taxon exact check, exact recovery R1 to R6, a 14-fit screen, bird
+  scaffold, pipeline, pilot (CODE_PLAN 3.1, 3.8, 4, 5; 021's rows; PLAN.md; archive). Peter chose a
+  3-taxon screen with conditional 4-taxon repeats, T3 transport (044), 5 pilot replicates, a 10% flag,
+  a discordance scenario.
+- **Measured** (exploratory, in memory): truths inside the box; NQ.bird's C 0.0577; a gradient 43 ms at
+  8,000 patterns, 0.82 s at 160,000; the check's power. AliSim read: root at π solved from Q.
+- **Review:** 1 blocker (partition rates by plain, not site-weighted, mean), 8 major, 13 minor; folded in.
+- **Failed.** A stray `python3 -` hit Windows' Store alias with no input (no code ran) and left a file in
+  `/tmp`, removed; my 4-taxon cost estimate was three times low. **Next.** SIM-1's commit 2, new session.
+
 ## 2026-11-16: risk 25's SIM-1 inputs settled; study fit design (decision 043)
 
 - **Settled (Peter).** Study data OrthoMaM v12 expected, about 1,000 training alignments; `-p` at

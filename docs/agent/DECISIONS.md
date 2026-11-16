@@ -211,6 +211,19 @@ mammal ortholog gene trees disagree with the species tree (Wheeler et al.), whic
 model); Level 3 (S6's driver, up to three rounds); a topology estimated within the study.
 **Since** 2026-11-16 (Peter).
 
+### 044. Move a truth to another composition by T3 transport
+
+**Rule.** A simulation that needs a truth at a composition other than its own moves it by T3
+transport: its T3 strengths and cycle affinities are kept and its potentials re-balanced at the new
+composition (`t3.inverse`, `t3.build`), which for a reversible truth is frequency replacement. This
+covers SIM-1's screen (global shift, per-gene composition, site profiles) and SIM-2's perturbed targets.
+**Why.** One rule for reversible and non-reversible truths that reduces to the usual reversible
+convention, with code in the oracle. Transport alone moves C (NQ.bird 0.0577 to 0.0527 at a total
+variation of 0.062 toward LG's composition), so circulation is compared with the transported truth's.
+**Not chosen.** T1, fixed flux (`chart.transfer_seed`, which is also the jump-chain transfer): it keeps
+C but gives a reversible truth non-standard exchangeabilities.
+**Since** 2026-11-16 (Peter; SIM-1 plan).
+
 ## Model class
 
 ### 002. NQC is a `ModelProtein` subclass built through a protected constructor
@@ -446,6 +459,13 @@ files, not from the log, and IQ-TREE's printed final score is reported, not comp
 | S5 validation, concave flux problems, open and with binding ratio constraints at a known optimum | duality gap D(η, ν) − F(f̂) ≤ 1e-9 × \|F\|, D the Lagrangian dual at any η and ν ≥ 0 with C^T η − A^T ν > 0, which bounds f̂'s optimality gap | 042 (Peter, 2026-11-07) |
 | S5 validation, exact pattern frequencies at N = 10⁶ sites | lnL deficit against the truth ≤ 1e-3 | 042 |
 | Flux-space certificate at an oracle endpoint read as a peak, from SIM-1 (`flux.certificate`, active rows at normalized slack ≤ 1e-12) | residual ≤ 1e-9 × max(1, \|lnL\|) | 039 (Peter, 2026-11-16) |
+| SIM-1 AliSim joint law on two taxa, each configuration (`CODE_PLAN.md` 3.8) | Pearson X² over the 400 cells against the oracle's exact law (expected counts below 5 pooled), p ≥ 1e-3 | SIM-1 (Peter, 2026-11-16) |
+| SIM-1 AliSim root composition, tip on a zero-length branch | X² over 20 cells against π*, p ≥ 1e-3 | SIM-1 |
+| SIM-1 AliSim, gate binary against the frozen binary, same commands | byte-identical | SIM-1 |
+| SIM-1 exact recovery R1 to R6: lnL deficit against the truth, N = 10⁶ | ≤ 1e-3 | SIM-1 |
+| SIM-1 exact recovery: every rate | \|q̂ − q\|/q ≤ max(1e-3, 10 p_r), p_r = 1e-6 Σ_k \|(J H⁻¹)_rk\| at the truth (J = ∂log q/∂z, H the Hessian of −lnL in z), recorded before the fit | SIM-1 |
+| SIM-1 pipeline: same seed; AliSim on 2 against 12 CPUs | byte-identical | SIM-1 |
+| SIM-1 wiring: IQ-TREE `--show-lh` under `-q` at the true Q against `LinkedObjective` built from the trees AliSim used | ≤ 1e-8 × \|lnL\|, with \|lnL\| ≥ 5e4 | SIM-1 |
 
 h_k is the step's displacement (`CODE_PLAN.md` section 2.1); for the export's central differences,
 h⁺_k + h⁻_k. S4 applies the compiled-Q row to the exported Q and the residual row to its file. The
@@ -456,7 +476,7 @@ in the archive (1e-10: the synthesis's goal, section 4.3; the κ-scaled Q line: 
 **Since** 2026-10-04; merged 026 (2026-10-05), 030 and 034 item 7 (2026-10-20) and 036's
 measure, its claim withdrawn (2026-10-22); later rows are identified in the Set by column; last
 revised 2026-11-07 (S5's rows, 042; the concave row's statistic, Peter); the certificate row
-2026-11-16 (039).
+2026-11-16 (039); SIM-1's rows 2026-11-16 (Peter, SIM-1 plan).
 
 ### 012. Test the pure module with googletest in a standalone CMake project
 

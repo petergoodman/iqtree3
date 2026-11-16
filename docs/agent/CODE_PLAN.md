@@ -480,8 +480,13 @@ The package is `test_scripts/fixedeq/oracle/`, and its tests use the pass lines 
     bound the gradient pushes against), spread over the driver's pool; a coordinate the step would
     push out of the box held for that step; the step cut at the first bound; `flux.py`'s finish's
     acceptance; at most 20 steps, its entry point kept if lower without the stop (decision 042,
-    `explore/z_climb_diagnosis.py`). SIM-1 reuses the gradients and the flux reference, not the z climb (decision 039), on exact pattern frequencies; `site_log_likelihoods` still rebuilds
-    the tip matrices on every call, slow at 160,000 patterns.
+    `explore/z_climb_diagnosis.py`). SIM-1 reuses the gradients and the flux reference, not the z
+    climb (decision 039), on exact pattern frequencies.
+- SIM-1's additions (specification in section 3.8): `oracle/simulate.py` (π*, truths, the dial, T3 and
+  T1 transports, C, exact weights over all columns, mixtures, masking, topology mixtures);
+  `builtin.frequency_profiles` (C20's `frequency` lines and weights); tip arrays built once in
+  `Objective.from_patterns`, where `site_log_likelihoods` and the gradient rebuilt them on every call
+  (about 20% of a 160,000-pattern gradient), with values bitwise equal to the dict path, tested.
 
 ### 3.2 Layer 2: C++ unit tests
 
@@ -892,6 +897,145 @@ The fork workflow is `.github/workflows/fixedeq.yaml`:
 - **NQC run, from S2.** Builds IQ-TREE on Linux and runs the S2 seed case.
 - **Upstream.** The file is left out of the upstream pull request.
 
+### 3.8 Simulation
+
+SIM-1's checks, exact fits, scaffold, pipeline and pilot (decisions 039, 040, 041, 043, 044; lines in
+decision 021's SIM-1 rows), then SIM-2's plan. π* here is NQ.bird's stationary distribution: the solution
+of πQ = 0 for NQ.bird's stored matrix with its diagonal rebuilt from the row sums (the stored frequency
+row differs by up to 6.2e-7), committed at 17 digits with provenance under `test_scripts/fixedeq/sim/`.
+The drivers live in `test_scripts/fixedeq/sim/`; each writes results.json and report.md with provenance
+(script, commit, clean flag, binaries' SHA-256, seeds, versions) into a new directory
+`~/iqtree3-runs/sim1/<YYYYmmddTHHMMSSZ>-<commit>-<step>/`, takes its binaries as arguments, and exits 1 on
+an asserted failure. Failures are counted, never rerun with a new seed. The pytest tests use constructed
+inputs and committed fixtures only, so CI runs them without a binary or downloaded data. AliSim's
+behaviour as read at `63c330d9` is anchored in section 5.
+
+**AliSim exact check** (`sim/alisim_check.py`, confirmatory).
+- Matrices: M1, NQ.bird at π* written by `differential.write_matrix`, the file the pipeline simulates
+  from; M2, the `.NQC.qmat` of an NQC Level 1 fit on `example/aa_example.phy` at π* (baseline run02's
+  rooted tree, `+G4{0.5}`, `-blfix`, defaults, gate binary), the format S7's recovery bootstrap uses. File
+  names start `sim_`, since a file named like a built-in model loads the built-in.
+- Trees: T_joint `(a:0.2,b:0.6);` and T_root `(a:0,b:0.6);`; a zero-length branch copies its parent, so
+  T_root's tip a is the root sequence.
+- Runs, frozen `~/iqtree3-baseline/iqtree3`, each in a new directory with its own `-pre` and seed:
+  `--seqtype AA --length 10000000 -af phy -nt 1 --simulation-thresh 0` for (M1, T_joint),
+  (M1 `+G4{0.5}`, T_joint), (M2, T_joint) and (M1, T_root); then the same commands with the gate binary.
+- Exact law: J_xy = Σ_k w_k [P(r_k t_a)ᵀ Π P(r_k t_b)]_xy, with π and Q from `likelihood.file_model` of
+  the same file, through `site_log_likelihoods` on the 400 tip-pair columns.
+- Asserted: 021's three AliSim rows; only the 20 residues appear. Family-wise false failure about 4e-3.
+- Reported, computed before any simulation: noncentralities and power at N = 10⁷ for named alternatives
+  (start at either tip, tips swapped, reversed process, reversible part, scale ±1% and ±3%, median and
+  continuous gamma, shape ±10%). At N = 10⁶ on these lengths every root alternative exceeded 630 against
+  a critical value of 492 and a 1% scale error reached 44 (440 at 10⁷); equal lengths missed the reversed
+  process (SIM-1 plan, measured while planning).
+- Fallback (PLAN.md): a failing configuration is rerun with `+F{π*}` and the same seed, as a diagnosis;
+  it should change nothing, since AliSim already roots at and normalizes by π solved from Q. A failure
+  stops SIM-1's simulation steps for Peter.
+
+**Exact fits** (`sim/exact.py`, steps `recover` and `screen`). N = 10⁶ nominal weights over all 20^k
+columns (21^k with gaps); the matched default box with references from LG at π* (decision 011); the flux
+reference with decision 042's declared stop, 50,000 Newton steps, and a cap of 4 h a fit at 3 taxa and
+8 h at 4 taxa; pool workers chosen from the peak memory of one gradient measured first (about 6 at 4
+taxa in the 6.9 GB VM). Trees: 3 taxa `((a:0.2,b:0.3):0.1,c:0.4);`, 4 taxa
+`((a:0.2,b:0.3):0.1,(c:0.25,d:0.35):0.15);`.
+- Recovery (confirmatory): R1 NQ.bird, 3 taxa; R2 Q.bird at π*; R3 LG at π*, started at NQ.bird (LG at
+  π* is NQC's own start); R4 NQ.bird with `+G4{0.5}` in data and fit; R5 NQ.bird at 4 taxa, timed first by
+  one Hessian; R6 NQ.bird with every residue masked at random with probability 0.133, gaps as unknown, a
+  known answer since the marginal likelihood stays exact. Every other start is LG at π*. Recorded before
+  each fit: the truth inside the box (asserted); the Hessian of −lnL in z at the truth (central
+  differences of the analytic gradient, step 1e-5) and p_r for every rate (021's row). Asserted:
+  converged; `flux.certificate`; residuals; 021's two recovery rows. Reported: |Ĉ − C|, net-flux error,
+  times. Generating and fitting share one likelihood, so recovery tests chart, solver and
+  identifiability; S2 to S5 tested the likelihood against IQ-TREE.
+- Screen (exploratory; every variant tried is logged): NQC at π* from LG at π*, 3 taxa, no rate
+  variation. Base truths Q.bird at π* (C = 0) and NQ.bird (C = 0.0577); a truth changes composition by T3
+  transport (decision 044). Scenarios, each on both base truths (14 fits):
+  - S1 global shift: π_d = π* ⊙ (π_LG/π*)^s normalized, s = 0.25 and 1 (total variation 0.016 and
+    0.062; bird to mammal is 0.020);
+  - S2 per-gene composition: a mixture over all bird loci weighted by length, each locus at
+    π_g' = π* + λ(π_g − π̄), π_g from its counts plus 1 normalized, λ the largest value up to 1 keeping
+    every entry at least 1e-4 (recorded);
+  - S3 site profiles: a mixture over C20's profiles π_k' = π* + λ(π_k − π̄) with C20's weights, λ half
+    the positivity limit;
+  - S4a residue-dependent masking: A R G Q S P E K masked with probability 0.2, W C F I Y V L N 0.05,
+    the rest 0.1 (a declared disorder-tendency proxy; 13.3% masked);
+  - S4b column-context masking: a residue matching no other taxon in its column masked with the
+    probability that masks 13.3% overall;
+  - S5 gene-tree discordance: the three rooted topologies with weights 0.69, 0.155 and 0.155 (decision
+    043's 31%), the same branch lengths, fitted on ((a,b),c).
+- Screen outcomes. Reported per fit: status (a fit failing the declared stop or the certificate is "not
+  evaluable", counted); Ĉ; ΔC against the base truth and against the generating reference (S1 the
+  transported truth; S2 and S3 the mean flux Σ_k w_k f_k, balanced and so a generator at π*; S4 and S5
+  the base truth); KL per site from data to fit; the largest net-flux errors; bound activity; masked
+  fraction and composition shift (S4). Flag (Peter): |ΔC against the generating reference| ≥ 0.1 ×
+  0.0577 = 0.0058. Follow-ups: each flagged fit restarted from its generating reference; 4-taxon repeats
+  of the two flagged scenarios with the largest ΔC on the reversible truth, or of the single largest if
+  none flags. Flags recommend SIM-2's scenarios; SIM-2's plan decides. Not done: a reversible refit in
+  the oracle (SIM-2 has the GTR20 arm), rate variation in the screen, more shift directions.
+
+**Bird data and scaffold** (`sim/birddata.py`, steps `fetch`, `inventory`, `scaffold`). Raw data are
+read-only and outside the repository; derived data come only from this script.
+- fetch: nQMaker's Dryad deposit (doi:10.5061/dryad.3tx95x6hx: `05_clades.zip`, `ASTRAL_trees.zip`,
+  `README.txt`; contents unverified) into `~/iqtree3-data/raw/nqmaker-dryad/`, SHA-256 recorded, files
+  made read-only, no personal details in the request. If Dryad refuses `curl`, Peter downloads in a
+  browser and `fetch --register` records the files.
+- inventory: bird loci, taxa per locus and lengths, reported against QMaker's 52 taxa and mean 545
+  columns.
+- scaffold: the ASTRAL bird topology rooted on Palaeognathae with `-o` (taxa listed in the record);
+  branch lengths, per-locus `+G4` shapes and partition rates from one `-p` fit of NQ.bird+G4 under `-te`
+  on a seeded random 100 loci (frozen binary); per-locus compositions from all loci. Written with
+  provenance headers to `test_scripts/fixedeq/sim/scaffold/` and committed; `sim/.gitattributes` sets
+  `* text eol=lf` (decision 014), so a cluster checkout has the same bytes.
+
+**Pipeline** (`sim/pipeline.py`, steps `simulate`, `fit`, `metrics`, `pilot`; one replicate per
+invocation, with paths, binaries and threads as arguments, so it runs unchanged on a cluster).
+- Truths, written at 17 digits: NQ.bird, Q.bird at π*, LG at π*, and the dial f(λ) = S + λA, S and A the
+  symmetric and antisymmetric parts of NQ.bird's flux, C(λ) = 0.0577 λ for λ in [0, 1] (positive up to
+  λ = 1.444, and inside the box on [0, 1] since each z is monotone in λ).
+- simulate: each gene's length n_k, shape and rate ρ_k drawn with replacement from the scaffold table;
+  m = Σ ρ_k n_k / Σ n_k; gene k simulated on T·ρ_k, the fit given `-te` T·m and `-q` rates ρ_k/m at 17
+  digits, which IQ-TREE's site-weighted renormalization (`normalize_part_rates`) leaves unchanged to
+  rounding (asserted; `profiling.set_rates`'s plain mean holds only for equal lengths). One AliSim call
+  per gene (`--simulation-thresh 0`, `-nt 1`, its own directory and `-pre`; `--num-alignments` would
+  chain the streams). Seeds from `numpy.random.SeedSequence(base, replicate, gene)` in [1, 2³¹ − 1025]
+  (AliSim reads a signed 32-bit seed and adds up to twice the CPU count), recorded and checked against
+  AliSim's report. Leaf names checked; identical sequences counted; concatenation and charsets for unequal
+  lengths in the tree's leaf order; the `-q` file with true shapes and rates; a manifest with every
+  file's SHA-256. Refused: an existing directory, a stale `.ckp.gz` (it aborts AliSim or overrides
+  `--seed`), an unrooted tree and a root stem (AliSim simulates a stem as a branch).
+- fit: NQC Level 1 (decisions 024, 043): `-q`, `--model-joint NQC+F{π*}`, `-te` T·m, `-blfix`,
+  `-keep-ident` (under `-te` IQ-TREE would otherwise drop sequences identical across the concatenation),
+  default domain; options for `-p` Level 2, relaxed settings (`-me 1e-6`, 300-round caps) and
+  `GTR20+F{π*}`.
+- metrics: Ĉ; per-rate log error (RMS, maximum, twofold counts, as Tinh et al. 2024 count them);
+  net-flux error; held-out lnL of the fitted against the true Q on a held-out replicate of 10 genes
+  (`--show-lh` under `-q`, whose 3-decimal total suffices for a difference); ending rule, evaluations,
+  wall and CPU time, the export diagnostic's share of evaluations.
+- Asserted: 021's reproducibility row (same seed; AliSim under `taskset` on 2 CPUs, confirmed by
+  `-vvv`'s seed list, against 12) and its wiring row, once per truth, the oracle side built from the trees
+  AliSim used (T·ρ_k at partition rate 1) so that a normalization error cannot cancel.
+
+**Pilot** (`pipeline.py pilot`, exploratory). Gate binary, one fit at a time at `-T 6`, caps of 3 h a fit
+(relaxed 4 h), fits at a cap counted. Main cell: 52 taxa, 30 genes, Q.bird at π* and NQ.bird, 5
+replicates each (Peter). Single NQ.bird replicates: 26 taxa (a clade-preserving prune keeping a taxon on
+each side of the root, degree-2 nodes merged), 30 genes; 52 taxa, 100 genes; on main replicate 1, `-p`
+Level 2, relaxed settings and `GTR20+F{π*}`; at 300 and 1000 genes IQ-TREE runs only until its RAM note
+(`profiling.RAM`). Outputs for SIM-2: cost per fit (evaluations, time, memory) against taxa × columns;
+the SDs of Ĉ, per-rate log error and held-out lnL, with replicate counts n = (SD / target MCSE)² from
+each SD's upper 80% confidence bound; ending rules and failures; the relaxed fit's gain (decision 039);
+the export diagnostic's share (section 4, "Known and left alone").
+
+**SIM-2's plan** (written at SIM-1's close, approved by Peter before SIM-2 runs; decision 040). ADEMP form
+(Morris et al. 2019): aims; data mechanisms (truths, the dial, the screen's flagged scenarios, target
+perturbations under decision 044, masking from CLOAK's removal statistics, discordance if flagged, 30 to
+1000 genes, a taxa arm or not); estimands; methods (`-p` Level 1 on the true rooted tree, one size at
+Level 2, starts LG at π*, the GTR20 fit and a distant start; decision 039's declared stopping setting and
+its check); performance measures with Monte Carlo standard errors; replicate counts from the pilot;
+failed fits counted and every failed validation attempt reported (Mendes et al. 2024); compute and
+cluster jobs (PLAN.md risk 26), the first of which reruns the AliSim check, the wiring check and the
+CPU-count identity on the cluster's binaries. Before writing it the agent asks Peter for risk 25's open
+items, each with a recommendation from the screen and pilot.
+
 ## 4. Per-slice lists
 
 The working rules for every slice come first, then each slice's list. A closed slice keeps one
@@ -1062,46 +1206,32 @@ may declare a stall after its held set changes (its decrement test is not reset 
 steps on coordinates within rounding of a bound, either ending it above `pgtol`, and its `steps`
 counts iterations begun.
 
-SIM-1 and SIM-2, outlines to be planned in full in their own sessions, as S5's was (order in
-decision 040, gates in PLAN.md; the reasons and literature are frozen in
-`docs/agent/archive/SIM_plan_2026-11-07.md`, read only where these outlines are unclear). In
-these two outlines π* denotes the simulated composition, NQ.bird's stationary distribution
-(decision 040), never the real target.
+SIM-1 and SIM-2 run in decision 040's order, with gates in PLAN.md; the simulation scope's reasons
+and literature are frozen in `docs/agent/archive/SIM_plan_2026-11-07.md`. In both, π* denotes the
+simulated composition, NQ.bird's stationary distribution (decision 040), never the real target.
 
-SIM-1 (laptop):
-- Exact check of AliSim from an exported `.qmat` through `-m FILE`: about a million sites on a
-  two-taxon rooted tree, the 400 tip-pair counts against the oracle's exact probabilities, with
-  and without `+G4`, and the root composition. For a non-reversible Q the joint law depends on
-  both branch lengths separately, not only on their sum, so the check also tests root handling.
-  Fallback: `+F{π*}` on the matrix file. Whether AliSim draws the root from π* and normalizes Q
-  as NQC does is unverified;
-  `nqc/toy.py`'s `simulate` (used by `nqc/twopart.py` and `profile/profiling.py`) already
-  simulates this way.
-- The oracle's NQC objective, fitted by S5's flux reference to exact expected pattern frequencies
-  on 3- and 4-taxon trees, returns the true Q: `flux.certificate` (021), lnL against the truth and
-  a Q line above a rate floor set first, each truth checked inside the box (references from LG at
-  π*, decision 011). Not the z climb, which did not converge on V2 or V3 (decision 039). One
-  4-taxon fit is timed first: at V2's and V3's iteration counts (179 s and 621 s on 8,000
-  patterns), 1 to 3.5 h a fit on 160,000 patterns at 10 workers, near the 4 h cap (unverified).
-- The exact screen of misspecification with the same fits, each scenario built on a reversible and
-  on an NQ.bird-strength truth: global target shift, per-gene composition, site profiles mixed
-  over the truth's exchange pattern, content-dependent residue masking; circulation per scenario;
-  it selects SIM-2's scenarios. The design documents ran a three-state version (P-positive section
-  8, check 11).
-- The pipeline: a truth family dialling circulation from zero to NQ.bird strength at fixed
-  composition (scaling the antisymmetric part of the balanced flux within positivity, a
-  proposal); trees and per-gene settings from the bird data of QMaker and nQMaker (decision 040;
-  nQMaker's Dryad deposit, unverified until fetched); AliSim runs with one recorded seed per
-  repetition and provenance, every simulated gene carrying the scaffold tree's species names so
-  that `-p` matches genes, and no run's files colliding with another's (a caution from the
-  maintainers, via Peter; AliSim's naming not yet read); metrics; reusing `nqc/toy.py`'s helpers.
-- A pilot for Monte Carlo standard errors and cost, varying taxa and columns (the maintainers
-  suggested more sequences and variable columns; the exact checks stay at 3 and 4 taxa, since the
-  patterns number 20^taxa); SIM-2's plan written as section 3.8 in ADEMP
-  form (Morris et al. 2019) before any large run, reporting failed fits and every failed
-  validation attempt (Mendes et al. 2024), and approved by Peter.
+SIM-1 (laptop; planned 2026-11-16; specification in section 3.8; the approved plan, with its planning
+measurements and review findings, frozen in `docs/agent/archive/SIM1_plan_2026-11-16.md`). Commits:
+1. The plan in its homes (done, 2026-11-16).
+2. The oracle additions (section 3.1) and their tests; section 1.1 updated once the files exist.
+3. `sim/alisim_check.py` and its tests; M2's NQC fit; the check from a clean commit (under 15 min).
+4. `sim/exact.py` and its tests; a read-only code review before this first confirmatory fit run;
+   `recover` from a clean commit (R1 to R4 and R6 about 1 to 1.5 h, R5 2 to 6 h).
+5. `sim/birddata.py`: fetch, inventory, the scaffold fit (under 1.5 h), the scaffold fixtures
+   committed; then `screen` from a clean commit (14 fits 1.5 to 3.5 h, restarts under 1.5 h, each
+   4-taxon repeat 2 to 6 h).
+6. `sim/pipeline.py` and its tests; the reproducibility and wiring checks; the pilot (5 to 12 h);
+   CLAUDE.md's commands gain the drivers.
+7. The close: risk 25's open items asked of Peter; section 3.8's "SIM-2's plan" written and approved;
+   the gate record in the CHANGELOG entry; PLAN.md's state replaced; this list cut to one line and S6's
+   list written; the AI_DISCLOSURE.md entry; a fresh read-only check of the records against the gate.
+Each long run goes under the keep-awake helper and is monitored; the steps span sessions, each session
+stopping after a commit. No IQ-TREE source changes, so there is no rebuild, regression or sanitizer
+run; the full pytest suite passes at every commit. The estimates are unverified and total about 15 to
+35 h.
 
-SIM-2 (cluster; decisions 039, 040, 041), per section 3.8 once approved:
+SIM-2 (cluster; decisions 039, 040, 041, 043, 044), per section 3.8's "SIM-2's plan" once approved;
+outline:
 - Lean recovery: reversible and NQ.bird-strength truths at π*; 30, 100, 300 and 1000 genes; `-p`
   on the true rooted tree, Level 1, one size at Level 2 (decision 043); starts LG at π*, the GTR20
   fit and a distant start;
@@ -1202,4 +1332,5 @@ the sum, over the hunks above it, of lines added minus lines removed.
 | `alignment/alignment.cpp:4125`; `main/phyloanalysis.cpp:4598` | `createBootstrapAlignment` copies the source alignment's unset `pomo_sampling_method`; `runStandardBootstrap` calls it for each `-b` replicate (PLAN.md maintainer question 10) |
 | `tree/phylokernelnonrev.h:1180, 1330`; `tree/phylokernelnew.h:3151-3160`; `tree/phylotreesse.cpp:43-49`; `alignment/superalignment.cpp:68-85`; `utils/tools.h:51-57` | the non-reversible tree likelihood adds packets' sums under `schedule(dynamic,1)` with a `reduction`, the reversible one stores them and adds them in packet order; 2 packets per thread above one thread; `-p` and `-q` cap the threads at the sum over partitions of max(1, patterns × states / `mf_thread_factor`, 4000); `ASSERT` calls `abort()` (PLAN.md maintainer question 12) |
 | `tree/phylosupertree.cpp:657-697, 690`; `model/partitionmodel.cpp:314-334` | `computePartitionOrder` sorts partitions by cost (sequences × patterns × states) into `part_order`, prints it at `-v`, and sorts `part_order_by_nptn` by patterns; `PartitionModel::targetFunk` sums in `part_order` |
+| `simulator/alisimulator.cpp:604-668, 1416-1443, 3338-3371`; `tree/mtree.cpp:741-753`; `model/modelmarkov.cpp:1252-1282`; `utils/tools.cpp:2618-2622, 6537-6559, 7624-7626` | AliSim (SIM-1, section 3.8): the root drawn from `getStateFrequency` for `FREQ_USER_DEFINED`, which for `-m FILE` holds π solved from Q, Q normalized at it; transition matrices on a branch longer than `alisim_simulation_thresh`, otherwise the Gillespie path; a zero-length branch cloned from its parent; the threshold replaced by a/L unless `--simulation-thresh` is given; a degree-2 top node read as rooted, under a pseudo-root leaf; seeds `ran_seed + 1000 × rank + i + 1`, listed at `-vvv`, the Gillespie generators offset by `omp_get_num_procs()` |
 | `utils/tools.cpp:1308-1309`; `main/phyloanalysis.cpp:3957`; `tree/phylotree.cpp:3130, 3175-3178, 3198` | `--root-test` sets `root_test`; `runTreeReconstruction` calls `testRootPosition`, its only caller, after the final fit and before the report; it re-optimizes every branch length for each root, ending at the original root, `-blfix` notwithstanding, then `ASSERT`s against the starting score (PLAN.md maintainer question 16) |
