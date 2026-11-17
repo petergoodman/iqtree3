@@ -362,3 +362,9 @@ def test_prune_with_a_single_leaf_side():
     assert "h" in keep and len(keep) == 3
     pruned = readers.parse_newick(pl.prune(tree, keep))
     assert len(pruned.children) == 2 and sorted(leaf.name for leaf in pruned.leaves()) == sorted(keep)
+
+
+def test_round_cap_argument():
+    """-nparam N runs rounds 1 to N - 1 (PartitionModelPlen::optimizeParameters), so 20 rounds is -nparam 21."""
+    args = [str(x) for x in pl.fit_args(Path("/data"), "NQC+F{x}", rounds=20)]
+    assert args[-2:] == ["-nparam", "21"] and "-nparam" not in [str(x) for x in pl.fit_args(Path("/data"), "M")]

@@ -8,6 +8,15 @@ gate record and may run to 25 lines. The next session starts from the top entry.
 This is a fork of `iqtree/iqtree3`. Entries here describe work on the fork, not upstream
 development.
 
+## 2026-11-17 (fourth session, morning): pilot cut to finish within a day
+
+- **First pilot run** (`ec462978`, stopped): main Q.bird r1 at defaults, 12,170 columns, 7,515 s, 99 rounds,
+  83,534 evaluations, 526 MB, Ĉ 0.0443 (truth 0), log-rate RMS 0.68, held-out lnL -95.8 against the truth;
+  main NQ.bird r1 at the 3 h cap, counted, slowed by my running the 4-taxon repeats beside it (my error).
+- **Peter cut the pilot** (plan A): linked rounds capped at 20, 3 replicates per truth, NQ.bird r1 also at
+  defaults, 26-taxon, 100-gene, GTR20 and memory cells; Level 2 and relaxed dropped (`CODE_PLAN.md` 3.8).
+- **Running:** S4b's 4-taxon repeat (Peter kept it), then the cut pilot, about 8.5 h. **Next.** The close.
+
 ## 2026-11-17 (fourth session, unattended, early morning): checks passed; certificate probe; pilot running
 
 - **Pipeline checks** (confirmatory, clean `ec462978`; `~/iqtree3-runs/sim1/*-ec462978-checks-*`): NQ.bird, Q.bird, LG

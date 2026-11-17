@@ -28,8 +28,11 @@ pilot (exploratory; CODE_PLAN.md 3.8, "Pilot"): one fit at a time, caps 3 h (rel
 counted, results saved after each, a fit's record before its metrics: main1 (30 genes, replicate 1 of
 Q.bird and NQ.bird), ram (IQ-TREE's -memcheck estimate at 300 and 1000 genes), main (replicates 2 to 5),
 taxa26 (a seeded prune to 26 taxa keeping one on each side of the root), genes100, variants (on NQ.bird's
-replicate 1: -p Level 2, relaxed, GTR20+F{pi*}); held-out lnL on 10 genes; each fit's own peak memory and
-CPU (os.wait4); the SDs over main replicates with their upper 80% bounds.
+replicate 1: -p Level 2, relaxed, GTR20+F{pi*}), default1 (NQ.bird's replicate 1 at IQ-TREE's default
+rounds, beside a capped main1); held-out lnL on 10 genes; each fit's own peak memory and CPU (os.wait4); the
+SDs over main replicates with their upper 80% bounds. --rounds caps the linked rounds of every fit but
+default1 and relaxed; --replicates and --variants trim the main cell and the variants (Peter, 2026-11-17:
+--rounds 20 --replicates 3 --variants gtr20, to finish within a day).
 """
 import argparse
 import json
@@ -226,7 +229,14 @@ def scaffold_record(path):
     return {"path": str(Path(path).resolve()), "sha256": {f: sha256(Path(path) / f) for f in ("tree.nwk", "loci.tsv")}}
 
 
-def fit_args(data, model, level2=False, relaxed=False):
+def fit_args(data, model, level2=False, relaxed=False, rounds=None):
+    """IQ-TREE's arguments for one fit; rounds caps the linked rounds (-nparam rounds + 1:
+    PartitionModelPlen::optimizeParameters runs rounds 1 to num_param_iterations - 1, default 100)."""
+    args = _fit_args(data, model, level2, relaxed)
+    return args + ["-nparam", str(rounds + 1)] if rounds else args
+
+
+def _fit_args(data, model, level2=False, relaxed=False):
     if level2:
         args = ["-s", data / "alignment.phy", "-p", "parts.nex", "--model-joint", model, "-te", data / "tree.nwk",
                 "-keep-ident"]
@@ -272,7 +282,7 @@ def fit_step(level2, relaxed, gtr20):
     return f"fit-{'gtr20' if gtr20 else 'nqc'}-{'p2' if level2 else 'q1'}{'-relaxed' if relaxed else ''}"
 
 
-def fit_into(out, data, binary, threads, timeout, level2=False, relaxed=False, gtr20=False):
+def fit_into(out, data, binary, threads, timeout, level2=False, relaxed=False, gtr20=False, rounds=None):
     """One fit of a replicate's data in the existing directory out (its run in out/fit); the fit's record
     (a timeout is counted as a fit at its cap)."""
     data = Path(data)
@@ -284,12 +294,13 @@ def fit_into(out, data, binary, threads, timeout, level2=False, relaxed=False, g
     parts = (with_charpartition(read(data / "sets.nex"), [("LG+G4", f"g{k:04d}", None)
                                                           for k in range(1, len(manifest["genes"]) + 1)])
              if level2 else read(data / "parts.nex"))
-    run, usage = measured_run(binary, out, "fit", fit_args(data, model, level2, relaxed), {"parts.nex": parts},
+    run, usage = measured_run(binary, out, "fit", fit_args(data, model, level2, relaxed, rounds), {"parts.nex": parts},
                               threads, timeout)
     state = run_state(run, "-q", not gtr20, "relaxed" if relaxed else "default", ROUNDS) if run.code == 0 else {}
     ram = RAM_NOTE.search(run.stdout())
     info = readers.read_info(read(run.file(".NQC.info"))) if run.file(".NQC.info").exists() else {}
-    return {"step": fit_step(level2, relaxed, gtr20), "data_match": not bad, "mismatched": bad, "exit_code": run.code,
+    return {"step": fit_step(level2, relaxed, gtr20), "rounds_cap": rounds, "data_match": not bad, "mismatched": bad,
+            "exit_code": run.code,
             "at_cap": run.code == "timeout", **usage, "ram_note_mb": int(ram.group(1)) if ram else None,
             "threads": threads, "columns": sum(g["length"] for g in manifest["genes"]), "taxa": manifest.get("taxa"),
             "evaluations_key": int(info["evaluations"]) if "evaluations" in info else None,
@@ -457,7 +468,7 @@ HELDOUT_REPLICATE = 1000        # held-out data apart from every fitted replicat
 PRUNED_TAXA = 26
 CAP, CAP_RELAXED = 3 * 3600.0, 4 * 3600.0
 RAM_GENES = (300, 1000)
-CELLS = ("main1", "ram", "main", "taxa26", "genes100", "variants")
+CELLS = ("main1", "ram", "main", "taxa26", "genes100", "variants", "default1")
 RAM_NOTE = re.compile(r"^NOTE: (\d+) MB RAM", re.M)
 RAM_ERROR = re.compile(r"^ERROR: Your RAM is below minimum requirement of (\S+) GB", re.M)
 
@@ -525,6 +536,7 @@ def cmd_pilot(a):
     if any(c not in CELLS for c in cells):
         sys.exit(f"--cells takes a comma-separated subset of {', '.join(CELLS)}")
     prov = common.provenance(a, SCRIPT, "pilot", "exploratory", cells=cells, threads=a.threads, seed=a.seed,
+                             rounds_cap=a.rounds, replicates=a.replicates, variants=a.variants,
                              caps={"default": CAP, "relaxed": CAP_RELAXED}, scaffold=scaffold_record(a.scaffold))
     out = common.new_out(a.out, prov)
     alisim_bin, binary = (Path(p).expanduser().resolve() for p in (a.alisim, a.binary))
@@ -561,7 +573,7 @@ def cmd_pilot(a):
         print(f"{name}: exit {rec.get('exit_code')}, {rec.get('wall_s')} s, ended by {rec.get('ended_by')}, "
               f"C {rec.get('C_fit')}", flush=True)
 
-    def cell(name, tree_text, truth_name, genes, replicate, held_name="full"):
+    def cell(name, tree_text, truth_name, genes, replicate, held_name="full", rounds=a.rounds):
         d = out / name
         (d / "data").mkdir(parents=True)
         try:
@@ -569,7 +581,7 @@ def cmd_pilot(a):
             if any(r["passed"] is False for r in found):
                 save(name, {"simulate_failed": [r["check"] for r in found if r["passed"] is False]})
                 return None
-            rec = fit_into(d, d / "data", binary, a.threads, CAP)
+            rec = fit_into(d, d / "data", binary, a.threads, CAP, rounds=rounds)
         except Exception:  # noqa: BLE001  a failed cell is recorded; the pilot goes on
             save(name, {"error": traceback.format_exc()[-2000:]})
             return None
@@ -582,10 +594,12 @@ def cmd_pilot(a):
     main_data = {}
     for c in cells:
         if c in ("main1", "main"):
-            reps = [1] if c == "main1" else range(2 if "main1" in cells else 1, PILOT_REPLICATES + 1)
+            reps = [1] if c == "main1" else range(2 if "main1" in cells else 1, a.replicates + 1)
             for r in reps:
                 for t in PILOT_TRUTHS:
                     main_data[(t, r)] = cell(f"main-{t}-r{r}", tree, t, PILOT_GENES, r)
+        elif c == "default1":       # NQ.bird's replicate 1 at IQ-TREE's default rounds, beside a capped main1
+            cell("default-NQ.bird-r1", tree, "NQ.bird", PILOT_GENES, 1, rounds=None)
         elif c == "ram":
             for g in RAM_GENES:
                 d = out / f"ram-{g}"
@@ -615,10 +629,13 @@ def cmd_pilot(a):
                 continue
             for kind, opts, cap in (("p2", {"level2": True}, CAP), ("relaxed", {"relaxed": True}, CAP_RELAXED),
                                     ("gtr20", {"gtr20": True}, CAP)):
+                if kind not in a.variants.split(","):
+                    continue
                 d = out / f"variant-{kind}-NQ.bird-r1"
                 d.mkdir()
                 try:
-                    rec = fit_into(d, data, binary, a.threads, cap, **opts)
+                    rec = fit_into(d, data, binary, a.threads, cap, rounds=None if kind == "relaxed" else a.rounds,
+                                   **opts)
                 except Exception:  # noqa: BLE001
                     save(f"variant-{kind}", {"error": traceback.format_exc()[-2000:]})
                     continue
@@ -672,6 +689,9 @@ def main():
     p_.add_argument("--binary", required=True)
     p_.add_argument("--threads", type=int, default=6)
     p_.add_argument("--cells", default=",".join(CELLS))
+    p_.add_argument("--rounds", type=int, help="cap the linked rounds of every fit but default1 and relaxed")
+    p_.add_argument("--replicates", type=int, default=PILOT_REPLICATES, help="main cell replicates per truth")
+    p_.add_argument("--variants", default="p2,relaxed,gtr20")
     p_.add_argument("--seed", type=int, default=SEED)
     for p in (s, f, c, m, p_):
         p.add_argument("--out", help="new directory outside the repository (default under ~/iqtree3-runs/sim1/)")

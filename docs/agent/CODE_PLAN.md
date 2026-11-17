@@ -1025,15 +1025,19 @@ invocation, with paths, binaries and threads as arguments, so it runs unchanged 
   `-vvv`'s seed list, against 12) and its wiring row, once per truth, the oracle side built from the trees
   AliSim used (T·ρ_k at partition rate 1) so that a normalization error cannot cancel.
 
-**Pilot** (`pipeline.py pilot`, exploratory). Gate binary, one fit at a time at `-T 6`, caps of 3 h a fit
-(relaxed 4 h), fits at a cap counted. Main cell: 52 taxa, 30 genes, Q.bird at π* and NQ.bird, 5
-replicates each (Peter). Single NQ.bird replicates: 26 taxa (a clade-preserving prune keeping a taxon on
-each side of the root, degree-2 nodes merged), 30 genes; 52 taxa, 100 genes; on main replicate 1, `-p`
-Level 2, relaxed settings and `GTR20+F{π*}`; at 300 and 1000 genes IQ-TREE runs only until its RAM note
-(`profiling.RAM`). Outputs for SIM-2: cost per fit (evaluations, time, memory) against taxa × columns;
-the SDs of Ĉ, per-rate log error and held-out lnL, with replicate counts n = (SD / target MCSE)² from
-each SD's upper 80% confidence bound; ending rules and failures; the relaxed fit's gain (decision 039);
-the export diagnostic's share (section 4, "Known and left alone").
+**Pilot** (`pipeline.py pilot`, exploratory). Gate binary, one fit at a time at `-T 6`, caps of 3 h a fit,
+fits at a cap counted. Cut by Peter on 2026-11-17 to finish within a day: one default fit took 2.1 h,
+99 linked rounds of which rounds 14 to 99 gained 9 lnL units of 217,500, so every fit but one has its
+linked rounds capped at 20 (`--rounds 20`, `-nparam 21`). Main cell: 52 taxa, 30 genes, Q.bird at π* and
+NQ.bird, 3 replicates each, capped. Replicate 1 of each truth also at IQ-TREE's default rounds, so that a
+capped and a default fit of the same data show what the cap costs (Q.bird's from the first pilot run,
+NQ.bird's the `default1` cell). Single NQ.bird replicates, capped: 26 taxa (a clade-preserving prune keeping
+a taxon on each side of the root, degree-2 nodes merged), 30 genes; 52 taxa, 100 genes; `GTR20+F{π*}` on
+main replicate 1. `-p` Level 2 and the relaxed fit are dropped (S3c measured the relaxed gain). At 300 and
+1000 genes IQ-TREE's `-memcheck` estimate. Outputs for SIM-2: cost per fit (evaluations, time, memory)
+against taxa × columns; the SDs of Ĉ, per-rate log error and held-out lnL, with replicate counts
+n = (SD / target MCSE)² from each SD's upper 80% confidence bound; ending rules and failures; the round
+cap's effect; the export diagnostic's share (section 4, "Known and left alone").
 
 **SIM-2's plan** (written at SIM-1's close, approved by Peter before SIM-2 runs; decision 040). ADEMP form
 (Morris et al. 2019): aims; data mechanisms (truths, the dial, the screen's flagged scenarios, target
