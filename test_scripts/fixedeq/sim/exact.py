@@ -1,9 +1,22 @@
-"""Confirmatory: SIM-1's exact recovery (CODE_PLAN.md 3.8, "Exact fits"; decision 021's SIM-1 recovery rows,
-with the convergence, certificate and residual rows of decisions 039 and 042). The screen step comes with
-the bird data (SIM-1 commit 5).
+"""SIM-1's exact fits (CODE_PLAN.md 3.8, "Exact fits"): recover, confirmatory (decision 021's SIM-1 recovery
+rows, with the convergence, certificate and residual rows of decisions 039 and 042); screen, exploratory.
 
   python test_scripts/fixedeq/sim/exact.py recover --git git.exe [--problems R1,R2,R3,R4,R6] [--workers 10] \
       [--out DIR] [--allow-dirty]
+  python test_scripts/fixedeq/sim/exact.py screen --git git.exe [--scenarios S1a,S1b,S2,S3,S4a,S4b,S5] \
+      [--taxa 3|4] [--loci sim/scaffold/compositions.tsv] [--workers 10] [--out DIR] [--allow-dirty]
+
+screen: NQC at pi* from LG at pi* by the flux reference, on exact weights of misspecified data, each scenario
+on both base truths (Q.bird at pi*, C = 0; NQ.bird): S1a and S1b a global shift toward LG's composition (s =
+0.25, 1), S2 per-locus compositions, S3 C20's site profiles, S4a residue-dependent and S4b column-context
+masking, S5 gene-tree discordance; truths moved by T3 transport (decision 044). Reported per fit: status
+("not evaluable" unless converged with a passing certificate), C, dC against the base truth and against the
+generating reference, the per-site log ratio from data to fit, the largest net-flux errors and bound activity;
+a fit with |dC against the generating reference| >= 0.1 x 0.0577 is flagged and refitted from its reference.
+Interpretations (Peter to confirm): S5's alternative topologies keep each taxon's pendant length and the
+internal branch; under masking the log ratio is not a KL (gaps are scored as unknown); the 4-taxon repeats are
+the two flagged reversible-truth scenarios with the largest |dC| (repeat_selection), each on both truths, and
+S5 has no 4-taxon form.
 
 Each problem fits NQC at pi* (sim/target.txt) by the flux reference (decision 042) in the matched default
 box with references from LG at pi* (decision 011), to exact pattern weights over every column (N = 1e6):
@@ -37,8 +50,8 @@ HERE = Path(__file__).resolve().parent
 for _p in ("", "regression", "reference"):
     sys.path.insert(0, str(HERE.parent / _p))
 sys.path.insert(0, str(HERE))
-from oracle import chart, flux, likelihood as lk, nqc, readers, simulate  # noqa: E402
-from regress import REPO, sha256, write  # noqa: E402
+from oracle import builtin, chart, flux, likelihood as lk, nqc, readers, simulate, t3  # noqa: E402
+from regress import REPO, read, sha256, write  # noqa: E402
 from reference import Pool, fit_record  # noqa: E402
 from nqcchecks import check  # noqa: E402
 import common  # noqa: E402
@@ -284,6 +297,215 @@ def cmd_recover(a):
     common.finish(out, prov, title, rows, {"records": records})
 
 
+# ---------------------------------------------------------------- screen (exploratory)
+
+SCENARIOS = ("S1a", "S1b", "S2", "S3", "S4a", "S4b", "S5")
+SHIFTS = {"S1a": 0.25, "S1b": 1.0}          # global shift toward LG's composition
+MASK_RATES = {**{c: 0.2 for c in "ARGQSPEK"}, **{c: 0.05 for c in "WCFIYVLN"}}   # S4a; the rest 0.1
+MASK_REST = 0.1
+MASK_TARGET = 0.133                          # S4b's overall masked fraction, S4a's measured one
+LOCUS_FLOOR = 1e-4                           # S2: every recentred locus entry at least this
+DISCORDANCE = (0.69, 0.155, 0.155)           # S5: decision 043's 31% discordant, split evenly
+TOPOLOGIES = (THREE, "((a:0.2,c:0.4):0.1,b:0.3);", "((b:0.3,c:0.4):0.1,a:0.2);")   # each taxon keeps its length
+FLAG = 0.1 * 0.0577                          # |dC against the generating reference| (Peter)
+BASES = ("Q.bird", "NQ.bird")
+NEAR_BOUND = 1e-6
+
+
+def residue_rates():
+    return np.array([MASK_RATES.get(c, MASK_REST) for c in lk.AMINO])
+
+
+def read_loci(path):
+    """S2's per-locus table (sim/birddata.py inventory, sim/scaffold/compositions.tsv): '#' provenance lines,
+    a header, then one line per locus: name, length and the 20 residue counts in IQ-TREE's order, tab-separated."""
+    lines = [line for line in read(path).splitlines() if line.strip() and not line.startswith("#")]
+    if not lines or lines[0].split("\t")[2:] != list(lk.AMINO):
+        raise ValueError(f"{path}: the header's residues are not in IQ-TREE's order {lk.AMINO}")
+    rows = [line.split("\t") for line in lines[1:]]
+    if not rows or any(len(r) != 22 for r in rows):
+        raise ValueError(f"{path}: expected lines of a name, a length and 20 counts")
+    return np.array([float(r[1]) for r in rows]), np.array([[float(v) for v in r[2:]] for r in rows])
+
+
+def composition(weights, k):
+    """The residue composition of masked weights over 21^k columns, gaps left out."""
+    digits = simulate.column_digits(k, simulate.STATES + 1)
+    counts = np.zeros(simulate.STATES + 1)
+    for leaf in range(k):
+        counts += np.bincount(digits[:, leaf], weights=weights, minlength=simulate.STATES + 1)
+    return counts[:simulate.STATES] / counts[:simulate.STATES].sum()
+
+
+def screen_data(scenario, base, pi, tree_text, loci=None):
+    """Exact weights for one scenario on one base truth at pi*, over the columns of the fitted tree's leaves;
+    returns the weights, whether they hold gaps, the generating reference (Q, its pi) and a record."""
+    tree = readers.parse_newick(tree_text)
+    names = tuple(sorted(leaf.name for leaf in tree.leaves()))
+    k = len(names)
+    if scenario in SHIFTS:
+        pd = simulate.shift(pi, builtin.exchangeabilities("LG")[1], SHIFTS[scenario])
+        Qd = simulate.t3_transport(base, pi, pd)
+        w = simulate.exact_weights([simulate.Component(1.0, tree, Qd, pd)], names, SITES)
+        return w, False, (Qd, pd), {"s": SHIFTS[scenario], "total_variation": simulate.total_variation(pi, pd)}
+    if scenario in ("S2", "S3"):
+        if scenario == "S3":
+            profiles, weights = builtin.frequency_profiles("C20")
+            lam = simulate.recentre_limit(pi, profiles, weights) / 2
+        else:
+            if loci is None:
+                raise ValueError("S2 needs the per-locus table (--loci)")
+            weights, counts = loci
+            profiles = (counts + 1) / (counts + 1).sum(axis=1, keepdims=True)
+            lam = min(1.0, simulate.recentre_limit(pi, profiles, weights, LOCUS_FLOOR))
+        moved = simulate.recentre(pi, profiles, weights, lam)
+        comps = [simulate.Component(wk, tree, simulate.t3_transport(base, pi, pk), pk) for wk, pk in zip(weights, moved)]
+        tv = np.array([simulate.total_variation(pk, pi) for pk in moved])
+        w = simulate.exact_weights(comps, names, SITES)
+        return w, False, (flux.generator(simulate.mean_flux(comps), pi), pi), {
+            "lambda": lam, "components": len(comps), "smallest_entry": float(moved.min()),
+            "weighted_mean_tv": float(np.asarray(weights) @ tv / np.sum(weights))}
+    if scenario in ("S4a", "S4b"):
+        w0 = simulate.exact_weights([simulate.Component(1.0, tree, base, pi)], names, SITES)
+        if scenario == "S4a":
+            prob = simulate.residue_mask(k, residue_rates())
+            p = None
+        else:
+            p = MASK_TARGET / simulate.masked_fraction(w0, simulate.context_mask(k, 1.0))
+            if p > 1:
+                raise ValueError(f"S4b: masking {MASK_TARGET} needs probability {p:.3g} > 1")
+            prob = simulate.context_mask(k, p)
+        w = simulate.mask(w0, prob)
+        return w, True, (base, pi), {"masked_fraction": simulate.masked_fraction(w0, prob), "probability": p,
+                                     "composition_shift_tv": simulate.total_variation(composition(w, k), pi)}
+    if scenario == "S5":
+        if k != 3:
+            raise ValueError("S5's three rooted topologies are defined at three taxa only")
+        comps = [simulate.Component(wt, readers.parse_newick(t), base, pi) for wt, t in zip(DISCORDANCE, TOPOLOGIES)]
+        return simulate.exact_weights(comps, names, SITES), False, (base, pi), {"weights": DISCORDANCE}
+    raise ValueError(f"unknown scenario {scenario}")
+
+
+def screen_fit(label, obj, start_flux, pi, ref, base, reference, workers, cap, log=_log):
+    """One screen fit: NQC at pi from start_flux by the flux reference, and the screen's report (CODE_PLAN 3.8)."""
+    dom = flux.matched(ref)
+    f0, moved = flux.inward_flux(start_flux, dom, pi)
+    pool = Pool(obj, workers)
+    try:
+        r = flux.fit(flux.LikelihoodFlux(obj, pi), f0, dom, objective_map=pool.fluxes, max_iter=MAX_STEPS,
+                     max_seconds=cap)
+    finally:
+        pool.close()
+        if pool.pool is not None:
+            pool.pool.join()
+    out = {"fit": fit_record(r), "start_moved": moved}
+    if r.status == "failed":
+        out.update({"evaluable": False, "flag": False})
+        return out
+    value, gf = flux.LikelihoodFlux(obj, pi)(r.f)
+    cert = flux.certificate(r.f, gf, dom)
+    evaluable = r.status == "converged" and cert["residual"] <= CERTIFICATE * max(1.0, abs(value))
+    Q = flux.generator(r.f, pi)
+    Qr, pr = reference
+    c_hat, c_ref, c_base = (simulate.circulation(Q, pi), simulate.circulation(Qr, pr), simulate.circulation(base, pi))
+    lnl = obj.log_likelihood(Q)
+    w = obj.counts[obj.counts > 0]
+    net = 2 * (simulate.flux_parts(Q, pi)[1] - simulate.flux_parts(Qr, pr)[1])
+    i, j, _ = t3._edges(len(pi))
+    upper = np.flatnonzero(i < j)       # net flux is antisymmetric: each pair once
+    top = upper[np.argsort(-np.abs(net[upper]))[:3]]
+    z = chart.inverse(Q, ref)
+    out.update({"evaluable": bool(evaluable), "certificate": cert["residual"], "lnl": lnl, "C_fit": c_hat,
+                "C_reference": c_ref, "C_base": c_base, "dC_reference": c_hat - c_ref, "dC_base": c_hat - c_base,
+                "log_ratio_per_site": float((w @ np.log(w / SITES) - lnl) / SITES),
+                "largest_net_flux_errors": [[lk.AMINO[i[e]] + lk.AMINO[j[e]], float(net[e])] for e in top],
+                "at_lower": int(np.sum(z <= dom.lower + NEAR_BOUND)), "at_upper": int(np.sum(z >= dom.upper - NEAR_BOUND)),
+                "m_active": r.m_active, "flag": bool(evaluable and abs(c_hat - c_ref) >= FLAG)})
+    log(f"  {label}: {r.status}, evaluable {out['evaluable']}, C {c_hat:.5f} (reference {c_ref:.5f}, "
+        f"dC {c_hat - c_ref:+.5f}), flag {out['flag']}, {r.seconds:.0f} s")
+    return out
+
+
+def best_endpoint(fit):
+    """A flagged fit's endpoint with the higher lnL, its own or its restart's from the generating reference
+    (an evaluable restart only): the flag and dC the 4-taxon selection reads."""
+    again = fit.get("from_reference") or {}
+    if again.get("evaluable") and again.get("lnl") is not None and again["lnl"] > fit["lnl"]:
+        return again
+    return fit
+
+
+def repeat_selection(fits):
+    """CODE_PLAN 3.8's 4-taxon repeats: among the reversible truth's evaluable fits, the two flagged with the
+    largest |dC against the generating reference|, or the single largest if none flags; each fit read at
+    its higher-lnL endpoint (best_endpoint)."""
+    rev = [best_endpoint(f) | {"scenario": f["scenario"]} for f in fits if f["base"] == "Q.bird" and f.get("evaluable")]
+    flagged = sorted((f for f in rev if f["flag"]), key=lambda f: -abs(f["dC_reference"]))
+    chosen = flagged[:2] if flagged else sorted(rev, key=lambda f: -abs(f["dC_reference"]))[:1]
+    return [f["scenario"] for f in chosen]
+
+
+def cmd_screen(a):
+    scenarios = a.scenarios.split(",")
+    if any(s not in SCENARIOS for s in scenarios):
+        sys.exit(f"--scenarios takes a comma-separated subset of {', '.join(SCENARIOS)}")
+    tree_text, cap = (THREE, CAP_3) if a.taxa == 3 else (FOUR, CAP_4)
+    prov = common.provenance(a, SCRIPT, f"screen-{a.taxa}taxa-" + "-".join(scenarios), "exploratory",
+                             scenarios=scenarios, taxa=a.taxa, tree=tree_text, sites=SITES, flag=FLAG,
+                             cap_seconds=cap,
+                             loci={"path": a.loci, "sha256": sha256(a.loci)} if "S2" in scenarios else None)
+    out = common.new_out(a.out, prov)
+    pi = common.target_values()
+    prov["target_sha256"] = sha256(common.TARGET)
+    _, truths = simulate.truths()
+    ref = nqc.lg_seed(pi)[1]
+    start = flux.flux_of(truths["LG"], pi)
+    loci = read_loci(a.loci) if "S2" in scenarios else None
+    tree = readers.parse_newick(tree_text)
+    names = tuple(sorted(leaf.name for leaf in tree.leaves()))
+    rows, fits, title = [], [], f"SIM-1 exact screen, {a.taxa} taxa ({', '.join(scenarios)})"
+    for scenario in scenarios:
+        if scenario == "S5" and a.taxa != 3:
+            rows.append(check("S5: skipped (its three rooted topologies are defined at three taxa)", None))
+            continue
+        for base in BASES:
+            label = f"{scenario} {base}"
+            t0 = time.monotonic()
+            try:
+                w, gaps, reference, info = screen_data(scenario, truths[base], pi, tree_text, loci)
+                obj = nqc.Objective.from_patterns(tree, simulate.columns(names, gaps=gaps), w, pi, ref)
+                peak = gradient_peak(obj, chart.inverse(truths[base], ref))
+                workers = workers_for(a.workers, peak["added"], mem_available())
+                fit = screen_fit(label, obj, start, pi, ref, truths[base], reference, workers, cap)
+            except Exception:  # noqa: BLE001  logged as not evaluable; the other fits still run
+                fits.append({"scenario": scenario, "base": base, "evaluable": False, "flag": False,
+                             "seconds": round(time.monotonic() - t0, 1)})
+                rows.append(check(f"{label}: raised", None, error=traceback.format_exc()[-2000:]))
+                common.save(out, prov, title + ", in progress", rows, {"fits": fits})
+                continue
+            fit.update({"scenario": scenario, "base": base, "data": info, "columns": len(w), "workers": workers,
+                        "seconds": round(time.monotonic() - t0, 1)})
+            fits.append(fit)
+            common.save(out, prov, title + ", in progress", rows, {"fits": fits})
+            if fit["flag"]:     # the restart from the generating reference, its failure kept apart from the fit
+                try:
+                    again = screen_fit(label + " from its reference", obj, flux.flux_of(*reference), pi, ref,
+                                       truths[base], reference, workers, cap)
+                    fit["from_reference"] = {k: again.get(k) for k in ("evaluable", "lnl", "C_fit", "dC_reference",
+                                                                       "flag", "certificate")}
+                    fit["from_reference"]["status"] = again["fit"]["status"]
+                except Exception:  # noqa: BLE001
+                    fit["from_reference"] = {"error": traceback.format_exc()[-2000:], "evaluable": False}
+                fit["higher_endpoint"] = "restart" if best_endpoint(fit) is not fit else "first"
+            rows.append(check(f"{label}", None, **{k: v for k, v in fit.items() if k != "fit"},
+                              status=fit["fit"]["status"]))
+            common.save(out, prov, title + ", in progress", rows, {"fits": fits})
+    counts = {"fits": len(fits), "not_evaluable": sum(not f.get("evaluable") for f in fits),
+              "flagged": [f"{f['scenario']} {f['base']}" for f in fits if f.get("flag")]}
+    rows.append(check("screen summary", None, **counts, repeat_selection=repeat_selection(fits)))
+    common.finish(out, prov, title, rows, {"fits": fits})
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = ap.add_subparsers(dest="step", required=True)
@@ -293,8 +515,16 @@ def main():
     r.add_argument("--out", help="new directory outside the repository (default under ~/iqtree3-runs/sim1/)")
     r.add_argument("--git", default="git", help="git executable (git.exe under WSL)")
     r.add_argument("--allow-dirty", action="store_true")
+    s = sub.add_parser("screen")
+    s.add_argument("--scenarios", default=",".join(SCENARIOS))
+    s.add_argument("--taxa", type=int, choices=(3, 4), default=3)
+    s.add_argument("--loci", default=str(HERE / "scaffold" / "compositions.tsv"), help="S2's per-locus table")
+    s.add_argument("--workers", type=int, default=10)
+    s.add_argument("--out", help="new directory outside the repository (default under ~/iqtree3-runs/sim1/)")
+    s.add_argument("--git", default="git", help="git executable (git.exe under WSL)")
+    s.add_argument("--allow-dirty", action="store_true")
     a = ap.parse_args()
-    cmd_recover(a)
+    {"recover": cmd_recover, "screen": cmd_screen}[a.step](a)
 
 
 if __name__ == "__main__":

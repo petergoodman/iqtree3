@@ -21,7 +21,7 @@ Labels are those of PLAN.md. Source anchors refer to `63c330d9` and were verifie
 | `model/modelnonrevfixedeq.{h,cpp}` | S2 to S4 | Class `ModelNonrevFixedEq : public ModelProtein`, public name "NQC" held in one constant (decision 002; section 2.2); from S3b also `public LinkedModelHooks`, listed second |
 | `model/linkedmodelhooks.h` | S3b | Header only: the abstract `LinkedModelHooks` through which `PartitionModel::optimizeLinkedModel` lets a linked model check, differentiate and record its fits (decision 005; section 2.2, "Linked hooks"). A separate header because NQC's header is included by `model/modelmixture.cpp` and `partitionmodel.h` pulls in the super tree, so putting the interface in either would create an include cycle |
 | `unittest/` | S1 | Standalone CMake project that compiles `model/fixedeqchart.cpp` directly, with IQ-TREE's clang Release flags and the `model` target's SSE flags (verified, `CMakeLists.txt:420`, `711-718`, `984`), and fetches googletest 1.12.1 at cmaple's pinned commit, checked by the archive's SHA-256 (verified, `cmaple/CMakeLists.txt:283-293`; decision 012); `fixtures/`, 27 chart cases and `targets.txt` in plain text at 17 significant digits with a provenance header (section 3.2); its own `.gitattributes` (decision 014) |
-| `test_scripts/fixedeq/` | S0 onward | `environment.yml` and lock (decision 013); `oracle/`; `tests/`; drivers `regression/`, `differential/`, `probes/`, `sanitizer/`, `unittests/`, `nqc/` and `design_rerun.py`; `manifest/` (G0 manifest); `explore/` (exploratory measurements behind decisions 007, 021, 023, 025 and 038); `make_fixtures.py`; `.gitattributes` and `.gitignore`. Added in S3: `nqc/twopart.py`, the two-partition data (S3b); `explore/convergence.py`, the stopping study and risk 22's converged evidence, with `oracle/optimize.py`'s reference climber `lbfgsb_fit` (S3c's first part); `profile/profiling.py`, the profiling driver (S3c). Added in S4: the oracle's export functions (`chart.first_order_test`, `nqc.export_gradient`, `readers.read_qmat`, `readers.read_info`) and `tests/test_export.py`. Added in S5: `oracle/flux.py`, the balanced-flux reference (section 3.1), with `likelihood.log_likelihood_gradient`, `nqc.Objective.from_patterns`, the analytic gradients and `nqc.z_gradient`, `lbfgsb_fit`'s analytic pass, and `tests/test_oracle_flux.py`; the driver `reference/reference.py` with `tests/test_reference.py`; `explore/v3_diagnosis.py`, the exploratory diagnosis of validation's V3, `explore/z_climb_diagnosis.py`, that of the z climbs' unmet A5(i) on toy, and `explore/z_face_check.py`, the check of aa_example's z climb endpoint on the lower face. Added after S5: `flux.certificate` with its test, and `explore/risk27_probe.py`, the exploratory probe behind decision 039's revision (PLAN.md retired risk 27). Added in SIM-1: `oracle/simulate.py` (section 3.1), `builtin.frequency_profiles`, `likelihood.tip_arrays` with the objectives' cache, and `tests/test_oracle_simulate.py`; `sim/` (section 3.8): `common.py` (run directories, provenance, reports, π*'s writer), `target.txt` (π* at 17 digits), `alisim_check.py`, `exact.py` (`recover`) and `.gitattributes`, with `tests/test_sim.py`; `explore/r4_finish_diagnosis.py`, the exploratory diagnosis behind decision 042's finish revision, with its test in `tests/test_oracle_flux.py` |
+| `test_scripts/fixedeq/` | S0 onward | `environment.yml` and lock (decision 013); `oracle/`; `tests/`; drivers `regression/`, `differential/`, `probes/`, `sanitizer/`, `unittests/`, `nqc/` and `design_rerun.py`; `manifest/` (G0 manifest); `explore/` (exploratory measurements behind decisions 007, 021, 023, 025 and 038); `make_fixtures.py`; `.gitattributes` and `.gitignore`. Added in S3: `nqc/twopart.py`, the two-partition data (S3b); `explore/convergence.py`, the stopping study and risk 22's converged evidence, with `oracle/optimize.py`'s reference climber `lbfgsb_fit` (S3c's first part); `profile/profiling.py`, the profiling driver (S3c). Added in S4: the oracle's export functions (`chart.first_order_test`, `nqc.export_gradient`, `readers.read_qmat`, `readers.read_info`) and `tests/test_export.py`. Added in S5: `oracle/flux.py`, the balanced-flux reference (section 3.1), with `likelihood.log_likelihood_gradient`, `nqc.Objective.from_patterns`, the analytic gradients and `nqc.z_gradient`, `lbfgsb_fit`'s analytic pass, and `tests/test_oracle_flux.py`; the driver `reference/reference.py` with `tests/test_reference.py`; `explore/v3_diagnosis.py`, the exploratory diagnosis of validation's V3, `explore/z_climb_diagnosis.py`, that of the z climbs' unmet A5(i) on toy, and `explore/z_face_check.py`, the check of aa_example's z climb endpoint on the lower face. Added after S5: `flux.certificate` with its test, and `explore/risk27_probe.py`, the exploratory probe behind decision 039's revision (PLAN.md retired risk 27). Added in SIM-1: `oracle/simulate.py` (section 3.1), `builtin.frequency_profiles`, `likelihood.tip_arrays` with the objectives' cache, and `tests/test_oracle_simulate.py`; `sim/` (section 3.8): `common.py` (run directories, provenance, reports, π*'s writer), `target.txt` (π* at 17 digits), `alisim_check.py`, `exact.py` (`recover`, `screen`), `birddata.py` (`fetch`, `inventory`, `scaffold`), `scaffold/compositions.tsv` and `.gitattributes`, with `tests/test_sim.py`; `explore/r4_finish_diagnosis.py`, the exploratory diagnosis behind decision 042's finish revision, with its test in `tests/test_oracle_flux.py` |
 | `.github/workflows/fixedeq.yaml` | S1 | Fork-only workflow that builds and runs the unit tests and the oracle's tests on Linux, and from S2 a short NQC run |
 
 Run outputs never go into the working copy; they go under `~/iqtree3-runs/` in WSL. Fixtures and
@@ -981,16 +981,21 @@ taxa in the 6.9 GB VM). Trees: 3 taxa `((a:0.2,b:0.3):0.1,c:0.4);`, 4 taxa
 **Bird data and scaffold** (`sim/birddata.py`, steps `fetch`, `inventory`, `scaffold`). Raw data are
 read-only and outside the repository; derived data come only from this script.
 - fetch: nQMaker's Dryad deposit (doi:10.5061/dryad.3tx95x6hx: `05_clades.zip`, `ASTRAL_trees.zip`,
-  `README.txt`; contents unverified) into `~/iqtree3-data/raw/nqmaker-dryad/`, SHA-256 recorded, files
-  made read-only, no personal details in the request. If Dryad refuses `curl`, Peter downloads in a
-  browser and `fetch --register` records the files.
-- inventory: bird loci, taxa per locus and lengths, reported against QMaker's 52 taxa and mean 545
-  columns.
-- scaffold: the ASTRAL bird topology rooted on Palaeognathae with `-o` (taxa listed in the record);
-  branch lengths, per-locus `+G4` shapes and partition rates from one `-p` fit of NQ.bird+G4 under `-te`
-  on a seeded random 100 loci (frozen binary); per-locus compositions from all loci. Written with
-  provenance headers to `test_scripts/fixedeq/sim/scaffold/` and committed; `sim/.gitattributes` sets
-  `* text eol=lf` (decision 014), so a cluster checkout has the same bytes.
+  `README.txt`) into `~/iqtree3-data/raw/nqmaker-dryad/`, each checked against the SHA-256 Dryad
+  publishes, made read-only. Dryad refuses scripted downloads (API 401, file stream 403), so Peter
+  downloads in a browser and `fetch --register` records the files (done 2026-11-17, all three matching).
+- The deposit's bird set: one concatenated alignment (`05_clades/bird/alignment.nex.zip`, 52 taxa,
+  4,519,041 columns) with 1,000 training and 6,295 test loci as charsets; its 52 taxa are 48 birds and the
+  outgroups HUMAN, ALLIG, ANOCA and CHEMY; ASTRAL trees `ASTRAL_NEW` and `ASTRAL_REV`, differing in topology.
+- inventory: every locus's length, taxa and residue counts (7,295 loci, mean 543 columns, 537 for training
+  loci, against QMaker's reported 545; 1,174 with all 52 taxa, at least 42 in every locus), written to the
+  committed `sim/scaffold/compositions.tsv` for the screen's S2 and SIM-2.
+- scaffold: `ASTRAL_NEW` rooted on HUMAN, since the outgroups make Palaeognathae the wrong root for this
+  taxon set (the plan's "rooted on Palaeognathae" assumed birds only; HUMAN root and `ASTRAL_NEW` chosen
+  unattended, for Peter to confirm); branch lengths, per-locus `+G4` shapes and partition rates (from the
+  checkpoint) of one `-p` fit of NQ.bird+G4 under `-te` on a seeded random 100 of all loci (frozen binary).
+  Written with provenance headers to `test_scripts/fixedeq/sim/scaffold/` and committed; `sim/.gitattributes`
+  sets `* text eol=lf` (decision 014), so a cluster checkout has the same bytes.
 
 **Pipeline** (`sim/pipeline.py`, steps `simulate`, `fit`, `metrics`, `pilot`; one replicate per
 invocation, with paths, binaries and threads as arguments, so it runs unchanged on a cluster).
@@ -1224,12 +1229,13 @@ measurements and review findings, frozen in `docs/agent/archive/SIM1_plan_2026-1
 3. `sim/alisim_check.py` and its tests, with π*'s committed file; M2's NQC fit; the check from a clean
    commit (done, 2026-11-16: every row passed at `b6ad2070`, 49 s; gate record in `CHANGELOG.md`).
 4. `sim/exact.py` and its tests; a read-only code review before this first confirmatory fit run;
-   `recover` from a clean commit (R1 to R4 and R6 in one invocation, then R5). First run at `49635fae`
-   (2026-11-16): R1, R2, R3, R5 and R6 passed; R4 failed, counted (the flux finish's early exit), and the
-   finish was revised (decision 042). The rerun of R1 to R6 from the revision's commit is next.
+   `recover` from a clean commit (R1 to R4 and R6 in one invocation, then R5). Done 2026-11-17: the first run
+   at `49635fae` failed R4, counted (the flux finish's early exit; decision 042 revised); the rerun at
+   `4ef10188` passed R1 to R6 (gate record in `CHANGELOG.md`).
 5. `sim/birddata.py`: fetch, inventory, the scaffold fit (under 1.5 h), the scaffold fixtures
    committed; then `screen` from a clean commit (14 fits 1.5 to 3.5 h, restarts under 1.5 h, each
-   4-taxon repeat 2 to 6 h).
+   4-taxon repeat 2 to 6 h). In progress 2026-11-17: fetch and inventory done, `exact.py screen` written
+   and reviewed; the screen and the scaffold fit run next, unattended.
 6. `sim/pipeline.py` and its tests; the reproducibility and wiring checks; the pilot (5 to 12 h);
    CLAUDE.md's commands gain the drivers.
 7. The close: risk 25's open items asked of Peter; section 3.8's "SIM-2's plan" written and approved;

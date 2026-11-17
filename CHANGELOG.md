@@ -8,6 +8,20 @@ gate record and may run to 25 lines. The next session starts from the top entry.
 This is a fork of `iqtree/iqtree3`. Entries here describe work on the fork, not upstream
 development.
 
+## 2026-11-17 (fourth session, unattended overnight): recovery passed; bird data; screen code
+
+- **Recovery rerun, gate record** (clean `4ef10188`; `~/iqtree3-runs/sim1/20261117T044637Z-4ef10188-recover-R1-R2-R3-R4-R6/`,
+  `20261117T045748Z-4ef10188-recover-R5/`): R1 to R6 passed every row; R4 now converged (projected z-gradient
+  3.4e-11, certificate 4.4e-9, largest rate error 4.6e-12); R1 to R3, R5, R6 as in the first run. Commit 4 done.
+- **Bird data:** Peter's browser downloads match Dryad's SHA-256; registered; inventory (7,295 loci, mean 543
+  columns) committed as `sim/scaffold/compositions.tsv`. The set holds the outgroups HUMAN, ALLIG, ANOCA,
+  CHEMY, so the scaffold is rooted on HUMAN with `ASTRAL_NEW` (unattended choices; Peter to confirm).
+- **Screen code** (`exact.py screen`); review: 2 blockers in birddata (`.best_model.nex`'s braces hold tree
+  lengths, now read from the checkpoint; an import), 1 major, 9 minor; fixed, but for the flag kept at
+  0.1 × 0.0577 and part of the test gaps (`screen_fit` itself is exercised only by the runs).
+- **Failed.** Twice a stray `python -` hung on Windows' Store alias; stopped, nothing ran.
+- **Next.** Screen (14 fits) and scaffold fit from this commit; 4-taxon repeats; the pipeline (commit 6).
+
 ## 2026-11-16 (fourth session, continued): SIM-1 recovery, first run; R4 failed; flux finish revised
 
 - **Recovery, first run** (clean `49635fae`; `~/iqtree3-runs/sim1/20261117T014919Z-49635fae-recover-R1-R2-R3-R4-R6/`

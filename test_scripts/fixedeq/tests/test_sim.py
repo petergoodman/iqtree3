@@ -144,3 +144,107 @@ def test_recovery_fails_against_a_moved_truth():
     rows, _ = ex.fit_and_check("n4-moved", obj, moved, start, pi, ref, 600.0, 1, log=lambda s: None)
     rate = [row for row in rows if "every rate" in row["check"]]
     assert len(rate) == 1 and rate[0]["passed"] is False
+
+
+# ---------------------------------------------------------------- exact.py screen (commit 5)
+
+def test_repeat_selection():
+    def fit(s, base, dc, flag, evaluable=True):
+        return {"scenario": s, "base": base, "dC_reference": dc, "flag": flag, "evaluable": evaluable}
+    fits = [fit("S1a", "Q.bird", 0.001, False), fit("S3", "Q.bird", -0.02, True), fit("S4a", "Q.bird", 0.01, True),
+            fit("S5", "Q.bird", 0.03, True, evaluable=False), fit("S1b", "Q.bird", 0.008, True),
+            fit("S4b", "NQ.bird", 0.5, True)]
+    assert ex.repeat_selection(fits) == ["S3", "S4a"]
+    quiet = [fit("S1a", "Q.bird", 0.001, False), fit("S4b", "Q.bird", -0.004, False), fit("S3", "NQ.bird", 0.9, True)]
+    assert ex.repeat_selection(quiet) == ["S4b"]
+    assert ex.repeat_selection([]) == []
+
+
+def test_s4b_masks_the_target_fraction():
+    pi, truths = simulate.truths()
+    _, gaps, _, info = ex.screen_data("S4b", truths["Q.bird"], pi, ex.THREE)
+    assert gaps and abs(info["masked_fraction"] - ex.MASK_TARGET) <= 1e-12 * ex.MASK_TARGET
+
+
+def test_s2_recentring_respects_the_floor(tmp_path):
+    pi, truths = simulate.truths()
+    counts = np.ones((3, 20))
+    counts[0, 4] = 0.0      # an absent residue
+    counts[1, 0] = 400.0    # a dominant one
+    table = "locus\tlength\t" + "\t".join(lk.AMINO) + "\n" + "".join(
+        f"L{k}\t{n}\t" + "\t".join(f"{v:g}" for v in row) + "\n" for k, (n, row) in enumerate(zip((300, 500, 900), counts)))
+    path = tmp_path / "loci.tsv"
+    path.write_text(table, encoding="utf-8")
+    loci = ex.read_loci(path)
+    assert np.array_equal(loci[0], [300.0, 500.0, 900.0]) and np.array_equal(loci[1], counts)
+    w, gaps, (Qr, pr), info = ex.screen_data("S2", truths["NQ.bird"], pi, ex.THREE, loci)
+    assert not gaps and info["lambda"] <= 1.0 and info["smallest_entry"] >= ex.LOCUS_FLOOR - 1e-15
+    assert abs(w.sum() - ex.SITES) <= 1e-12 * ex.SITES
+    d = chart.diagnostics(Qr, pr)
+    assert max(d["stationarity"], d["row_sums"], d["mean_rate_error"]) <= 1e-10
+
+
+def test_s3_reference_is_a_generator_at_pi():
+    pi, truths = simulate.truths()
+    _, _, (Qr, pr), info = ex.screen_data("S3", truths["Q.bird"], pi, ex.THREE)
+    d = chart.diagnostics(Qr, pr)
+    assert np.array_equal(pr, pi) and max(d["stationarity"], d["row_sums"], d["mean_rate_error"]) <= 1e-10
+    assert info["components"] == 20 and info["smallest_entry"] > 0
+
+
+def test_unmasked_composition_is_pi():
+    """At a stationary root every tip's marginal is pi, so the gap-free composition of exact weights is pi."""
+    pi, truths = simulate.truths()
+    tree = readers.parse_newick(ex.THREE)
+    w = simulate.exact_weights([simulate.Component(1.0, tree, truths["NQ.bird"], pi)], ("a", "b", "c"), ex.SITES)
+    assert np.max(np.abs(ex.composition(simulate.mask(w, np.zeros((len(w), 3))), 3) - pi)) <= 1e-12
+
+
+def test_s5_topologies_keep_each_taxons_length():
+    lengths = {}
+    for text in ex.TOPOLOGIES:
+        tree = readers.parse_newick(text)
+        lengths[text] = {leaf.name: leaf.length for leaf in tree.leaves()}
+        assert sorted(lengths[text]) == ["a", "b", "c"]
+    assert all(v == {"a": 0.2, "b": 0.3, "c": 0.4} for v in lengths.values())
+    assert abs(sum(ex.DISCORDANCE) - 1) <= 1e-15
+
+
+def test_repeat_selection_reads_the_higher_endpoint():
+    first = {"scenario": "S3", "base": "Q.bird", "evaluable": True, "flag": True, "dC_reference": 0.02, "lnl": -10.0,
+             "from_reference": {"evaluable": True, "lnl": -9.0, "flag": False, "dC_reference": 0.001}}
+    other = {"scenario": "S4a", "base": "Q.bird", "evaluable": True, "flag": True, "dC_reference": 0.01, "lnl": -5.0}
+    assert ex.best_endpoint(first) is first["from_reference"]
+    assert ex.repeat_selection([first, other]) == ["S4a"]
+
+
+def test_s2_reaches_the_floor_when_lambda_is_below_one(tmp_path):
+    pi, truths = simulate.truths()
+    counts = np.ones((2, 20))
+    counts[0, 4] = 0.0
+    counts[1, 0] = 5000.0
+    path = tmp_path / "loci.tsv"
+    path.write_text("# content: constructed\nlocus\tlength\t" + "\t".join(lk.AMINO) + "\n"
+                    + "".join(f"L{k}\t{n}\t" + "\t".join(f"{v:g}" for v in row) + "\n"
+                              for k, (n, row) in enumerate(zip((300, 900), counts))), encoding="utf-8")
+    _, _, _, info = ex.screen_data("S2", truths["NQ.bird"], pi, ex.THREE, ex.read_loci(path))
+    assert info["lambda"] < 1 and abs(info["smallest_entry"] - ex.LOCUS_FLOOR) <= 1e-15
+
+
+def test_root_on_a_leaf():
+    import birddata as bd
+    rooted = bd.root_on("((a:1,b:2)0.9:0.5,(c:1,(d:1,e:1)1:0.2):0.3);", "d")
+    tree = readers.parse_newick(rooted)
+    assert [c.name for c in tree.children][0] == "d" and len(tree.children) == 2
+    assert sorted(leaf.name for leaf in tree.leaves()) == ["a", "b", "c", "d", "e"]
+    assert all(len(n.children) in (0, 2) for n in tree.preorder())
+    def clades(text):
+        out = set()
+
+        def rec(nd):
+            leaves = frozenset([nd.name]) if not nd.children else frozenset().union(*(rec(c) for c in nd.children))
+            out.add(leaves)
+            return leaves
+        rec(readers.parse_newick(text))
+        return out
+    assert clades(rooted) == clades("(d,(e,(c,(a,b))));")
