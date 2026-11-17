@@ -302,7 +302,7 @@ def cmd_scaffold(a):
                        len(shapes) == len(rates) == SCAFFOLD_LOCI, shapes=len(shapes), rates=len(rates)),
                  check("the partition rates' site-weighted mean is 1 (IQ-TREE's -p normalization)",
                        abs(mean - 1.0) <= 1e-6, mean=mean)]
-        if all(r["passed"] for r in rows):
+        if all(r["passed"] is not False for r in rows):     # reported rows (None) do not block
             SCAFFOLD.mkdir(exist_ok=True)
             extra = {"seed": SEED, "loci": SCAFFOLD_LOCI, "topology": TREE, "root": ROOT,
                      "binary_sha256": prov["binary"]["sha256"]}
