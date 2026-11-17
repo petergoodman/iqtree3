@@ -285,8 +285,14 @@ def cmd_scaffold(a):
     route = q_route(run, labels) if run.code == 0 else None
     rows.append(check("the fit's checkpoint holds the tree, every shape and the partition rates", route is not None))
     if route is not None:
-        tree = route["tree"].strip()
+        # IQ-TREE writes a rooted tree with a stem, the branch to its virtual root; the root is drawn from pi
+        # solved from NQ.bird's Q, stationary, so the stem changes no likelihood and its length is not
+        # identified. It is dropped (recorded), since AliSim would simulate it as a branch.
+        fitted = route["tree"].strip()
+        stem = readers.parse_newick(fitted).length
+        tree = re.sub(r"\)\s*:\s*[-+0-9.eE]+\s*;\s*$", ");", fitted)
         root = readers.parse_newick(tree)
+        rows.append(check("the fitted tree's root stem, dropped (report)", None, stem=stem))
         shapes = [float(v) for v in route["shapes"]]
         rates = [float(v) for v in route["rates"]]
         mean = float(np.dot(rates, lengths) / np.sum(lengths))
