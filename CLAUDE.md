@@ -116,6 +116,16 @@ cmake --build ~/iqtree3-build -j 4
   the full commands are in its docstring. It runs IQ-TREE under Debian's gdb 13.1, which finds
   functions in the stripped binary through its dynamic symbols. gdb's shell start must stay on:
   with it off, gdb keeps the backslashes it puts before braces, and IQ-TREE rejects `+G4{0.5}`.
+- **SIM-1 drivers** (`test_scripts/fixedeq/sim/`, `CODE_PLAN.md` section 3.8; full commands in each
+  docstring), each with `--git git.exe`, writing results.json and report.md into a new
+  `~/iqtree3-runs/sim1/<stamp>-<commit8>-<step>/` and refusing an unclean tree unless `--allow-dirty`:
+  `alisim_check.py run --frozen ~/iqtree3-baseline/iqtree3 --gate BIN`; `exact.py recover` and
+  `screen`; `birddata.py fetch --register FILES`, `inventory`, `scaffold --binary
+  ~/iqtree3-baseline/iqtree3`; `pipeline.py simulate`, `fit`, `metrics`, `checks`, `pilot`. π* is
+  `sim/target.txt`, the bird scaffold `sim/scaffold/`; the raw bird data in
+  `~/iqtree3-data/raw/nqmaker-dryad/` were downloaded by Peter in a browser (Dryad refuses scripts).
+- **`python` in the Bash tool is the Windows Store alias** and hangs waiting for input; never call it
+  there (three hangs on 2026-11-16 and 17). Python runs only through WSL's conda, as above.
 - **Long jobs need the laptop awake.** Windows Modern Standby pauses the WSL VM and every job in
   it; idle sleep is set to 3 minutes on battery and 15 minutes plugged in. A job that looks hung
   is usually paused. Compare IQ-TREE's CPU time with its wall-clock time, the VM's `uptime`, and

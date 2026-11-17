@@ -8,6 +8,19 @@ gate record and may run to 25 lines. The next session starts from the top entry.
 This is a fork of `iqtree/iqtree3`. Entries here describe work on the fork, not upstream
 development.
 
+## 2026-11-17 (fourth session, unattended): scaffold, screen, pipeline code
+
+- **Scaffold** (`5a299751`, 362 s): ASTRAL_NEW rooted on HUMAN, 100 loci, shapes 0.020 to 4.64 (mean 0.45; one at
+  IQ-TREE's 0.02 bound), rates 0.027 to 5.0; IQ-TREE's root stem (2.3e-4, unidentified) dropped. Two of my bugs
+  cost two reruns (`57d88b60`, `5a299751`).
+- **Screen** (exploratory, clean `84be73e4`; `~/iqtree3-runs/sim1/20261117T061309Z-84be73e4-screen-3taxa-*`): 10 of
+  14 fits not evaluable, all with rows at a lower bound (converged, certificate 679 to 1.4e5); none flagged (only
+  evaluable fits flag). Reversible truth's C: S4b 0.034, S3 0.0071, S1b 0.0051 (not evaluable), S1a 0.0012,
+  S4a 0.0007, S5 0.0006. Repeats deferred to Peter's certificate decision.
+- **Pipeline** (`sim/pipeline.py`), reviewed: 1 blocker (checks' gene count), 2 major (peak memory, lost
+  records), 7 minor; fixed, but no test of the held-out `parts.nex`. **Next.** Checks per truth, pilot, the
+  certificate probe; Peter's decisions.
+
 ## 2026-11-17 (fourth session, unattended overnight): recovery passed; bird data; screen code
 
 - **Recovery rerun, gate record** (clean `4ef10188`; `~/iqtree3-runs/sim1/20261117T044637Z-4ef10188-recover-R1-R2-R3-R4-R6/`,

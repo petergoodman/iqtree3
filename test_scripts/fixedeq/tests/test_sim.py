@@ -5,6 +5,7 @@ from collections import Counter
 from pathlib import Path
 
 import numpy as np
+import pytest
 from scipy import stats
 
 FIXEDEQ = Path(__file__).resolve().parents[1]
@@ -14,6 +15,7 @@ from oracle import cases, chart, flux, likelihood as lk, nqc, readers, simulate 
 import alisim_check as ac  # noqa: E402
 import common  # noqa: E402
 import exact as ex  # noqa: E402
+import pipeline as pl  # noqa: E402
 
 
 def test_committed_target_is_the_oracles():
@@ -248,3 +250,115 @@ def test_root_on_a_leaf():
         rec(readers.parse_newick(text))
         return out
     assert clades(rooted) == clades("(d,(e,(c,(a,b))));")
+
+
+# ---------------------------------------------------------------- pipeline.py (commit 6)
+
+def test_gene_seeds():
+    seeds = [pl.gene_seed(pl.SEED, r, g) for r in range(3) for g in range(1, 200)]
+    assert all(1 <= s <= pl.SEED_MAX for s in seeds) and len(set(seeds)) == len(seeds)
+    assert seeds == [pl.gene_seed(pl.SEED, r, g) for r in range(3) for g in range(1, 200)]
+
+
+def test_draw_is_seeded_with_replacement():
+    loci = [{"locus": f"L{k}", "length": 100 + k, "shape": 0.5, "rate": 1.0} for k in range(5)]
+    a, b = pl.draw(loci, 40, 7, 1), pl.draw(loci, 40, 7, 1)
+    assert a == b and len({g["index"] for g in a}) <= 5 and len(a) == 40
+    assert pl.draw(loci, 40, 7, 2) != a
+
+
+def test_q_rates_are_unchanged_by_site_weighted_renormalization():
+    genes = [{"length": n, "rate": r} for n, r in ((120, 0.4), (800, 1.9), (333, 1.1), (51, 3.0))]
+    m, rates = pl.tree_factor(genes)
+    lengths = [g["length"] for g in genes]
+    assert abs(m - sum(g["rate"] * g["length"] for g in genes) / sum(lengths)) <= 1e-15
+    renorm = nqc.normalize_part_rates(rates, lengths)
+    assert np.max(np.abs(np.array(renorm) - rates) / np.array(rates)) <= 1e-12
+
+
+def test_concatenation_and_charsets_for_unequal_lengths():
+    alns = [{"a": "AR", "b": "NN"}, {"a": "DDD", "b": "CCQ"}]
+    text, sets = pl.concatenate(alns, ["b", "a"])
+    assert text == "2 5\nb NNCCQ\na ARDDD\n"
+    assert "charset g0001 = 1-2;" in sets and "charset g0002 = 3-5;" in sets
+    q = pl.q_file(sets, [{"shape": 0.1}, {"shape": 0.7}], [0.3, 1.7])
+    assert "LG+G4{0.10000000000000001}: g0001{0.29999999999999999}" in q
+
+
+def test_prune_keeps_paths_and_both_sides():
+    tree = "((a:0.1,(b:0.2,c:0.3):0.4):0.5,(d:0.6,(e:0.7,f:0.8):0.9):1.0);"
+    keep = pl.pruned_taxa(tree, 4, 3)
+    assert len(keep) == 4 and keep & {"a", "b", "c"} and keep & {"d", "e", "f"}
+
+    def depths(text):
+        out = {}
+
+        def rec(nd, d):
+            d += nd.length or 0.0
+            if not nd.children:
+                out[nd.name] = d
+            for c in nd.children:
+                rec(c, d)
+        rec(readers.parse_newick(text), 0.0)
+        return out
+    pruned = pl.prune(tree, keep)
+    root = readers.parse_newick(pruned)
+    assert len(root.children) == 2 and not root.length and all(len(n.children) in (0, 2) for n in root.preorder())
+    full, kept = depths(tree), depths(pruned)
+    assert set(kept) == keep and all(abs(kept[t] - full[t]) <= 1e-12 for t in keep)
+
+
+def test_read_scaffold_refuses_unrooted_and_stems(tmp_path):
+    loci = "# provenance\nlocus\tlength\tshape\trate\nL1\t100\t0.5\t1.0\n"
+    for name, tree, ok in (("rooted", "# provenance\n((a:1,b:1):1,c:1);\n", True),
+                           ("unrooted", "(a:1,b:1,c:1);\n", False), ("stem", "((a:1,b:1):1,c:1):0.5;\n", False)):
+        d = tmp_path / name
+        d.mkdir()
+        (d / "tree.nwk").write_text(tree, encoding="utf-8")
+        (d / "loci.tsv").write_text(loci, encoding="utf-8")
+        if ok:
+            t, rows = pl.read_scaffold(d)
+            assert t == "((a:1,b:1):1,c:1);" and rows == [{"locus": "L1", "length": 100, "shape": 0.5, "rate": 1.0}]
+        else:
+            with pytest.raises(ValueError):
+                pl.read_scaffold(d)
+
+
+def test_sd_upper_bound():
+    from scipy import stats
+    b = pl.sd_bounds([1.0, 2.0, 3.0, 4.0, 5.0, None])
+    assert b["n"] == 5 and abs(b["sd"] - np.sqrt(2.5)) <= 1e-15
+    assert abs(b["sd_upper80"] - np.sqrt(2.5) * np.sqrt(4 / stats.chi2.ppf(0.2, 4))) <= 1e-12
+    assert pl.sd_bounds([1.0])["sd"] is None
+
+
+def test_fit_arguments():
+    d = Path("/data")
+    level1 = [str(x) for x in pl.fit_args(d, "NQC+F{x}")]
+    assert level1 == ["-s", "/data/alignment.phy", "-q", "parts.nex", "--model-joint", "NQC+F{x}", "-te",
+                      "/data/tree.nwk", "-blfix", "-keep-ident"]
+    level2 = [str(x) for x in pl.fit_args(d, "NQC+F{x}", level2=True, relaxed=True)]
+    assert "-p" in level2 and "-blfix" not in level2 and "-q" not in level2
+    assert level2[-6:] == ["-me", "1e-06", "--loop-model", "300", "-nparam", "302"]
+
+
+def test_partition_rate_on_the_fit_tree_equals_the_simulated_tree():
+    """Gene k simulated on T rho_k equals the fit's partition at rate rho_k / m on T m: the -q wiring."""
+    rng = np.random.default_rng(51)
+    pi = cases.random_target(20, rng)
+    Q = cases.generator_from_flux(cases.cycle_flux(20, rng), pi)
+    ref = chart.references(Q)
+    tree = "((a:0.2,b:0.3):0.1,(c:0.25,d:0.15):0.05);"
+    aln = {n: "".join(rng.choice(list(lk.AMINO), 40)) for n in "abcd"}
+    rho, m = 1.7, 0.85
+    sim = nqc.Objective(aln, readers.parse_newick(pl.scale_tree(tree, rho)), pi, ref, shape=0.5)
+    fit = nqc.Objective(aln, readers.parse_newick(pl.scale_tree(tree, m)), pi, ref, shape=0.5, part_rate=rho / m)
+    assert abs(sim.log_likelihood(Q) - fit.log_likelihood(Q)) <= 1e-12 * abs(sim.log_likelihood(Q))
+
+
+def test_prune_with_a_single_leaf_side():
+    tree = "(h:0.9,((a:0.1,b:0.2):0.3,(c:0.4,d:0.5):0.6):0.7);"
+    keep = pl.pruned_taxa(tree, 3, 5)
+    assert "h" in keep and len(keep) == 3
+    pruned = readers.parse_newick(pl.prune(tree, keep))
+    assert len(pruned.children) == 2 and sorted(leaf.name for leaf in pruned.leaves()) == sorted(keep)
