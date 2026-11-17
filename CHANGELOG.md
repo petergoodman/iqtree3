@@ -8,6 +8,17 @@ gate record and may run to 25 lines. The next session starts from the top entry.
 This is a fork of `iqtree/iqtree3`. Entries here describe work on the fork, not upstream
 development.
 
+## 2026-11-17 (fourth session, unattended, early morning): checks passed; certificate probe; pilot running
+
+- **Pipeline checks** (confirmatory, clean `ec462978`; `~/iqtree3-runs/sim1/*-ec462978-checks-*`): NQ.bird, Q.bird, LG
+  and dial:0.5 passed every row; wiring within 1.4e-8 to 9.3e-8 at |lnL| about 1.6e5; taskset 4 seeds against 24.
+- **Certificate probe** (`explore/screen_certificate_probe.py`, exploratory): all 10 not-evaluable screen fits
+  refit bitwise; certificate fails at activity thresholds 1e-12 to 1e-8, passes at 1e-6 (1 to 24 rows at slack
+  1e-8 to 1e-6): bound-active first-order points. At 1e-6, flagged: S3 Q.bird (C 0.0071), S4b Q.bird (0.0343),
+  S4b NQ.bird (dC -0.0058); repeats S4b, S3. The threshold is Peter's (039, 021).
+- **Running:** the pilot (`ec462978`; main replicate 1 near 2.5 min a round); provisional 4-taxon S4b, S3 on Q.bird.
+- **Next.** Peter: the threshold, HUMAN root, ASTRAL_NEW, the screen's interpretations; then repeats, pilot, close.
+
 ## 2026-11-17 (fourth session, unattended): scaffold, screen, pipeline code
 
 - **Scaffold** (`5a299751`, 362 s): ASTRAL_NEW rooted on HUMAN, 100 loci, shapes 0.020 to 4.64 (mean 0.45; one at

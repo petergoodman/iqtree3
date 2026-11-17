@@ -328,18 +328,18 @@ audits' low findings are in `CODE_PLAN.md` section 4, "Known and left alone".
   additions (commit 2), the AliSim exact check passed at `b6ad2070` (commit 3), exact recovery passed R1 to
   R6 at `4ef10188` after a first run's R4 failure (counted; the flux finish exited early, revised under
   decision 042) (commit 4), the bird data, scaffold (rooted on HUMAN, for Peter to confirm) and the 3-taxon
-  screen (10 of 14 fits not evaluable, all with rows at a bound; repeats deferred) (commit 5), and the
-  pipeline's code (commit 6, its checks and pilot next); specification in `CODE_PLAN.md`
+  screen (10 of 14 fits not evaluable, all bound-active first-order points that pass the certificate only
+  at activity threshold 1e-6; repeats deferred) (commit 5), and the pipeline, its checks passed (commit 6,
+  the pilot running); specification in `CODE_PLAN.md`
   section 3.8, transport rule decision 044, pass lines in 021; the approved plan, with its planning
   measurements and review, is frozen in `docs/agent/archive/SIM1_plan_2026-11-16.md`.
 
 ## Next step
 
-SIM-1's commit 6 runs (`CODE_PLAN.md` section 3.8 and section 4's SIM-1 list): the pipeline's checks per
-truth and the pilot, with `explore/screen_certificate_probe.py` on the screen's not-evaluable fits. Peter
-decides the certificate's activity threshold for bound-active endpoints (decisions 039, 042; the screen's
-evaluability and the 4-taxon repeats wait on it) and confirms the unattended choices listed in the newest
-`CHANGELOG.md` entries (HUMAN root, `ASTRAL_NEW`, the screen's interpretations). Risk 25's open inputs are
-asked for at SIM-1's close, before SIM-2's plan.
+Peter decides the certificate's activity threshold for bound-active endpoints (decisions 039, 021; the
+probe's evidence in the newest `CHANGELOG.md` entry; the screen's evaluability, flags and 4-taxon repeats
+wait on it) and confirms the unattended choices listed there (HUMAN root, `ASTRAL_NEW`, the screen's
+interpretations). Then the 4-taxon repeats, the pilot's completion (`CODE_PLAN.md` section 3.8 and
+section 4's SIM-1 list), and SIM-1's close; risk 25's open inputs are asked for there, before SIM-2's plan.
 
 The working rules are in `CODE_PLAN.md` section 4, "Implementation".

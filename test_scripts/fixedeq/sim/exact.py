@@ -420,7 +420,8 @@ def screen_fit(label, obj, start_flux, pi, ref, base, reference, workers, cap, l
                 "log_ratio_per_site": float((w @ np.log(w / SITES) - lnl) / SITES),
                 "largest_net_flux_errors": [[lk.AMINO[i[e]] + lk.AMINO[j[e]], float(net[e])] for e in top],
                 "at_lower": int(np.sum(z <= dom.lower + NEAR_BOUND)), "at_upper": int(np.sum(z >= dom.upper - NEAR_BOUND)),
-                "m_active": r.m_active, "flag": bool(evaluable and abs(c_hat - c_ref) >= FLAG)})
+                "m_active": r.m_active, "flag": bool(evaluable and abs(c_hat - c_ref) >= FLAG),
+                "endpoint_flux": r.f})      # t3._edges order, so an endpoint can be examined without a refit
     log(f"  {label}: {r.status}, evaluable {out['evaluable']}, C {c_hat:.5f} (reference {c_ref:.5f}, "
         f"dC {c_hat - c_ref:+.5f}), flag {out['flag']}, {r.seconds:.0f} s")
     return out
@@ -447,11 +448,12 @@ def repeat_selection(fits):
 
 def cmd_screen(a):
     scenarios = a.scenarios.split(",")
-    if any(s not in SCENARIOS for s in scenarios):
-        sys.exit(f"--scenarios takes a comma-separated subset of {', '.join(SCENARIOS)}")
+    bases = a.bases.split(",")
+    if any(s not in SCENARIOS for s in scenarios) or any(b not in BASES for b in bases):
+        sys.exit(f"--scenarios takes a subset of {', '.join(SCENARIOS)}, --bases of {', '.join(BASES)}")
     tree_text, cap = (THREE, CAP_3) if a.taxa == 3 else (FOUR, CAP_4)
-    prov = common.provenance(a, SCRIPT, f"screen-{a.taxa}taxa-" + "-".join(scenarios), "exploratory",
-                             scenarios=scenarios, taxa=a.taxa, tree=tree_text, sites=SITES, flag=FLAG,
+    prov = common.provenance(a, SCRIPT, f"screen-{a.taxa}taxa-" + "-".join(scenarios + bases), "exploratory",
+                             scenarios=scenarios, bases=bases, taxa=a.taxa, tree=tree_text, sites=SITES, flag=FLAG,
                              cap_seconds=cap,
                              loci={"path": a.loci, "sha256": sha256(a.loci)} if "S2" in scenarios else None)
     out = common.new_out(a.out, prov)
@@ -468,7 +470,7 @@ def cmd_screen(a):
         if scenario == "S5" and a.taxa != 3:
             rows.append(check("S5: skipped (its three rooted topologies are defined at three taxa)", None))
             continue
-        for base in BASES:
+        for base in bases:
             label = f"{scenario} {base}"
             t0 = time.monotonic()
             try:
@@ -497,7 +499,7 @@ def cmd_screen(a):
                 except Exception:  # noqa: BLE001
                     fit["from_reference"] = {"error": traceback.format_exc()[-2000:], "evaluable": False}
                 fit["higher_endpoint"] = "restart" if best_endpoint(fit) is not fit else "first"
-            rows.append(check(f"{label}", None, **{k: v for k, v in fit.items() if k != "fit"},
+            rows.append(check(f"{label}", None, **{k: v for k, v in fit.items() if k not in ("fit", "endpoint_flux")},
                               status=fit["fit"]["status"]))
             common.save(out, prov, title + ", in progress", rows, {"fits": fits})
     counts = {"fits": len(fits), "not_evaluable": sum(not f.get("evaluable") for f in fits),
@@ -518,6 +520,7 @@ def main():
     s = sub.add_parser("screen")
     s.add_argument("--scenarios", default=",".join(SCENARIOS))
     s.add_argument("--taxa", type=int, choices=(3, 4), default=3)
+    s.add_argument("--bases", default=",".join(BASES), help="base truths, a subset of Q.bird,NQ.bird")
     s.add_argument("--loci", default=str(HERE / "scaffold" / "compositions.tsv"), help="S2's per-locus table")
     s.add_argument("--workers", type=int, default=10)
     s.add_argument("--out", help="new directory outside the repository (default under ~/iqtree3-runs/sim1/)")

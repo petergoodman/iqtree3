@@ -1239,7 +1239,7 @@ measurements and review findings, frozen in `docs/agent/archive/SIM1_plan_2026-1
    CHANGELOG), so the 4-taxon repeats wait for Peter's decision on the certificate's activity threshold.
 6. `sim/pipeline.py` and its tests; the reproducibility and wiring checks; the pilot (5 to 12 h);
    CLAUDE.md's commands gain the drivers. 2026-11-17: code, tests and commands done, reviewed; the checks
-   and the pilot run next.
+   passed for NQ.bird, Q.bird, LG and dial:0.5 at `ec462978`; the pilot runs from that commit.
 7. The close: risk 25's open items asked of Peter; section 3.8's "SIM-2's plan" written and approved;
    the gate record in the CHANGELOG entry; PLAN.md's state replaced; this list cut to one line and S6's
    list written; the AI_DISCLOSURE.md entry; a fresh read-only check of the records against the gate.
