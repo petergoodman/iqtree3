@@ -545,17 +545,17 @@ composition is the kind of target the study uses (D07).
 ### 042. S5's flux reference: exact gradients, a barrier Newton method, NQC anchored at its start
 
 **Rule.** S5's reference (`CODE_PLAN.md` 3.1), no data set added, fits f = f0 + Zy over NQC's box as
-exact linear ratio constraints with analytic likelihood gradients (oracle only; the compiled model
-keeps finite differences): a log-barrier Newton method with an active-set finish, validated on known
-answers first; the z climbs are L-BFGS-B with a projected Newton finish; both finishes take central
-Hessians. It climbs from NQC's start and relaxed endpoint; same-peak line 021's L; NQC not above it.
+exact linear ratio constraints with analytic likelihood gradients (oracle only): a log-barrier Newton
+method with an active-set finish ending only at the declared stop or a stalled or zero decrement,
+validated on known answers first; the z climbs are L-BFGS-B with a projected Newton finish; both
+finishes take central Hessians. It climbs from NQC's start and relaxed endpoint; 021's L; NQC not above.
 **Why.** Fluxes at NQC's peaks span 1e-13 to 1e-1, too wide for finite differences at the tight stop
-needed (S3c's climbs at `pgtol` 1e-3 ended up to 0.303 apart). Failed: `trust-constr`; a forward
-Hessian on V3; L-BFGS-B's own stop on toy (`explore/v3_diagnosis.py`, `z_climb_diagnosis.py`). An
-endpoint-only check cannot fail; agreement is data-independent.
+needed (S3c's climbs at `pgtol` 1e-3 ended up to 0.303 apart); endpoint-only checks cannot fail.
+Failed: `trust-constr`; a forward Hessian on V3; L-BFGS-B's own stop on toy; an early finish exit on
+SIM-1's R4 (`explore/v3_diagnosis.py`, `z_climb_diagnosis.py`, `r4_finish_diagnosis.py`).
 **Not chosen.** Finite differences; `trust-constr`, SLSQP, cyipopt; a fixed 1e-3 line; 1e-8 × |lnL|;
 endpoint-anchored checks only; risk 9's small real set; a smaller N or relative stop (V3); looser A5(i).
-**Since** 2026-11-07 (Peter; solver revised then; finishes 2026-11-08 and 2026-11-09); survey archived.
+**Since** 2026-11-07 (Peter); finishes 2026-11-08, 2026-11-09, 2026-11-16 (Peter, R4); survey archived.
 
 ## Tooling
 

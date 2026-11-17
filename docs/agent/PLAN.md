@@ -326,16 +326,18 @@ audits' low findings are in `CODE_PLAN.md` section 4, "Known and left alone".
   `docs/agent/archive/SIM_plan_2026-11-07.md`); S5's approved plan, survey and review are frozen in
   `docs/agent/archive/S5_plan_2026-11-07.md`. SIM-1 is under way (no IQ-TREE source change): the oracle
   additions (commit 2), the AliSim exact check passed at `b6ad2070` (commit 3), and the exact-recovery
-  driver `sim/exact.py` written and reviewed (commit 4, runs next); specification in `CODE_PLAN.md`
+  driver `sim/exact.py` (commit 4), whose first run passed R1, R2, R3, R5 and R6 and failed R4 (counted;
+  the flux finish exited early, revised under decision 042), its rerun next; specification in `CODE_PLAN.md`
   section 3.8, transport rule decision 044, pass lines in 021; the approved plan, with its planning
   measurements and review, is frozen in `docs/agent/archive/SIM1_plan_2026-11-16.md`.
 
 ## Next step
 
-SIM-1's commit 4 runs: `sim/exact.py recover` from a clean commit, R1 to R4 and R6, then R5
-(`CODE_PLAN.md` section 3.8 and section 4's SIM-1 list); their records ride in commit 5's code commit.
-Then commit 5 (bird data, scaffold, screen); each later commit gets a short plan first, and the long
-runs span sessions. Risk 25's open inputs are
+SIM-1's commit 4 rerun: `sim/exact.py recover` R1 to R4 and R6, then R5, from the clean commit with
+decision 042's revised finish (`CODE_PLAN.md` section 3.8 and section 4's SIM-1 list); its records ride
+in commit 5's code commit. Then commit 5 (bird data, scaffold, screen), which needs Peter's browser
+download of nQMaker's Dryad files (Dryad refuses scripted downloads); each later commit gets a short
+plan first, and the long runs span sessions. Risk 25's open inputs are
 asked for at SIM-1's close, before SIM-2's plan.
 
 The working rules are in `CODE_PLAN.md` section 4, "Implementation".

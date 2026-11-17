@@ -8,6 +8,18 @@ gate record and may run to 25 lines. The next session starts from the top entry.
 This is a fork of `iqtree/iqtree3`. Entries here describe work on the fork, not upstream
 development.
 
+## 2026-11-16 (fourth session, continued): SIM-1 recovery, first run; R4 failed; flux finish revised
+
+- **Recovery, first run** (clean `49635fae`; `~/iqtree3-runs/sim1/20261117T014919Z-49635fae-recover-R1-R2-R3-R4-R6/`
+  and `20261117T015844Z-49635fae-recover-R5/`): R1, R2, R3, R6 (63 to 105 s) and R5 (54 min) passed every row;
+  largest rate error 9e-8, deficits within 4e-9, |Ĉ − C| within 3e-12. **R4 (+G4) failed 2 rows, counted:**
+  unconverged (projected z-gradient 2.4e-6) and certificate 0.026 against 0.0055; its deficit was 0.
+- **Diagnosis** (`explore/r4_finish_diagnosis.py`, exploratory; Peter chose to diagnose): the finish's stationary
+  exit fired at decrement 2e-12 (threshold 5.5e-12), the gradient mostly along stiff directions; one Newton step
+  gave 4e-11 and a certificate of 5e-9. Fixed by Peter's choice: decision 042 revised, flux.py's finish keeps
+  stepping until the decrement stalls or is zero; a test reproducing it (V2 at n = 3 with +G4) fails before the fix.
+- **Next.** Rerun R1 to R6 from this commit; then commit 5, after Peter's Dryad download.
+
 ## 2026-11-16 (fourth session, continued): SIM-1 commit 3 passed; commit 4's code
 
 - **Commit 3, gate record.** AliSim exact check at clean `b6ad2070`

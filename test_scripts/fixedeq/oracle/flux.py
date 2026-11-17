@@ -597,18 +597,23 @@ def _run(objective, basis, domain, objective_map, max_iter, deadline, progress=N
                     lam = lstsq(GW.T, HF @ d + g)[0] if W.any() else np.zeros(0)
                     out = np.flatnonzero(W)[lam < -RELEASE]
                     if not len(out):
-                        break                     # stationary with every multiplier kept
-                    W[out] = False
-                    rec["released"] += len(out)
-                    pin = W.copy()
-                    pin[out] = True       # released rows moved INWARD off their faces, the others kept
-                    u = u + lstsq(basis.G[pin], np.where(W[pin], 0.0, INWARD - s[pin]))[0]
-                    last_pure = None
-                    cache.clear()
-                    cur = evaluate(u, W)
-                    if cur is None:
-                        raise RuntimeError("the active-set finish left the domain at a release")
-                    continue
+                        if stalled or decrement <= 0.0:
+                            break                 # stationary with every multiplier kept
+                        # the declared stop failed at the loop's top, and a decrement this small can hide
+                        # a gradient along stiff directions (SIM-1's R4): the step is taken, judged by
+                        # rounding below, until the decrement stops halving or is zero
+                    else:
+                        W[out] = False
+                        rec["released"] += len(out)
+                        pin = W.copy()
+                        pin[out] = True   # released rows moved INWARD off their faces, the others kept
+                        u = u + lstsq(basis.G[pin], np.where(W[pin], 0.0, INWARD - s[pin]))[0]
+                        last_pure = None
+                        cache.clear()
+                        cur = evaluate(u, W)
+                        if cur is None:
+                            raise RuntimeError("the active-set finish left the domain at a release")
+                        continue
             alpha = min(1.0, a_block)
             while alpha >= ALPHA_MIN:
                 Wn = W | blockers if alpha >= a_block else W.copy()   # the rows that block the step join

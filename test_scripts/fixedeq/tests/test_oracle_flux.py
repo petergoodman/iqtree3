@@ -230,6 +230,29 @@ def test_certificate_passes_a_known_optimum_and_fails_elsewhere():
     assert flux.certificate(fstar, other / fstar, dom)["residual"] >= 1.0
 
 
+def test_v2_with_rate_categories_meets_the_declared_stop():
+    """V2's n = 3 problem with +G4{0.5} in data and fit, the setting of SIM-1's R4: the active-set
+    finish once took its 'stationary' exit, on a Newton decrement below 1e-6 times its rounding scale,
+    before the declared stop held (explore/r4_finish_diagnosis.py). It must end at the declared stop,
+    with the certificate (decision 039) and the truth's lnL reached."""
+    n = 3
+    rng = np.random.default_rng(200 + n)
+    pi, Qs, ref = setting(n, rng)
+    Qt = cases.generator_from_flux(cases.cycle_flux(n, rng), pi)
+    tree = readers.parse_newick(THREE)
+    E = np.eye(n)
+    cols = [{"a": E[x], "b": E[y], "c": E[w]} for x, y, w in itertools.product(range(n), repeat=3)]
+    rates, weights = lk.rate_categories(shape=0.5)
+    counts = 1e6 * np.exp(lk.site_log_likelihoods(tree, cols, Qt, pi, rates, weights))
+    obj = nqc.Objective.from_patterns(tree, cols, counts, pi, ref, shape=0.5)
+    dom = flux.matched(ref)
+    r = flux.fit(flux.LikelihoodFlux(obj, pi), flux.inward(Qs, pi, dom)[0], dom)
+    assert r.status == "converged", r.message
+    value, gf = flux.LikelihoodFlux(obj, pi)(r.f)
+    assert flux.certificate(r.f, gf, dom)["residual"] <= 1e-9 * max(1.0, abs(value))
+    assert obj.log_likelihood(Qt) - obj.log_likelihood(flux.generator(r.f, pi)) <= 1e-3
+
+
 @pytest.mark.parametrize("n", [3, 4])
 def test_v2_exact_frequencies_recover_the_truth(n):
     rng = np.random.default_rng(200 + n)
