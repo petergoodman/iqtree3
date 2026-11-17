@@ -469,8 +469,9 @@ The package is `test_scripts/fixedeq/oracle/`, and its tests use the pass lines 
     residual with bounded-least-squares multipliers, m·μ, evaluations, Hessian gradients, steps,
     backtracks, dampings, re-centrings, the ending and wall time. That residual (`flux.kkt`)
     minimizes over active thresholds, an all-rows fit included, so it is a record; the test is
-    `flux.certificate`, the same residual with the active rows fixed at normalized slack ≤ 1e-12
-    (decision 039, line in 021).
+    `flux.certificate`, the same residual with the active rows fixed at normalized slack ≤ 1e-6, the
+    m·μ threshold (decision 039, line in 021; 1e-12 until 2026-11-17, when barrier endpoints meeting the
+    declared stop with bound rows at slacks 1e-8 to 1e-6 failed it, `explore/screen_certificate_probe.py`).
   - Certificate of the concave validation problems (decision 021): the Lagrangian duality gap
     D(η, ν) − F(f̂), D = bᵀη + Σ N_e(log(N_e/w_e) − 1), w = Cᵀη − Aᵀν > 0, ν ≥ 0, smallest over the
     barrier's multipliers ν = μ/(Af) and bounded least squares at several active sets, each weighted
@@ -991,8 +992,8 @@ read-only and outside the repository; derived data come only from this script.
   loci, against QMaker's reported 545; 1,174 with all 52 taxa, at least 42 in every locus), written to the
   committed `sim/scaffold/compositions.tsv` for the screen's S2 and SIM-2.
 - scaffold: `ASTRAL_NEW` rooted on HUMAN, since the outgroups make Palaeognathae the wrong root for this
-  taxon set (the plan's "rooted on Palaeognathae" assumed birds only; HUMAN root and `ASTRAL_NEW` chosen
-  unattended, for Peter to confirm); branch lengths, per-locus `+G4` shapes and partition rates (from the
+  taxon set (the plan's "rooted on Palaeognathae" assumed birds only; the HUMAN root confirmed by Peter on
+  2026-11-17, `ASTRAL_NEW` the agent's default, which he left); branch lengths, per-locus `+G4` shapes and partition rates (from the
   checkpoint) of one `-p` fit of NQ.bird+G4 under `-te` on a seeded random 100 of all loci (frozen binary).
   Written with provenance headers to `test_scripts/fixedeq/sim/scaffold/` and committed; `sim/.gitattributes`
   sets `* text eol=lf` (decision 014), so a cluster checkout has the same bytes.
@@ -1239,8 +1240,10 @@ measurements and review findings, frozen in `docs/agent/archive/SIM1_plan_2026-1
 5. `sim/birddata.py`: fetch, inventory, the scaffold fit (under 1.5 h), the scaffold fixtures
    committed; then `screen` from a clean commit (14 fits 1.5 to 3.5 h, restarts under 1.5 h, each
    4-taxon repeat 2 to 6 h). 2026-11-17, unattended: fetch, inventory and the scaffold done (committed);
-   the screen ran at `84be73e4`, 10 of its 14 fits not evaluable (each with rows at a lower bound; see
-   CHANGELOG), so the 4-taxon repeats wait for Peter's decision on the certificate's activity threshold.
+   the screen ran at `84be73e4`, 10 of its 14 fits not evaluable at the certificate's then threshold
+   1e-12 and all 14 evaluable at 1e-6, Peter's threshold from 2026-11-17; flagged S3 Q.bird, S4b Q.bird and
+   S4b NQ.bird. Their restarts from the generating reference run at 3 taxa; the 4-taxon S4b repeat on Q.bird
+   ran (provisional when started); the other repeats wait for time after the pilot.
 6. `sim/pipeline.py` and its tests; the reproducibility and wiring checks; the pilot (5 to 12 h);
    CLAUDE.md's commands gain the drivers. 2026-11-17: code, tests and commands done, reviewed; the checks
    passed for NQ.bird, Q.bird, LG and dial:0.5 at `ec462978`; the pilot runs from that commit.

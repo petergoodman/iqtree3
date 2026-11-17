@@ -336,10 +336,9 @@ audits' low findings are in `CODE_PLAN.md` section 4, "Known and left alone".
 
 ## Next step
 
-Peter decides the certificate's activity threshold for bound-active endpoints (decisions 039, 021; the
-probe's evidence in the newest `CHANGELOG.md` entry; the screen's evaluability, flags and 4-taxon repeats
-wait on it) and confirms the unattended choices listed there (HUMAN root, `ASTRAL_NEW`, the screen's
-interpretations). Then the 4-taxon repeats, the pilot's completion (`CODE_PLAN.md` section 3.8 and
-section 4's SIM-1 list), and SIM-1's close; risk 25's open inputs are asked for there, before SIM-2's plan.
+Queued from the commit that widens the certificate's activity threshold (Peter, 2026-11-17): the screen's
+follow-up restarts of its three flagged fits at 3 taxa, then the pilot as Peter cut it (`CODE_PLAN.md`
+section 3.8, about 8.5 h); then SIM-1's close, where risk 25's open inputs are asked for, before SIM-2's plan.
+The remaining 4-taxon repeats (S3, and S4b on NQ.bird) run only if time allows.
 
 The working rules are in `CODE_PLAN.md` section 4, "Implementation".

@@ -266,11 +266,13 @@ def kkt(f, gf, domain):
     return best
 
 
-def certificate(f, gf, domain, threshold=1e-12):
+def certificate(f, gf, domain, threshold=ACTIVE):
     """Decision 039's flux-space first-order test (line in 021): max |d objective / df - C^T eta +
-    A_act^T nu|, nu >= 0, the active rows fixed as those with normalized slack <= threshold. Unlike a
-    z-gradient, it does not shrink with a flux, so it fails where a near-zero flux should grow
-    (PLAN.md risk 27, retired)."""
+    A_act^T nu|, nu >= 0, the active rows fixed as those with normalized slack <= threshold, ACTIVE (1e-6)
+    since 2026-11-17 (Peter): a barrier endpoint that meets the declared stop leaves bound rows at slacks
+    between 1e-8 and 1e-6, which 1e-12 read as residual (SIM-1's screen,
+    explore/screen_certificate_probe.py). Unlike a z-gradient, it does not shrink with a flux, so it fails
+    where a near-zero flux should grow (PLAN.md risk 27, retired)."""
     act, _, nu, fitted = _multipliers(f, gf, domain, threshold)
     return {"residual": float(np.max(np.abs(gf - fitted))), "active": int(len(act)),
             "complementarity": float(nu @ (domain.A[act] @ f))}

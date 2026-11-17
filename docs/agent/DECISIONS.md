@@ -164,7 +164,7 @@ relaxed rounds; where fits stop reversed two of three comparisons. Risk 27: the 
 test 0.30 below aa_example's peak (a near-zero flux hid the slope) and did not converge on V2, V3.
 **Not chosen.** IQ-TREE's L-BFGS-B for NQC, revisited if a pilot or SIM-2 shows arm differences the
 size of the stopping shortfall; relaxed settings alone (5 to 12 times the time); `lbfgsb_fit`.
-**Since** 2026-10-25 (Peter); SIM 2026-11-07 (040); reference fit 2026-11-16 (Peter, risk 27).
+**Since** 2026-10-25 (Peter); SIM 2026-11-07 (040); reference fit 2026-11-16 (Peter, risk 27); its activity threshold 1e-6, 2026-11-17 (Peter).
 
 ### 040. Validate the estimator by simulation in two slices after S5
 
@@ -458,7 +458,7 @@ files, not from the log, and IQ-TREE's printed final score is reported, not comp
 | S5 same peak: from NQC's relaxed endpoint, the reference against the z climb; the reference from NQC's start against from its endpoint; NQC's default and relaxed endpoints not above the reference's peak from its start | L = max(1e-3, 10 × s), s the spread of two z climbs (L-BFGS-B memory 20 and 5) from NQC's relaxed endpoint, recorded before any flux fit | 042 (Peter) |
 | S5 validation, concave flux problems, open and with binding ratio constraints at a known optimum | duality gap D(η, ν) − F(f̂) ≤ 1e-9 × \|F\|, D the Lagrangian dual at any η and ν ≥ 0 with C^T η − A^T ν > 0, which bounds f̂'s optimality gap | 042 (Peter, 2026-11-07) |
 | S5 validation, exact pattern frequencies at N = 10⁶ sites | lnL deficit against the truth ≤ 1e-3 | 042 |
-| Flux-space certificate at an oracle endpoint read as a peak, from SIM-1 (`flux.certificate`, active rows at normalized slack ≤ 1e-12) | residual ≤ 1e-9 × max(1, \|lnL\|) | 039 (Peter, 2026-11-16) |
+| Flux-space certificate at an oracle endpoint read as a peak, from SIM-1 (`flux.certificate`, active rows at normalized slack ≤ 1e-6, the m·μ threshold; 1e-12 until 2026-11-17) | residual ≤ 1e-9 × max(1, \|lnL\|) | 039 (Peter, 2026-11-16; threshold widened by Peter 2026-11-17 after the screen's probe found barrier endpoints leaving bound rows at slacks 1e-8 to 1e-6) |
 | SIM-1 AliSim joint law on two taxa, each configuration (`CODE_PLAN.md` 3.8) | Pearson X² over the 400 cells against the oracle's exact law (expected counts below 5 pooled), p ≥ 1e-3 | SIM-1 (Peter, 2026-11-16) |
 | SIM-1 AliSim root composition, tip on a zero-length branch | X² over 20 cells against π*, p ≥ 1e-3 | SIM-1 |
 | SIM-1 AliSim, gate binary against the frozen binary, same commands | byte-identical | SIM-1 |
@@ -476,7 +476,8 @@ in the archive (1e-10: the synthesis's goal, section 4.3; the κ-scaled Q line: 
 **Since** 2026-10-04; merged 026 (2026-10-05), 030 and 034 item 7 (2026-10-20) and 036's
 measure, its claim withdrawn (2026-10-22); later rows are identified in the Set by column; last
 revised 2026-11-07 (S5's rows, 042; the concave row's statistic, Peter); the certificate row
-2026-11-16 (039); SIM-1's rows 2026-11-16 (Peter, SIM-1 plan).
+2026-11-16 (039), its activity threshold widened 2026-11-17 by Peter's explicit decision after the
+evidence, the one loosening of a row so far; SIM-1's rows 2026-11-16 (Peter, SIM-1 plan).
 
 ### 012. Test the pure module with googletest in a standalone CMake project
 

@@ -15,7 +15,10 @@ development.
   main NQ.bird r1 at the 3 h cap, counted, slowed by my running the 4-taxon repeats beside it (my error).
 - **Peter cut the pilot** (plan A): linked rounds capped at 20, 3 replicates per truth, NQ.bird r1 also at
   defaults, 26-taxon, 100-gene, GTR20 and memory cells; Level 2 and relaxed dropped (`CODE_PLAN.md` 3.8).
-- **Running:** S4b's 4-taxon repeat (Peter kept it), then the cut pilot, about 8.5 h. **Next.** The close.
+- **Peter decided:** the certificate's activity threshold 1e-6 (`flux.certificate`'s default, 021 and 039
+  revised, the first loosening of a 021 row); the HUMAN root; ASTRAL_NEW and the screen's interpretations left
+  at the agent's defaults. All 14 screen fits evaluable at 1e-6; flagged S3 Q.bird, S4b Q.bird, S4b NQ.bird.
+- **Queued:** S4b's 4-taxon repeat (Peter kept it), the flagged fits' restarts, the cut pilot. **Next.** The close.
 
 ## 2026-11-17 (fourth session, unattended, early morning): checks passed; certificate probe; pilot running
 
