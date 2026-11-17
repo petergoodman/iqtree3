@@ -8,6 +8,17 @@ gate record and may run to 25 lines. The next session starts from the top entry.
 This is a fork of `iqtree/iqtree3`. Entries here describe work on the fork, not upstream
 development.
 
+## 2026-11-16 (fourth session): SIM-1 commit 2, the oracle additions
+
+- **Done.** `oracle/simulate.py` (π*, truths, C, the dial, T3 and T1 transports, exact weights for
+  mixtures of components, masking), `builtin.frequency_profiles` (C20), `likelihood.tip_arrays` cached
+  in both `Objective` constructors; `tests/test_oracle_simulate.py`, 15 tests at lines set in the plan.
+  Cache: 16 lnL and gradient arrays bitwise equal before and after. pytest 348 passed (45 s).
+- **Failed.** My planning-numbers line read the SIM-1 plan's C20 "0.655" as half the positivity limit;
+  it is the limit (0.6549), and at half of it the smallest entry 0.010 and weighted TV 0.16 reproduce.
+  Reported; Peter approved correcting the line. Every other planning number reproduced.
+- **Next.** Commit 3: π*'s committed file, `sim/alisim_check.py`, M2's fit, the check run.
+
 ## 2026-11-16 (third session): SIM-1 planned (decision 044)
 
 - **Done.** SIM-1 planned: AliSim's two-taxon exact check, exact recovery R1 to R6, a 14-fit screen, bird

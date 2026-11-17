@@ -3,7 +3,7 @@
 > **Status, 2026-11-16: S0 to S5 complete, so gates G0 to G3 and G4 as reduced by D01 are met (one
 > S5 comparison failed, counted and accepted by Peter; its cause, retired risk 27, settled by
 > decision 039's revision) and the branch is the first release
-> candidate; SIM-1, the first simulation slice, is planned (decision 040) and next to implement;
+> candidate; SIM-1, the first simulation slice (decision 040), is under way, commit 2 of 7 done;
 > approach accepted by the IQ-TREE maintainers (reported by Peter, 2026-10-01).**
 > Peter owns this document.
 
@@ -201,7 +201,7 @@ and S7's two bootstraps complete them. The slices run in the order decision 040 
 | S3c | G3 | Stopping, risk 22's evidence, cost against NONREV | first part: the stopping study's asserted checks and the converged risk 22 evidence (`CODE_PLAN.md` section 4); then profiling against NONREV within its blocking threshold, or, above 3 per fit, fixed in NQC's code or accepted by Peter; any ratio above 1.25 per evaluation or 2 per fit explained (risks 5, 18, 24) | done 2026-10-26 (first part 2026-10-25, domain `0e9fb159`; profiling gate at `0b0048af`) |
 | S4 | G3 | Export, re-import and report | export then `-m FILE` reproduces the log-likelihood of a Level 1 fit; metadata complete; first release candidate | done 2026-10-27 (`a0ebf5cf`); first release candidate |
 | S5 | G4, as reduced by D01 | Independent reference | D10's direct balanced-flux fit in Python (decision 042) passes its known-answer validation; on four small Level 1 problems it reaches, from NQC's start and from NQC's relaxed endpoint, the peak NQC's own chart reaches, within the calibrated line, with every compared fit converged and NQC's endpoints not above that peak; failures counted; comparison report (`CODE_PLAN.md` sections 3.1, 3.3, 4) | done 2026-11-09 (gate at `13799127`); aa_example's A6 failed, labelled "W stopped short", counted and accepted by Peter (risk 27) |
-| SIM-1 | G5 (simulation support), G6 (part) | Simulator check, exact recovery and screen, pipeline and pilot | AliSim's two-taxon exact check (three joint-law configurations, the root composition, frozen and gate binaries byte-identical) passes, or its fallback does; the oracle's NQC objective fitted to exact pattern frequencies returns the true Q in R1 to R6 within decision 021's SIM-1 rows; the screen's 14 fits tabled with flags and follow-ups; bird scaffold committed; pipeline with its reproducibility and wiring checks; pilot run; SIM-2's plan written (`CODE_PLAN.md` section 3.8) and approved by Peter | planned 2026-11-16 |
+| SIM-1 | G5 (simulation support), G6 (part) | Simulator check, exact recovery and screen, pipeline and pilot | AliSim's two-taxon exact check (three joint-law configurations, the root composition, frozen and gate binaries byte-identical) passes, or its fallback does; the oracle's NQC objective fitted to exact pattern frequencies returns the true Q in R1 to R6 within decision 021's SIM-1 rows; the screen's 14 fits tabled with flags and follow-ups; bird scaffold committed; pipeline with its reproducibility and wiring checks; pilot run; SIM-2's plan written (`CODE_PLAN.md` section 3.8) and approved by Peter | planned 2026-11-16; commit 2 of 7 (oracle additions) done |
 | SIM-2 | G6 (part) | Simulation study (proposed) | the approved plan's studies run at the pilot's replicate counts, failed fits counted, results with Monte Carlo standard errors; outputs for S7's confirmatory plan: reference distributions of the circulation statistic (decision 041), the stopping setting (decision 039), how much of the available data the fit needs | not started |
 | S6 | G5 | Workflow | candidate-set and mixing-guard tests; G5's remaining conditions | not started |
 | S7 | G6 | Science | the confirmatory plan's checks, with decision 039's convergence protocol; the parametric bootstraps of decisions 040 and 041 and the gene resampling of π*; G6's remaining conditions | not started |
@@ -324,14 +324,15 @@ audits' low findings are in `CODE_PLAN.md` section 4, "Known and left alone".
   (decision 039; retired risk 27).
 - **Plans:** simulation scope recorded (decisions 040, 041; reasons and literature in
   `docs/agent/archive/SIM_plan_2026-11-07.md`); S5's approved plan, survey and review are frozen in
-  `docs/agent/archive/S5_plan_2026-11-07.md`. SIM-1 is planned: specification in `CODE_PLAN.md`
+  `docs/agent/archive/S5_plan_2026-11-07.md`. SIM-1 is under way, its oracle additions done (commit 2,
+  `oracle/simulate.py`, no IQ-TREE source change): specification in `CODE_PLAN.md`
   section 3.8, transport rule decision 044, pass lines in 021; the approved plan, with its planning
   measurements and review, is frozen in `docs/agent/archive/SIM1_plan_2026-11-16.md`.
 
 ## Next step
 
-SIM-1's implementation from its commit 2 (`CODE_PLAN.md` section 3.8 and section 4's SIM-1 list), in a
-new session started in plan mode, as S5's was; the long runs span sessions. Risk 25's open inputs are
+SIM-1's implementation from its commit 3, the AliSim exact check (`CODE_PLAN.md` section 3.8 and section
+4's SIM-1 list), in a new session started in plan mode, as S5's was; the long runs span sessions. Risk 25's open inputs are
 asked for at SIM-1's close, before SIM-2's plan.
 
 The working rules are in `CODE_PLAN.md` section 4, "Implementation".

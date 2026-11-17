@@ -21,7 +21,7 @@ Labels are those of PLAN.md. Source anchors refer to `63c330d9` and were verifie
 | `model/modelnonrevfixedeq.{h,cpp}` | S2 to S4 | Class `ModelNonrevFixedEq : public ModelProtein`, public name "NQC" held in one constant (decision 002; section 2.2); from S3b also `public LinkedModelHooks`, listed second |
 | `model/linkedmodelhooks.h` | S3b | Header only: the abstract `LinkedModelHooks` through which `PartitionModel::optimizeLinkedModel` lets a linked model check, differentiate and record its fits (decision 005; section 2.2, "Linked hooks"). A separate header because NQC's header is included by `model/modelmixture.cpp` and `partitionmodel.h` pulls in the super tree, so putting the interface in either would create an include cycle |
 | `unittest/` | S1 | Standalone CMake project that compiles `model/fixedeqchart.cpp` directly, with IQ-TREE's clang Release flags and the `model` target's SSE flags (verified, `CMakeLists.txt:420`, `711-718`, `984`), and fetches googletest 1.12.1 at cmaple's pinned commit, checked by the archive's SHA-256 (verified, `cmaple/CMakeLists.txt:283-293`; decision 012); `fixtures/`, 27 chart cases and `targets.txt` in plain text at 17 significant digits with a provenance header (section 3.2); its own `.gitattributes` (decision 014) |
-| `test_scripts/fixedeq/` | S0 onward | `environment.yml` and lock (decision 013); `oracle/`; `tests/`; drivers `regression/`, `differential/`, `probes/`, `sanitizer/`, `unittests/`, `nqc/` and `design_rerun.py`; `manifest/` (G0 manifest); `explore/` (exploratory measurements behind decisions 007, 021, 023, 025 and 038); `make_fixtures.py`; `.gitattributes` and `.gitignore`. Added in S3: `nqc/twopart.py`, the two-partition data (S3b); `explore/convergence.py`, the stopping study and risk 22's converged evidence, with `oracle/optimize.py`'s reference climber `lbfgsb_fit` (S3c's first part); `profile/profiling.py`, the profiling driver (S3c). Added in S4: the oracle's export functions (`chart.first_order_test`, `nqc.export_gradient`, `readers.read_qmat`, `readers.read_info`) and `tests/test_export.py`. Added in S5: `oracle/flux.py`, the balanced-flux reference (section 3.1), with `likelihood.log_likelihood_gradient`, `nqc.Objective.from_patterns`, the analytic gradients and `nqc.z_gradient`, `lbfgsb_fit`'s analytic pass, and `tests/test_oracle_flux.py`; the driver `reference/reference.py` with `tests/test_reference.py`; `explore/v3_diagnosis.py`, the exploratory diagnosis of validation's V3, `explore/z_climb_diagnosis.py`, that of the z climbs' unmet A5(i) on toy, and `explore/z_face_check.py`, the check of aa_example's z climb endpoint on the lower face. Added after S5: `flux.certificate` with its test, and `explore/risk27_probe.py`, the exploratory probe behind decision 039's revision (PLAN.md retired risk 27) |
+| `test_scripts/fixedeq/` | S0 onward | `environment.yml` and lock (decision 013); `oracle/`; `tests/`; drivers `regression/`, `differential/`, `probes/`, `sanitizer/`, `unittests/`, `nqc/` and `design_rerun.py`; `manifest/` (G0 manifest); `explore/` (exploratory measurements behind decisions 007, 021, 023, 025 and 038); `make_fixtures.py`; `.gitattributes` and `.gitignore`. Added in S3: `nqc/twopart.py`, the two-partition data (S3b); `explore/convergence.py`, the stopping study and risk 22's converged evidence, with `oracle/optimize.py`'s reference climber `lbfgsb_fit` (S3c's first part); `profile/profiling.py`, the profiling driver (S3c). Added in S4: the oracle's export functions (`chart.first_order_test`, `nqc.export_gradient`, `readers.read_qmat`, `readers.read_info`) and `tests/test_export.py`. Added in S5: `oracle/flux.py`, the balanced-flux reference (section 3.1), with `likelihood.log_likelihood_gradient`, `nqc.Objective.from_patterns`, the analytic gradients and `nqc.z_gradient`, `lbfgsb_fit`'s analytic pass, and `tests/test_oracle_flux.py`; the driver `reference/reference.py` with `tests/test_reference.py`; `explore/v3_diagnosis.py`, the exploratory diagnosis of validation's V3, `explore/z_climb_diagnosis.py`, that of the z climbs' unmet A5(i) on toy, and `explore/z_face_check.py`, the check of aa_example's z climb endpoint on the lower face. Added after S5: `flux.certificate` with its test, and `explore/risk27_probe.py`, the exploratory probe behind decision 039's revision (PLAN.md retired risk 27). Added in SIM-1: `oracle/simulate.py` (section 3.1), `builtin.frequency_profiles`, `likelihood.tip_arrays` with the objectives' cache, and `tests/test_oracle_simulate.py` |
 | `.github/workflows/fixedeq.yaml` | S1 | Fork-only workflow that builds and runs the unit tests and the oracle's tests on Linux, and from S2 a short NQC run |
 
 Run outputs never go into the working copy; they go under `~/iqtree3-runs/` in WSL. Fixtures and
@@ -483,10 +483,12 @@ The package is `test_scripts/fixedeq/oracle/`, and its tests use the pass lines 
     `explore/z_climb_diagnosis.py`). SIM-1 reuses the gradients and the flux reference, not the z
     climb (decision 039), on exact pattern frequencies.
 - SIM-1's additions (specification in section 3.8): `oracle/simulate.py` (π*, truths, the dial, T3 and
-  T1 transports, C, exact weights over all columns, mixtures, masking, topology mixtures);
-  `builtin.frequency_profiles` (C20's `frequency` lines and weights); tip arrays built once in
-  `Objective.from_patterns`, where `site_log_likelihoods` and the gradient rebuilt them on every call
-  (about 20% of a 160,000-pattern gradient), with values bitwise equal to the dict path, tested.
+  T1 transports, C, exact weights over all columns for a mixture of components, which covers
+  composition, profile and topology mixtures, and masking); `builtin.frequency_profiles` (C20's
+  `frequency` lines and weights); tip arrays (`likelihood.tip_arrays`) built once in both `Objective`
+  constructors, where `site_log_likelihoods` and the gradient rebuilt them on every call (about 20% of
+  a 160,000-pattern gradient), with values bitwise equal to the per-call path, tested; the SIM-1 plan's
+  planning numbers reproduced to their printed digits (`tests/test_oracle_simulate.py`).
 
 ### 3.2 Layer 2: C++ unit tests
 
@@ -1213,8 +1215,9 @@ simulated composition, NQ.bird's stationary distribution (decision 040), never t
 SIM-1 (laptop; planned 2026-11-16; specification in section 3.8; the approved plan, with its planning
 measurements and review findings, frozen in `docs/agent/archive/SIM1_plan_2026-11-16.md`). Commits:
 1. The plan in its homes (done, 2026-11-16).
-2. The oracle additions (section 3.1) and their tests; section 1.1 updated once the files exist.
-3. `sim/alisim_check.py` and its tests; M2's NQC fit; the check from a clean commit (under 15 min).
+2. The oracle additions (section 3.1) and their tests (done, 2026-11-16).
+3. `sim/alisim_check.py` and its tests, with π*'s committed file (section 3.8, from `simulate.target`);
+   M2's NQC fit; the check from a clean commit (under 15 min).
 4. `sim/exact.py` and its tests; a read-only code review before this first confirmatory fit run;
    `recover` from a clean commit (R1 to R4 and R6 about 1 to 1.5 h, R5 2 to 6 h).
 5. `sim/birddata.py`: fetch, inventory, the scaffold fit (under 1.5 h), the scaffold fixtures

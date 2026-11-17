@@ -33,6 +33,7 @@ class Objective:
                  part_rate=1.0):
         self.tree, self.pi, self.ref, self.build = tree, np.asarray(pi, dtype=float), ref, build
         patterns, self.counts, self.columns = likelihood.compress(alignment, tree)
+        self.tips = likelihood.tip_arrays(tree, self.columns)
         self.rates, self.weights = likelihood.rate_categories(shape, ncat, p_invar, free)
         self.rates = self.rates * part_rate
         self.invariant = ([likelihood.invariant_term(c, self.pi, p_invar) for c in patterns]
@@ -53,6 +54,7 @@ class Objective:
         self = cls.__new__(cls)
         self.tree, self.pi, self.ref, self.build = tree, np.asarray(pi, dtype=float), ref, build
         self.columns, self.counts = list(columns), np.asarray(weights, dtype=float)
+        self.tips = likelihood.tip_arrays(tree, self.columns)
         self.rates, self.weights = likelihood.rate_categories(shape, ncat, 0.0, free)
         self.rates = self.rates * part_rate
         self.invariant = None
@@ -61,7 +63,7 @@ class Objective:
 
     def log_likelihood(self, Q):
         site = likelihood.site_log_likelihoods(self.tree, self.columns, Q, self.pi, self.rates,
-                                               self.weights, self.invariant)
+                                               self.weights, self.invariant, tips=self.tips)
         return float(self.counts @ site)
 
     def log_likelihood_gradient(self, Q):
@@ -69,7 +71,7 @@ class Objective:
         if self.invariant is not None:
             raise ValueError("the analytic gradient does not cover +I")
         return likelihood.log_likelihood_gradient(self.tree, self.columns, Q, self.pi, self.rates, self.weights,
-                                                  self.counts)
+                                                  self.counts, tips=self.tips)
 
     def gradient(self, z):
         """f(z) and its analytic gradient in z; a failed build raises chart.BuildError."""

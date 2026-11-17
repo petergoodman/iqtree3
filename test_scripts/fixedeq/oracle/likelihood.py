@@ -66,16 +66,25 @@ def _branch(node):
     return node.length if node.length > 0 else MIN_BRANCH_LENGTH
 
 
-def site_log_likelihoods(tree, columns, Q, pi, rates=(1.0,), weights=(1.0,), invariant=None):
-    """Log-likelihood of each column; a column maps each leaf name to its tip vector."""
+def tip_arrays(tree, columns):
+    """Leaf name -> the (columns x states) array of its tip vectors, which the two likelihood
+    functions read; an objective builds it once (SIM-1) rather than on every call."""
+    return {leaf.name: np.array([col[leaf.name] for col in columns], dtype=float) for leaf in tree.leaves()}
+
+
+def site_log_likelihoods(tree, columns, Q, pi, rates=(1.0,), weights=(1.0,), invariant=None, tips=None):
+    """Log-likelihood of each column; a column maps each leaf name to its tip vector. tips, from
+    tip_arrays, may replace columns."""
+    tips = tip_arrays(tree, columns) if tips is None else tips
+    nsite = len(next(iter(tips.values())))
     per_category = []
     for rate in rates:
         cache = {}
 
         def partial(nd):
             if not nd.children:
-                return np.array([col[nd.name] for col in columns], dtype=float), np.zeros(len(columns))
-            L, scale = np.ones((len(columns), len(pi))), np.zeros(len(columns))
+                return tips[nd.name], np.zeros(nsite)
+            L, scale = np.ones((nsite, len(pi))), np.zeros(nsite)
             for ch in nd.children:
                 key = (rate, _branch(ch))
                 if key not in cache:
@@ -96,17 +105,18 @@ def site_log_likelihoods(tree, columns, Q, pi, rates=(1.0,), weights=(1.0,), inv
     return site
 
 
-def log_likelihood_gradient(tree, columns, Q, pi, rates=(1.0,), weights=(1.0,), counts=None):
+def log_likelihood_gradient(tree, columns, Q, pi, rates=(1.0,), weights=(1.0,), counts=None, tips=None):
     """lnL = counts . site log-likelihoods and G = dlnL/dQ, every entry of Q free (the diagonal
     included), for S5's reference (decision 042). One upward and one downward pass per rate
     category give, per branch c and category k, W = sum_s counts_s B(x) I(y) / L_s, with B the
     outside partial at c's parent and I c's inside partial, so that dlnL/dP_ck = W; then
     <W, L(A, E)> = <L(A^T, W), E> for the Frechet derivative L of expm at A = r_k t_c Q. Scaling as
-    in site_log_likelihoods. No +I term and no root branch."""
+    in site_log_likelihoods. No +I term and no root branch. tips, from tip_arrays, may replace columns."""
     if tree.length:
         raise ValueError("the analytic gradient takes no root branch")
     Q, pi = np.asarray(Q, dtype=float), np.asarray(pi, dtype=float)
-    nsite, n = len(columns), len(pi)
+    tips = tip_arrays(tree, columns) if tips is None else tips
+    nsite, n = len(next(iter(tips.values()))), len(pi)
     counts = np.ones(nsite) if counts is None else np.asarray(counts, dtype=float)
     nodes = list(tree.preorder())
     zeros = np.zeros(nsite)
@@ -123,7 +133,7 @@ def log_likelihood_gradient(tree, columns, Q, pi, rates=(1.0,), weights=(1.0,), 
                 m = L.max(axis=1)
                 inside[id(nd)] = (L / m[:, None], s + np.log(m))
             else:
-                inside[id(nd)] = (np.array([col[nd.name] for col in columns], dtype=float), zeros)
+                inside[id(nd)] = (tips[nd.name], zeros)
             if nd is not tree:
                 key = (rate, _branch(nd))
                 if key not in P:
