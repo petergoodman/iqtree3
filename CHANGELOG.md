@@ -8,6 +8,17 @@ gate record and may run to 25 lines. The next session starts from the top entry.
 This is a fork of `iqtree/iqtree3`. Entries here describe work on the fork, not upstream
 development.
 
+## 2026-11-16 (fourth session, continued): SIM-1 commit 3 passed; commit 4's code
+
+- **Commit 3, gate record.** AliSim exact check at clean `b6ad2070`
+  (`~/iqtree3-runs/sim1/20261117T011322Z-b6ad2070-alisim-check/`, 49 s): every asserted row passed. X² over
+  400 cells, none pooled: p 0.93 (M1), 0.60 (M1+G4), 0.89 (M2); root composition p 0.83; gate outputs
+  byte-identical to frozen in all four; M2's π row bitwise π*. Power at 10⁷ sites 1.0 for all 13 alternatives.
+- **Commit 4's code.** `sim/exact.py recover`; R1's development fit passed every row in 70 s (worst rate 6.8e-6
+  of its line). Review: no blocker; 7 of 9 findings fixed; R5 stays a separate run; `flux.py`'s cap messages noted.
+- **Failed.** A stray `python -` hung on Windows' Store alias with no input; stopped, nothing ran or was written.
+- **Next.** `recover` R1 to R4 and R6, then R5, from this commit; records with commit 5's code.
+
 ## 2026-11-16 (fourth session): SIM-1 commit 2, the oracle additions
 
 - **Done.** `oracle/simulate.py` (π*, truths, C, the dial, T3 and T1 transports, exact weights for
