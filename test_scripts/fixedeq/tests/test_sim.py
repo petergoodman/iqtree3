@@ -1,5 +1,6 @@
 """SIM-1's drivers under test_scripts/fixedeq/sim/ (CODE_PLAN.md 3.8), on constructed inputs and committed
 files only, so CI runs them without a binary. Lines as set in each commit's plan."""
+import json
 import sys
 from collections import Counter
 from pathlib import Path
@@ -401,6 +402,28 @@ def test_run_state_ending_ignores_the_final_score(tmp_path):
     assert state["ended_by"] == "round cap" and abs(state["gains"][-1]) < 1e-3
     assert pl.run_state(run([0.03] * 20 + [0.004], 4e-4), "-q", False, "default", pl.ROUNDS)["ended_by"] == \
         "round gain below the threshold"
+
+
+def test_metrics_of_against_the_truth(tmp_path):
+    """metrics_of of the truth itself is exact; with one off-diagonal rate tripled it counts that one rate,
+    over the 380 off-diagonal entries."""
+    pi, truths = simulate.truths()
+    Qt = truths["NQ.bird"]
+    data, cell = tmp_path / "data", tmp_path / "cell"
+    data.mkdir()
+    (cell / "fit").mkdir(parents=True)
+    (data / "data.json").write_text(json.dumps({"target": ",".join(f"{v:.17g}" for v in pi)}))
+    pl.write_matrix(data / "truth.qmat", Qt, pi)
+    pl.write_matrix(cell / "fit" / f"{pl.PREFIX}.NQC.qmat", Qt, pi)
+    m = pl.metrics_of(cell, data)
+    assert m["log_error_rms"] == 0 and m["twofold"] == 0 and m["C_error"] == 0 and m["net_flux_error_max"] == 0
+    Qh = Qt.copy()
+    Qh[3, 7] *= 3
+    Qh[3, 3] -= 2 * Qt[3, 7]
+    pl.write_matrix(cell / "fit" / f"{pl.PREFIX}.NQC.qmat", Qh, pi)
+    m = pl.metrics_of(cell, data)
+    assert m["twofold"] == 1 and abs(m["log_error_max"] - np.log(3)) <= 1e-12
+    assert abs(m["log_error_rms"] - np.log(3) / np.sqrt(380)) <= 1e-12
 
 
 def test_unrooted_keeps_every_path_length():

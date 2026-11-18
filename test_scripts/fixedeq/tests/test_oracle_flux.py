@@ -230,6 +230,28 @@ def test_certificate_passes_a_known_optimum_and_fails_elsewhere():
     assert flux.certificate(fstar, other / fstar, dom)["residual"] >= 1.0
 
 
+def test_certificate_activity_threshold():
+    """Two rows at normalized slack 1e-7, inside the 1e-6 activity threshold (Peter, 2026-11-17) and
+    outside the former 1e-12: a gradient that nu >= 0 on them balances passes at 1e-6 and fails at
+    1e-12; one pushing inward from them, which only a negative nu would balance, fails at 1e-6."""
+    rng = np.random.default_rng(12)
+    pi, Qs, ref = setting(4, rng)
+    dom = flux.matched(ref)
+    z = flux.z_of_flux(flux.flux_of(cases.generator_from_flux(cases.cycle_flux(4, rng), pi), pi), ref)
+    pick = rng.choice(len(z), 2, replace=False)
+    z[pick] = dom.lower + 1e-7
+    f = flux.flux_of(chart.build(z, pi, ref)[0], pi)
+    slack = dom.slack(f)
+    assert np.all((slack[pick] > 1e-12) & (slack[pick] <= 1e-6)) and np.sum(slack <= 1e-6) == 2
+    C = flux.geometry(4)[2]
+    eta = np.r_[rng.normal(0, 50, 3), 1000.0]
+    nu = rng.uniform(100, 300, 2)
+    outward, inward = C.T @ eta - dom.A[pick].T @ nu, C.T @ eta + dom.A[pick].T @ nu
+    assert flux.certificate(f, outward, dom)["residual"] <= 1e-9 * np.max(np.abs(outward))
+    assert flux.certificate(f, outward, dom, threshold=1e-12)["residual"] >= 1.0
+    assert flux.certificate(f, inward, dom)["residual"] >= 1.0
+
+
 def test_v2_with_rate_categories_meets_the_declared_stop():
     """V2's n = 3 problem with +G4{0.5} in data and fit, the setting of SIM-1's R4: the active-set
     finish once took its 'stationary' exit, on a Newton decrement below 1e-6 times its rounding scale,
