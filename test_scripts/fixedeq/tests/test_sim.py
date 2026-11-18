@@ -368,3 +368,45 @@ def test_round_cap_argument():
     """-nparam N runs rounds 1 to N - 1 (PartitionModelPlen::optimizeParameters), so 20 rounds is -nparam 21."""
     args = [str(x) for x in pl.fit_args(Path("/data"), "NQC+F{x}", rounds=20)]
     assert args[-2:] == ["-nparam", "21"] and "-nparam" not in [str(x) for x in pl.fit_args(Path("/data"), "M")]
+    args = [str(x) for x in pl.fit_args(Path("/data"), "GTR20+F{x}", tree=pl.UNROOTED)]
+    assert args[args.index("-te") + 1] == pl.UNROOTED
+
+
+def test_round_ending_reads_the_printed_rounds(tmp_path):
+    """A fit stopped at its -nparam cap while still gaining is labelled the cap, also when the checkpoint's
+    final score differs from the last printed round; one whose round gain fell below -me first is not."""
+    def run(gains):
+        vals = np.cumsum([-1000.0, *gains])
+        lines = [f"Initial log-likelihood: {vals[0]:.3f}"]
+        lines += [f"Current log-likelihood at step {i}: {v:.6f}" for i, v in enumerate(vals[1:], 1)]
+        (tmp_path / "stdout.txt").write_text("\n".join(lines) + "\n")
+        return pl.Run(tmp_path, "fit", [], 0, None)
+    assert pl.round_ending(run([0.2] * 20), rounds=20) == "round cap"
+    assert pl.round_ending(run([0.2] * 5 + [0.001]), rounds=20) == "round gain below the threshold"
+    assert pl.round_ending(run([0.03] * 99)) == "round cap"
+    assert pl.round_ending(run([0.03] * 40 + [1e-7]), relaxed=True) == "round gain below the threshold"
+
+
+def test_unrooted_keeps_every_path_length():
+    tree = "((a:0.1,b:0.2):0.30000000000000004,(c:0.4,(d:0.5,e:0.6):0.7):0.8);"
+    flat = readers.parse_newick(pl.unrooted(tree))
+    assert len(flat.children) == 3 and flat.length is None
+    for x, y in (("a", "c"), ("b", "e"), ("d", "a")):
+        assert abs(lk_path(flat, x, y) - lk_path(readers.parse_newick(tree), x, y)) <= 1e-15
+
+
+def lk_path(tree, x, y):
+    """The path length between leaves x and y."""
+    def anc(nd, name):   # the chain of nodes from nd down to the leaf name
+        if nd.name == name and not nd.children:
+            return [nd]
+        for c in nd.children:
+            chain = anc(c, name)
+            if chain:
+                return [nd] + chain
+        return []
+    cx, cy = anc(tree, x), anc(tree, y)
+    k = 0
+    while k < min(len(cx), len(cy)) and cx[k] is cy[k]:
+        k += 1
+    return sum(n.length for n in cx[k:]) + sum(n.length for n in cy[k:])

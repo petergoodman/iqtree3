@@ -8,6 +8,20 @@ gate record and may run to 25 lines. The next session starts from the top entry.
 This is a fork of `iqtree/iqtree3`. Entries here describe work on the fork, not upstream
 development.
 
+## 2026-11-17 (fourth session, evening): pilot done; round endings relabelled; GTR20 upstream crash
+
+- **Pilot** (exploratory, clean `3719111d`, `~/iqtree3-runs/sim1/20261117T165446Z-3719111d-pilot`; 52 taxa, 30
+  genes, 3 replicates, 20-round cap): mean Ĉ 0.047 for Q.bird (truth 0, SD 0.0028), 0.078 for NQ.bird (truth
+  0.0577, SD 0.0081); held-out lnL 62 to 102 below the truth's; 26 to 48 min and 0.6 GB a fit. Default rounds
+  moved Ĉ by 0.0004 and 0.0005 at 4.9 and 3.3 times the time. 100 genes: Ĉ 0.0610, 2.4 h, 1.5 GB; 1000 genes need over
+  10 GB. Per cell in the commit message.
+- **Endings mislabelled** (my code): every fit recorded "round gain below the threshold" but stopped at its cap,
+  gaining 0.097 to 1.06 a round, the default fit 0.026 at round 99 (`explore/pilot_round_endings.py`); fixed by
+  `pipeline.round_ending`. `convergence.run_state`'s `-q` label can mislabel a capped fit the same way; earlier
+  records from it not checked.
+- **GTR20 cell segfaulted:** upstream, maintainer question 17; the pipeline now unroots its tree. 4-taxon S4b
+  Q.bird certified at 1e-6 (`explore/screen_endpoint_certificate.py`). **Next.** GTR20 alone; the close with Peter.
+
 ## 2026-11-17 (fourth session, morning): pilot cut to finish within a day
 
 - **First pilot run** (`ec462978`, stopped): main Q.bird r1 at defaults, 12,170 columns, 7,515 s, 99 rounds,

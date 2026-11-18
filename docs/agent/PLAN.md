@@ -235,7 +235,7 @@ Retired risk numbers:
 ### Questions for the maintainers
 
 Peter relays these if and when he chooses; no agent contacts the maintainers (`CLAUDE.md`).
-Questions 4 to 7 and 9 to 16 are stated here in brief; what was run or read, with commands,
+Questions 4 to 7 and 9 to 17 are stated here in brief; what was run or read, with commands,
 outputs and anchors, is in `docs/agent/UPSTREAM_FINDINGS.md` under the same number.
 
 1. Final public names for the model and its options.
@@ -286,6 +286,10 @@ outputs and anchors, is in `docs/agent/UPSTREAM_FINDINGS.md` under the same numb
     after the model fit, `-blfix` included, and the report then mixes two states. NQC refuses
     `--root-test` (decision 008), since its export would describe the re-optimized state. Should
     the root test honour `-blfix` and leave the tree as it found it?
+17. Upstream finding, 2026-11-17, unmodified binary: `GTR20` on a rooted `-te` tree segfaults under
+    `--model-joint` (`-q` and `-p`) and, as a single model, stops at an assertion in
+    `PhyloTree::optimizeAllBranches`; the same tree unrooted runs. SIM-1's pipeline unroots it for
+    `GTR20`. Should a reversible model unroot a rooted `-te` tree, or refuse it?
 
 ## Current state
 
@@ -327,18 +331,20 @@ audits' low findings are in `CODE_PLAN.md` section 4, "Known and left alone".
   `docs/agent/archive/S5_plan_2026-11-07.md`. SIM-1 is under way (no IQ-TREE source change): the oracle
   additions (commit 2), the AliSim exact check passed at `b6ad2070` (commit 3), exact recovery passed R1 to
   R6 at `4ef10188` after a first run's R4 failure (counted; the flux finish exited early, revised under
-  decision 042) (commit 4), the bird data, scaffold (rooted on HUMAN, for Peter to confirm) and the 3-taxon
-  screen (10 of 14 fits not evaluable, all bound-active first-order points that pass the certificate only
-  at activity threshold 1e-6; repeats deferred) (commit 5), and the pipeline, its checks passed (commit 6,
-  the pilot running); specification in `CODE_PLAN.md`
+  decision 042) (commit 4), the bird data, scaffold (rooted on HUMAN, Peter) and the 3-taxon screen (all 14
+  fits evaluable at the certificate's activity threshold 1e-6, Peter; flagged S3 Q.bird, S4b Q.bird and S4b
+  NQ.bird, their peaks reproduced from the generating reference; S4b Q.bird at 4 taxa C 0.0378) (commit 5),
+  and the pipeline, its checks passed, and the pilot as Peter cut it (commit 6; every fit stopped at its round
+  cap, the default fit at IQ-TREE's 99; `GTR20` hit maintainer question 17 and is rerun on the tree
+  unrooted); specification in `CODE_PLAN.md`
   section 3.8, transport rule decision 044, pass lines in 021; the approved plan, with its planning
   measurements and review, is frozen in `docs/agent/archive/SIM1_plan_2026-11-16.md`.
 
 ## Next step
 
-Queued from the commit that widens the certificate's activity threshold (Peter, 2026-11-17): the screen's
-follow-up restarts of its three flagged fits at 3 taxa, then the pilot as Peter cut it (`CODE_PLAN.md`
-section 3.8, about 8.5 h); then SIM-1's close, where risk 25's open inputs are asked for, before SIM-2's plan.
-The remaining 4-taxon repeats (S3, and S4b on NQ.bird) run only if time allows.
+The pilot's `GTR20` cell alone (`pipeline.py fit --gtr20 --rounds 20` on main replicate 1's data), then
+SIM-1's close (`CODE_PLAN.md` section 4, commit 7): risk 25's open inputs asked of Peter with the screen's and
+pilot's evidence, then SIM-2's plan. The remaining 4-taxon repeats (S3, and S4b on NQ.bird) run only if
+Peter wants them.
 
 The working rules are in `CODE_PLAN.md` section 4, "Implementation".

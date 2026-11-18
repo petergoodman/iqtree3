@@ -144,6 +144,24 @@ leave the tree as it found it?
 
 Anchors: `root_test`; `testRootPosition`, its only caller and its branch-length re-optimization.
 
+## Q17
+
+Upstream finding, 2026-11-17, unmodified binary (`~/iqtree3-baseline/iqtree3`, v3.1.4): `GTR20` on a
+rooted `-te` tree fails. On turtle (`turtle_aa.fasta`, the `-m LG -n 0` tree rooted at the midpoint of
+Anolis's pendant edge), `-p turtle_aa.nex --model-joint GTR20 -te rooted.nwk` segfaults at "Estimate model
+parameters" (exit 139), and the same tree unrooted exits 0; `NONREV` runs on both. A single model, `-m GTR20
+-te rooted.nwk`, stops at `ASSERT(tree_lh-new_tree_lh < max_delta_lh)` in `PhyloTree::optimizeAllBranches`
+(new_tree_lh −12638.85 against tree_lh −9639.93), Anolis's root edge grown from 0.027 to 2.36. On SIM-1's
+52-taxon bird data (30 genes) the segfault reproduces under `-q` and `-p`, with and without `+F{π*}` and
+`-blfix`, at `-T 1` and `-T 6`, on the NQC gate binary as on the unmodified one; `LG+F{π*}` (no free
+parameters) and `NONREV+F{π*}` run on the rooted tree. Scripts and outputs:
+`~/iqtree3-scratch/gtr20-turtle-20261117T194402/`, `gtr20-narrow-20261117T194153/`,
+`gtr20-crash-20261117T194123/`. Cause not investigated. SIM-1's pipeline gives `GTR20` the tree unrooted,
+on which a reversible likelihood is the same. Should a reversible model unroot a rooted `-te` tree, or
+refuse it?
+
+Anchors: `PhyloTree::optimizeAllBranches`'s assertion; the segfault's site not located.
+
 ## Risk 23
 
 Reported by the S3 plan's review, not verified: resuming an `-S` tree search with `+I+G` may

@@ -2,7 +2,7 @@
 per invocation, with paths, binaries and threads as arguments, so it runs unchanged on a cluster.
 
   pipeline.py simulate --scaffold DIR --truth NAME --genes G --replicate R --alisim BIN --git git.exe [--seed BASE] [--out DIR]
-  pipeline.py fit --data DIR --binary BIN --threads T [--level2] [--relaxed] [--gtr20] --git git.exe [--out DIR]
+  pipeline.py fit --data DIR --binary BIN --threads T [--level2] [--relaxed] [--gtr20] [--rounds R] --git git.exe [--out DIR]
   pipeline.py checks --scaffold DIR --alisim BIN --binary BIN --truth NAME --git git.exe [--out DIR]
   pipeline.py metrics --fit FITDIR [--heldout SIMDIR --binary BIN] --git git.exe [--out DIR]
   pipeline.py pilot --scaffold DIR --alisim BIN --binary BIN [--threads 6] [--cells main1,ram,taxa26,genes100,variants,main] --git git.exe [--out DIR]
@@ -18,7 +18,8 @@ concatenation in the tree's leaf order, charsets, the -q file with true shapes a
 digits (m = sum rho_k n_k / sum n_k, which IQ-TREE's site-weighted renormalization leaves unchanged to
 rounding: asserted), the fit tree T m, and a manifest with every file's SHA-256.
 fit runs NQC Level 1 (-q, --model-joint NQC+F{pi*}, -te T m, -blfix, -keep-ident, default domain), with
-options for -p Level 2, relaxed settings (-me 1e-6, 300-round caps) and GTR20+F{pi*}.
+options for -p Level 2, relaxed settings (-me 1e-6, 300-round caps), GTR20+F{pi*} (on the tree unrooted)
+and a cap on the linked rounds.
 checks asserts decision 021's two pipeline rows for one truth: the same seed gives byte-identical genes,
 also with AliSim confined to 2 CPUs (taskset), and IQ-TREE's --show-lh at the true Q under -q equals the
 oracle's linked objective built from the trees AliSim used (T rho_k at partition rate 1).
@@ -53,10 +54,11 @@ for _p in ("", "regression", "probes", "nqc", "differential", "explore", "profil
 sys.path.insert(0, str(HERE))
 from oracle import likelihood as lk, nqc, readers, simulate  # noqa: E402
 from regress import REPO, read, sha256, write  # noqa: E402
-from probes import PREFIX, Run, Runner, with_charpartition  # noqa: E402
+from probes import PREFIX, Run, Runner, unroot, with_charpartition  # noqa: E402
 from nqcchecks import check  # noqa: E402
 from differential import write_matrix  # noqa: E402
-from convergence import ME_RELAXED, run_state  # noqa: E402
+from convergence import (LOOP_DEFAULT, ME_DEFAULT, ME_RELAXED, NPARAM_DEFAULT, ended_by, run_state,  # noqa: E402
+                         trajectory)
 from profiling import scale_tree  # noqa: E402
 import twopart  # noqa: E402
 import common  # noqa: E402
@@ -229,20 +231,20 @@ def scaffold_record(path):
     return {"path": str(Path(path).resolve()), "sha256": {f: sha256(Path(path) / f) for f in ("tree.nwk", "loci.tsv")}}
 
 
-def fit_args(data, model, level2=False, relaxed=False, rounds=None):
+def fit_args(data, model, level2=False, relaxed=False, rounds=None, tree=None):
     """IQ-TREE's arguments for one fit; rounds caps the linked rounds (-nparam rounds + 1:
-    PartitionModelPlen::optimizeParameters runs rounds 1 to num_param_iterations - 1, default 100)."""
-    args = _fit_args(data, model, level2, relaxed)
+    PartitionModelPlen::optimizeParameters runs rounds 1 to num_param_iterations - 1, default 100); tree
+    replaces the data's rooted tree.nwk."""
+    args = _fit_args(data, model, level2, relaxed, tree or data / "tree.nwk")
     return args + ["-nparam", str(rounds + 1)] if rounds else args
 
 
-def _fit_args(data, model, level2=False, relaxed=False):
+def _fit_args(data, model, level2, relaxed, tree):
     if level2:
-        args = ["-s", data / "alignment.phy", "-p", "parts.nex", "--model-joint", model, "-te", data / "tree.nwk",
-                "-keep-ident"]
+        args = ["-s", data / "alignment.phy", "-p", "parts.nex", "--model-joint", model, "-te", tree, "-keep-ident"]
     else:
-        args = ["-s", data / "alignment.phy", "-q", "parts.nex", "--model-joint", model, "-te", data / "tree.nwk",
-                "-blfix", "-keep-ident"]
+        args = ["-s", data / "alignment.phy", "-q", "parts.nex", "--model-joint", model, "-te", tree, "-blfix",
+                "-keep-ident"]
     if relaxed:
         args += ["-me", f"{ME_RELAXED:g}", "--loop-model", str(ROUNDS), "-nparam", str(ROUNDS + 2)]
     return args
@@ -278,6 +280,22 @@ def measured_run(binary, out, name, args, files, threads, timeout):
                  "peak_rss_mb": round(usage.ru_maxrss / 1024, 1)}
 
 
+def unrooted(tree_text):
+    """The rooted tree with its two root edges joined (probes.unroot), at 17 digits: on a rooted -te tree
+    IQ-TREE's GTR20 segfaults under --model-joint (maintainer question 17), and a reversible likelihood
+    does not depend on the root."""
+    return newick17(unroot(readers.parse_newick(tree_text)))
+
+
+def round_ending(run, relaxed=False, rounds=None):
+    """The rule that ended a -q fit's linked rounds, from its printed rounds and the cap its -nparam set
+    (convergence.run_state tests IQ-TREE's default cap and, as the last gain, the checkpoint's final score
+    minus the last printed round)."""
+    vals, done = trajectory(run, "-q")
+    nparam = rounds + 1 if rounds else (ROUNDS + 2 if relaxed else NPARAM_DEFAULT)
+    return ended_by("-q", done, list(np.diff(vals)), ME_RELAXED if relaxed else ME_DEFAULT, LOOP_DEFAULT, nparam)
+
+
 def fit_step(level2, relaxed, gtr20):
     return f"fit-{'gtr20' if gtr20 else 'nqc'}-{'p2' if level2 else 'q1'}{'-relaxed' if relaxed else ''}"
 
@@ -294,9 +312,14 @@ def fit_into(out, data, binary, threads, timeout, level2=False, relaxed=False, g
     parts = (with_charpartition(read(data / "sets.nex"), [("LG+G4", f"g{k:04d}", None)
                                                           for k in range(1, len(manifest["genes"]) + 1)])
              if level2 else read(data / "parts.nex"))
-    run, usage = measured_run(binary, out, "fit", fit_args(data, model, level2, relaxed, rounds), {"parts.nex": parts},
-                              threads, timeout)
+    files = {"parts.nex": parts}
+    if gtr20:
+        files[UNROOTED] = unrooted(read(data / "tree.nwk")) + "\n"
+    run, usage = measured_run(binary, out, "fit", fit_args(data, model, level2, relaxed, rounds,
+                                                           UNROOTED if gtr20 else None), files, threads, timeout)
     state = run_state(run, "-q", not gtr20, "relaxed" if relaxed else "default", ROUNDS) if run.code == 0 else {}
+    if run.code == 0:
+        state["ended_by"] = round_ending(run, relaxed, rounds)
     ram = RAM_NOTE.search(run.stdout())
     info = readers.read_info(read(run.file(".NQC.info"))) if run.file(".NQC.info").exists() else {}
     return {"step": fit_step(level2, relaxed, gtr20), "rounds_cap": rounds, "data_match": not bad, "mismatched": bad,
@@ -314,11 +337,11 @@ def cmd_fit(a):
     data = Path(a.data).expanduser().resolve()
     step = fit_step(a.level2, a.relaxed, a.gtr20)
     prov = common.provenance(a, SCRIPT, step, "exploratory", data=str(data), threads=a.threads,
-                             level2=a.level2, relaxed=a.relaxed, gtr20=a.gtr20)
+                             level2=a.level2, relaxed=a.relaxed, gtr20=a.gtr20, rounds_cap=a.rounds)
     out = common.new_out(a.out, prov)
     binary = Path(a.binary).expanduser().resolve()
     prov["binary"] = {"path": str(binary), "sha256": sha256(binary)}
-    rec = fit_into(out, data, binary, a.threads, a.timeout, a.level2, a.relaxed, a.gtr20)
+    rec = fit_into(out, data, binary, a.threads, a.timeout, a.level2, a.relaxed, a.gtr20, a.rounds)
     rows = [check("data match their manifest", rec["data_match"], mismatched=rec["mismatched"]),
             check("the fit exits 0", rec["exit_code"] == 0, **{k: v for k, v in rec.items() if k != "mismatched"})]
     common.finish(out, prov, f"SIM-1 pipeline {step}", rows)
@@ -469,6 +492,7 @@ PRUNED_TAXA = 26
 CAP, CAP_RELAXED = 3 * 3600.0, 4 * 3600.0
 RAM_GENES = (300, 1000)
 CELLS = ("main1", "ram", "main", "taxa26", "genes100", "variants", "default1")
+UNROOTED = "tree-unrooted.nwk"     # GTR20's -te tree, written into its run directory
 RAM_NOTE = re.compile(r"^NOTE: (\d+) MB RAM", re.M)
 RAM_ERROR = re.compile(r"^ERROR: Your RAM is below minimum requirement of (\S+) GB", re.M)
 
@@ -669,6 +693,7 @@ def main():
     f.add_argument("--level2", action="store_true")
     f.add_argument("--relaxed", action="store_true")
     f.add_argument("--gtr20", action="store_true")
+    f.add_argument("--rounds", type=int, help="cap the linked rounds")
     f.add_argument("--timeout", type=float, default=4 * 3600)
     c = sub.add_parser("checks")
     c.add_argument("--scaffold", required=True)
