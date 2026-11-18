@@ -1,7 +1,7 @@
 """Exploratory: how each fit of a SIM-1 pilot run ended its linked rounds, relabelled by
 pipeline.round_ending. The pilot at 3719111d labelled every fit "round gain below the threshold" through
-convergence.run_state, which tests IQ-TREE's default cap and, on -q, a last gain that is the checkpoint's
-final score minus the last printed round. The run's records stay as written.
+convergence.run_state, which at that commit tested IQ-TREE's default cap and, on -q, a last gain that was the
+checkpoint's final score minus the last printed round. The run's records stay as written.
 
   python test_scripts/fixedeq/explore/pilot_round_endings.py PILOT_DIR
 """

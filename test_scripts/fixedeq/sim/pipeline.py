@@ -289,8 +289,7 @@ def unrooted(tree_text):
 
 def round_ending(run, relaxed=False, rounds=None):
     """The rule that ended a -q fit's linked rounds, from its printed rounds and the cap its -nparam set
-    (convergence.run_state tests IQ-TREE's default cap and, as the last gain, the checkpoint's final score
-    minus the last printed round)."""
+    (convergence.run_state tests IQ-TREE's default cap)."""
     vals, done = trajectory(run, "-q")
     nparam = rounds + 1 if rounds else (ROUNDS + 2 if relaxed else NPARAM_DEFAULT)
     return ended_by("-q", done, list(np.diff(vals)), ME_RELAXED if relaxed else ME_DEFAULT, LOOP_DEFAULT, nparam)
@@ -495,6 +494,7 @@ CELLS = ("main1", "ram", "main", "taxa26", "genes100", "variants", "default1")
 UNROOTED = "tree-unrooted.nwk"     # GTR20's -te tree, written into its run directory
 RAM_NOTE = re.compile(r"^NOTE: (\d+) MB RAM", re.M)
 RAM_ERROR = re.compile(r"^ERROR: Your RAM is below minimum requirement of (\S+) GB", re.M)
+RAM_ALLOC = re.compile(r"^ERROR: Not enough memory, allocation of (\d+) bytes failed", re.M)
 
 
 def newick17(tree):
@@ -535,13 +535,16 @@ def pruned_taxa(tree_text, k, seed):
 
 def ram_probe(binary, out, name, data, threads, timeout=3600):
     """The Level 1 fit's command with -memcheck, which stops after IQ-TREE's memory estimate: its RAM note
-    in MB, or the GB of its "RAM below minimum" error when the estimate exceeds the machine."""
+    in MB, the GB of its "RAM below minimum" error when the estimate exceeds the machine, or the bytes of an
+    allocation that failed before the estimate (the pilot's 1000 genes)."""
     manifest = json.loads(read(Path(data) / "data.json"))
     args = [*fit_args(Path(data), f"NQC+F{{{manifest['target']}}}"), "-memcheck"]
     run, usage = measured_run(binary, out, name, args, {"parts.nex": read(Path(data) / "parts.nex")}, threads, timeout)
-    note, error = RAM_NOTE.search(run.stdout()), RAM_ERROR.search(run.stdout())
+    text = run.stdout()
+    note, error, alloc = RAM_NOTE.search(text), RAM_ERROR.search(text), RAM_ALLOC.search(text)
     return {"exit_code": run.code, "ram_note_mb": int(note.group(1)) if note else None,
-            "ram_below_minimum_gb": float(error.group(1)) if error else None, **usage}
+            "ram_below_minimum_gb": float(error.group(1)) if error else None,
+            "allocation_failed_bytes": int(alloc.group(1)) if alloc else None, **usage}
 
 
 def sd_bounds(values):

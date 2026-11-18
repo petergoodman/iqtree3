@@ -387,6 +387,22 @@ def test_round_ending_reads_the_printed_rounds(tmp_path):
     assert pl.round_ending(run([0.03] * 40 + [1e-7]), relaxed=True) == "round gain below the threshold"
 
 
+def test_run_state_ending_ignores_the_final_score(tmp_path):
+    """run_state labels from the printed rounds: a final score 4e-4 off the last 3-decimal round, as at the
+    pilot's |lnL|, is no round gain below -me; a real last gain below -me still ends by the threshold."""
+    def run(gains, offset):
+        vals = np.cumsum([-217600.0, *gains])
+        lines = [f"Initial log-likelihood: {vals[0]:.3f}"]
+        lines += [f"Current log-likelihood at step {i}: {v:.3f}" for i, v in enumerate(vals[1:], 1)]
+        lines.append(f"BEST SCORE FOUND : {vals[-1] + offset:.10f}")
+        (tmp_path / "stdout.txt").write_text("\n".join(lines) + "\n")
+        return pl.Run(tmp_path, "fit", [], 0, None)
+    state = pl.run_state(run([0.03] * 99, 4e-4), "-q", False, "default", pl.ROUNDS)
+    assert state["ended_by"] == "round cap" and abs(state["gains"][-1]) < 1e-3
+    assert pl.run_state(run([0.03] * 20 + [0.004], 4e-4), "-q", False, "default", pl.ROUNDS)["ended_by"] == \
+        "round gain below the threshold"
+
+
 def test_unrooted_keeps_every_path_length():
     tree = "((a:0.1,b:0.2):0.30000000000000004,(c:0.4,(d:0.5,e:0.6):0.7):0.8);"
     flat = readers.parse_newick(pl.unrooted(tree))

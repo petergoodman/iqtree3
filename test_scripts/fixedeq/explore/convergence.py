@@ -221,6 +221,9 @@ def run_state(run, mode, nqc_model, setting, rounds_relaxed):
     me, loop, nparam = ((ME_DEFAULT, LOOP_DEFAULT, NPARAM_DEFAULT) if setting == "default"
                         else (ME_RELAXED, rounds_relaxed, rounds_relaxed + 2))
     vals, rounds = trajectory(run, mode)
+    # the ending rule reads the printed rounds only: the final appended below is no round, and where IQ-TREE
+    # prints 3 decimals (SIM-1's pilot, |lnL| about 2e5) it differs from the last round by rounding alone
+    printed = list(np.diff(vals)) if len(vals) > 1 else []
     text = run.stdout()
     ck = final_struct(run) if nqc_model else None
     best = BEST.search(text)
@@ -229,7 +232,7 @@ def run_state(run, mode, nqc_model, setting, rounds_relaxed):
         vals = vals + [final]
     gains = list(np.diff(vals)) if len(vals) > 1 else []
     out = {"exit_code": 0, "final_lnl": final, "rounds": rounds,
-           "ended_by": ended_by(mode, rounds, gains, me, loop, nparam), "wall_s": run.wall,
+           "ended_by": ended_by(mode, rounds, printed, me, loop, nparam), "wall_s": run.wall,
            "initial_lnl": vals[0] if vals else None, "gains": gains,
            "switches": text.count(SWITCH), "falls": len(FALL.findall(text)),
            "assertion_or_abort": "Assertion" in text or BUG_ABORT in text}
