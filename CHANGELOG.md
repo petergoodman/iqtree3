@@ -8,12 +8,25 @@ gate record and may run to 25 lines. The next session starts from the top entry.
 This is a fork of `iqtree/iqtree3`. Entries here describe work on the fork, not upstream
 development.
 
+## 2026-11-18 (fifth session, unattended): SIM-1 loose ends cleared; SIM-1 audited
+
+- **Loose ends** (`1ab3b1a1`, `f0c61a7d`): `run_state` reads endings from printed rounds; rechecked from a clean commit,
+  every NQC fit of both pilot runs ended at its cap, S3c's and S5's labels stand. GTR20 rerun (`ddf0c395`): 9 rounds,
+  threshold, lnL 289 below NQC's capped fit on identical inputs. `compositions.tsv` reproduces at clean `1ab3b1a1`.
+- **100 genes' rate error** (`explore/pilot_rate_errors.py`): a few mid- and low-flux rates fall toward the domain
+  floor, always underestimated, the same pairs across replicates; the top two flux quintiles improved (RMS 0.04, 0.09).
+- **Audit** (read-only reviews of code, records against outputs, plan and conclusions): no gate result or SIM-2 input
+  wrong; corrections made in their homes (commit message); tests for the certificate threshold and `metrics_of`.
+- **For Peter at the close:** Ĉ is not the reversible floor plus C (recommendation 1); the cap is measured at 30 genes
+  only (6); S3 unrepeated (7); S4b cannot reach 13.3% at 52 taxa (3); one shift direction (2); 021's Rule sentence
+  against its loosened row. **Next.** The close.
+
 ## 2026-11-17 (fourth session, evening): pilot done; round endings relabelled; GTR20 upstream crash
 
 - **Pilot** (exploratory, clean `3719111d`, `~/iqtree3-runs/sim1/20261117T165446Z-3719111d-pilot`; 52 taxa, 30
   genes, 3 replicates, 20-round cap): mean Ĉ 0.047 for Q.bird (truth 0, SD 0.0028), 0.078 for NQ.bird (truth
   0.0577, SD 0.0081); held-out lnL 62 to 102 below the truth's; 26 to 48 min and 0.6 GB a fit. Default rounds
-  moved Ĉ by 0.0004 and 0.0005 at 4.9 and 3.3 times the time. 100 genes: Ĉ 0.0610, 2.4 h, 1.5 GB; 1000 genes need over
+  moved Ĉ by 0.0004 and 0.0005 at 4.9 (contended; 3.2 by evaluations) and 3.3 times the time. 100 genes: Ĉ 0.0610, 2.4 h, 1.5 GB; 1000 genes need over
   10 GB. Per cell in the commit message.
 - **Endings mislabelled** (my code): every fit recorded "round gain below the threshold" but stopped at its cap,
   gaining 0.097 to 1.06 a round, the default fit 0.026 at round 99 (`explore/pilot_round_endings.py`); fixed by
@@ -40,20 +53,20 @@ development.
   and dial:0.5 passed every row; wiring within 1.4e-8 to 9.3e-8 at |lnL| about 1.6e5; taskset 4 seeds against 24.
 - **Certificate probe** (`explore/screen_certificate_probe.py`, exploratory): all 10 not-evaluable screen fits
   refit bitwise; certificate fails at activity thresholds 1e-12 to 1e-8, passes at 1e-6 (1 to 24 rows at slack
-  1e-8 to 1e-6): bound-active first-order points. At 1e-6, flagged: S3 Q.bird (C 0.0071), S4b Q.bird (0.0343),
+  4e-11 to 1e-6): bound-active first-order points. At 1e-6, flagged: S3 Q.bird (C 0.0071), S4b Q.bird (0.0343),
   S4b NQ.bird (dC -0.0058); repeats S4b, S3. The threshold is Peter's (039, 021).
 - **Running:** the pilot (`ec462978`; main replicate 1 near 2.5 min a round); provisional 4-taxon S4b, S3 on Q.bird.
 - **Next.** Peter: the threshold, HUMAN root, ASTRAL_NEW, the screen's interpretations; then repeats, pilot, close.
 
 ## 2026-11-17 (fourth session, unattended): scaffold, screen, pipeline code
 
-- **Scaffold** (`5a299751`, 362 s): ASTRAL_NEW rooted on HUMAN, 100 loci, shapes 0.020 to 4.64 (mean 0.45; one at
-  IQ-TREE's 0.02 bound), rates 0.027 to 5.0; IQ-TREE's root stem (2.3e-4, unidentified) dropped. Two of my bugs
+- **Scaffold** (`5a299751`, 362 s): ASTRAL_NEW rooted on HUMAN, 100 loci, shapes 0.020 to 4.64 (mean 0.45; five within
+  4e-5 of IQ-TREE's 0.02 bound), rates 0.027 to 5.0; IQ-TREE's root stem (2.3e-4, unidentified) dropped. Two of my bugs
   cost two reruns (`57d88b60`, `5a299751`).
 - **Screen** (exploratory, clean `84be73e4`; `~/iqtree3-runs/sim1/20261117T061309Z-84be73e4-screen-3taxa-*`): 10 of
   14 fits not evaluable, all with rows at a lower bound (converged, certificate 679 to 1.4e5); none flagged (only
-  evaluable fits flag). Reversible truth's C: S4b 0.034, S3 0.0071, S1b 0.0051 (not evaluable), S1a 0.0012,
-  S4a 0.0007, S5 0.0006. Repeats deferred to Peter's certificate decision.
+  evaluable fits flag). Reversible truth's C: S4b 0.034, S3 0.0071, S1b 0.0051, S2 0.0012 (these four not evaluable),
+  S1a 0.0012, S4a 0.0007, S5 0.0006. Repeats deferred to Peter's certificate decision.
 - **Pipeline** (`sim/pipeline.py`), reviewed: 1 blocker (checks' gene count), 2 major (peak memory, lost
   records), 7 minor; fixed, but no test of the held-out `parts.nex`. **Next.** Checks per truth, pilot, the
   certificate probe; Peter's decisions.

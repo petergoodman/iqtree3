@@ -471,7 +471,7 @@ The package is `test_scripts/fixedeq/oracle/`, and its tests use the pass lines 
     minimizes over active thresholds, an all-rows fit included, so it is a record; the test is
     `flux.certificate`, the same residual with the active rows fixed at normalized slack ≤ 1e-6, the
     m·μ threshold (decision 039, line in 021; 1e-12 until 2026-11-17, when barrier endpoints meeting the
-    declared stop with bound rows at slacks 1e-8 to 1e-6 failed it, `explore/screen_certificate_probe.py`).
+    declared stop with bound rows at slacks 4e-11 to 1e-6 failed it, `explore/screen_certificate_probe.py`).
   - Certificate of the concave validation problems (decision 021): the Lagrangian duality gap
     D(η, ν) − F(f̂), D = bᵀη + Σ N_e(log(N_e/w_e) − 1), w = Cᵀη − Aᵀν > 0, ν ≥ 0, smallest over the
     barrier's multipliers ν = μ/(Af) and bounded least squares at several active sets, each weighted
@@ -588,7 +588,8 @@ asserted failure. Confirmatory.
   coordinates at the bounds, N = f* ⊙ (Cᵀη − Aᵀν) for ν > 0 on those rows); exact pattern frequencies on a
   rooted three-taxon tree at n = 20, N = 10⁶ sites, from an interior cycle-flux truth and from an
   extreme one (LG at π* with about 160 coordinates at the lower bound). pytest runs n = 3 and 4.
-- **Fits per problem**: NQC at defaults (`-vv`) and relaxed (`-me 1e-6`, 300-round caps), both with
+- **Fits per problem**: NQC at defaults (`-vv`) and relaxed (`-me 1e-6`, `-nparam 302` and
+  `--loop-model 300`: 301 linked rounds on the single path, 300 under `-S`), both with
   `--nqc-domain 1e-5,1e5`, ending rule recorded; z climbs from the relaxed endpoint by `lbfgsb_fit`'s
   analytic pass at L-BFGS-B memory 20 and 5, which calibrate L and are written before any flux fit;
   the reference from LG at π* and from the relaxed endpoint. Reported only: two seeded random starts
@@ -941,7 +942,7 @@ behaviour as read at `63c330d9` is anchored in section 5.
 **Exact fits** (`sim/exact.py`, steps `recover` and `screen`). N = 10⁶ nominal weights over all 20^k
 columns (21^k with gaps); the matched default box with references from LG at π* (decision 011); the flux
 reference with decision 042's declared stop, 50,000 Newton steps, and a cap of 4 h a fit at 3 taxa and
-8 h at 4 taxa; pool workers chosen from the peak memory of one gradient measured first (about 6 at 4
+8 h at 4 taxa; pool workers chosen from the peak memory of one gradient measured first (10 for R5 at 4
 taxa in the 6.9 GB VM). Trees: 3 taxa `((a:0.2,b:0.3):0.1,c:0.4);`, 4 taxa
 `((a:0.2,b:0.3):0.1,(c:0.25,d:0.35):0.15);`.
 - Recovery (confirmatory): R1 NQ.bird, 3 taxa; R2 Q.bird at π*; R3 LG at π*, started at NQ.bird (LG at
@@ -974,7 +975,8 @@ taxa in the 6.9 GB VM). Trees: 3 taxa `((a:0.2,b:0.3):0.1,c:0.4);`, 4 taxa
   transported truth; S2 and S3 the mean flux Σ_k w_k f_k, balanced and so a generator at π*; S4 and S5
   the base truth); KL per site from data to fit; the largest net-flux errors; bound activity; masked
   fraction and composition shift (S4). Flag (Peter): |ΔC against the generating reference| ≥ 0.1 ×
-  0.0577 = 0.0058. Follow-ups: each flagged fit restarted from its generating reference; 4-taxon repeats
+  0.0577 = 0.00577, as `exact.FLAG` applies it (S4b NQ.bird's 0.0057999 flags at it, not at the rounded
+  0.0058). Follow-ups: each flagged fit restarted from its generating reference; 4-taxon repeats
   of the two flagged scenarios with the largest ΔC on the reversible truth, or of the single largest if
   none flags. Flags recommend SIM-2's scenarios; SIM-2's plan decides. Not done: a reversible refit in
   the oracle (SIM-2 has the GTR20 arm), rate variation in the screen, more shift directions.
@@ -1010,13 +1012,15 @@ invocation, with paths, binaries and threads as arguments, so it runs unchanged 
   per gene (`--simulation-thresh 0`, `-nt 1`, its own directory and `-pre`; `--num-alignments` would
   chain the streams). Seeds from `numpy.random.SeedSequence(base, replicate, gene)` in [1, 2³¹ − 1025]
   (AliSim reads a signed 32-bit seed and adds up to twice the CPU count), recorded and checked against
-  AliSim's report. Leaf names checked; identical sequences counted; concatenation and charsets for unequal
+  AliSim's report. Draws and seeds do not depend on the truth, so a replicate's truths share genes and
+  seeds, as do the held-out replicates (one per truth, shared by its fits). Leaf names checked; identical sequences counted; concatenation and charsets for unequal
   lengths in the tree's leaf order; the `-q` file with true shapes and rates; a manifest with every
   file's SHA-256. Refused: an existing directory, a stale `.ckp.gz` (it aborts AliSim or overrides
   `--seed`), an unrooted tree and a root stem (AliSim simulates a stem as a branch).
 - fit: NQC Level 1 (decisions 024, 043): `-q`, `--model-joint NQC+F{π*}`, `-te` T·m, `-blfix`,
   `-keep-ident` (under `-te` IQ-TREE would otherwise drop sequences identical across the concatenation),
-  default domain; options for `-p` Level 2, relaxed settings (`-me 1e-6`, 300-round caps),
+  default domain; options for `-p` Level 2, relaxed settings (`-me 1e-6`, `-nparam 302`: 301 linked
+  rounds on `-q`, as S3c's relaxed `-q` fits ran),
   `GTR20+F{π*}` on the tree unrooted (on a rooted `-te` tree IQ-TREE's `GTR20` segfaults, maintainer
   question 17) and a cap on the linked rounds. The ending rule comes from the printed rounds and the
   cap that `-nparam` set.
@@ -1029,8 +1033,8 @@ invocation, with paths, binaries and threads as arguments, so it runs unchanged 
   AliSim used (T·ρ_k at partition rate 1) so that a normalization error cannot cancel.
 
 **Pilot** (`pipeline.py pilot`, exploratory). Gate binary, one fit at a time at `-T 6`, caps of 3 h a fit,
-fits at a cap counted. Cut by Peter on 2026-11-17 to finish within a day: one default fit took 2.1 h,
-99 linked rounds of which rounds 14 to 99 gained 9 lnL units of 217,500, so every fit but one has its
+fits at a cap counted. Cut by Peter on 2026-11-17 to finish within a day: one default fit took 2.1 h
+(beside the screen's certificate probe; 3.2 times its capped fit's evaluations), 99 linked rounds of which rounds 14 to 99 gained 9 lnL units of 217,500, so every fit but one has its
 linked rounds capped at 20 (`--rounds 20`, `-nparam 21`). Main cell: 52 taxa, 30 genes, Q.bird at π* and
 NQ.bird, 3 replicates each, capped. Replicate 1 of each truth also at IQ-TREE's default rounds, so that a
 capped and a default fit of the same data show what the cap costs (Q.bird's from the first pilot run,
@@ -1147,7 +1151,8 @@ Known and left alone:
   `-S`;
 - the report lines that cannot re-run an NQC fit (PLAN.md maintainer question 8);
 - the export diagnostic's evaluations (section 2.2), with no switch to skip them unless SIM-2 or
-  S7 needs one (SIM-2 runs thousands of NQC fits, each paying them);
+  S7 needs one (SIM-2 runs thousands of NQC fits, each paying them; in SIM-1's pilot 722 evaluations,
+  0.8 to 2.8% of a fit's);
 - decision 009's label reads "first-order stationary" far from flux stationarity, at aa_example's
   N_r (1.35 below the peak) and the z climb's Z_e (0.30 below; `explore/risk27_probe.py`), as a
   z-gradient test certifies no peak;
@@ -1244,14 +1249,21 @@ measurements and review findings, frozen in `docs/agent/archive/SIM1_plan_2026-1
    4-taxon repeat 2 to 6 h). 2026-11-17, unattended: fetch, inventory and the scaffold done (committed);
    the screen ran at `84be73e4`, 10 of its 14 fits not evaluable at the certificate's then threshold
    1e-12 and all 14 evaluable at 1e-6, Peter's threshold from 2026-11-17; flagged S3 Q.bird, S4b Q.bird and
-   S4b NQ.bird. Their restarts from the generating reference run at 3 taxa; the 4-taxon S4b repeat on Q.bird
-   ran (provisional when started), C 0.0378, certified at 1e-6; the restarts reproduced every flagged
-   peak. The S3 and S4b NQ.bird 4-taxon repeats were not run.
+   S4b NQ.bird. Their restarts from the generating reference ran at 3 taxa (`3719111d`) and reproduced every
+   flagged peak (lnL within 2e-9, C within 3e-11; selected endpoints' certificates 1.9e-9 to 3.8e-4 against
+   lines 4.6e-3 to 5.9e-3). The 4-taxon S4b repeat on Q.bird ran (`72077ade`, provisional when started, 6.5 h
+   partly beside the first pilot run, stopped by the agent after this fit), C 0.0378, certified at 1e-6 (1.24e-4, saved by
+   `explore/screen_endpoint_certificate.py` at `f0c61a7d`), not restarted from its generating reference.
+   The S3 and S4b NQ.bird 4-taxon repeats were not run.
 6. `sim/pipeline.py` and its tests; the reproducibility and wiring checks; the pilot (5 to 12 h);
    CLAUDE.md's commands gain the drivers. 2026-11-17: code, tests and commands done, reviewed; the checks
    passed for NQ.bird, Q.bird, LG and dial:0.5 at `ec462978`; the cut pilot ran at `3719111d` (record in
-   `CHANGELOG.md`) except its `GTR20` cell, which hit maintainer question 17 and is rerun alone on the
-   tree unrooted.
+   `CHANGELOG.md`); its `GTR20` cell hit maintainer question 17 and, rerun alone on the tree unrooted at
+   `ddf0c395`, ended by the round-gain threshold. Every NQC fit of both pilot runs ended at its round cap,
+   which their own records misread (`explore/round_endings_recheck.py` at `1ab3b1a1`). Known shortfalls:
+   no unit test reaches `exact.screen_data`'s S1 and S4a branches or `simulate.context_mask`'s "alone" rule
+   on its own; the mixture-weights test cannot catch a wrong root composition; `screen_fit` and the
+   held-out `parts.nex` are exercised only by runs.
 7. The close: risk 25's open items asked of Peter; section 3.8's "SIM-2's plan" written and approved;
    the gate record in the CHANGELOG entry; PLAN.md's state replaced; this list cut to one line and S6's
    list written; the AI_DISCLOSURE.md entry; a fresh read-only check of the records against the gate.
