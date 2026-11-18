@@ -906,8 +906,8 @@ The fork workflow is `.github/workflows/fixedeq.yaml`:
 
 ### 3.8 Simulation
 
-SIM-1's checks, exact fits, scaffold, pipeline and pilot (decisions 039, 040, 041, 043, 044; lines in
-decision 021's SIM-1 rows), then SIM-2's plan. π* here is NQ.bird's stationary distribution: the solution
+SIM-1's checks, exact fits, scaffold, pipeline and pilot (decisions 039 to 041, 043, 044; lines in
+decision 021's SIM-1 rows), then SIM-2's plan (decision 045). π* here is NQ.bird's stationary distribution: the solution
 of πQ = 0 for NQ.bird's stored matrix with its diagonal rebuilt from the row sums (the stored frequency
 row differs by up to 6.2e-7), committed at 17 digits with provenance under `test_scripts/fixedeq/sim/`.
 The drivers live in `test_scripts/fixedeq/sim/`; each writes results.json and report.md with provenance
@@ -1046,16 +1046,17 @@ against taxa × columns; the SDs of Ĉ, per-rate log error and held-out lnL, wit
 n = (SD / target MCSE)² from each SD's upper 80% confidence bound; ending rules and failures; the round
 cap's effect; the export diagnostic's share (section 4, "Known and left alone").
 
-**SIM-2's plan** (written at SIM-1's close, approved by Peter before SIM-2 runs; decision 040). ADEMP form
-(Morris et al. 2019): aims; data mechanisms (truths, the dial, the screen's flagged scenarios, target
-perturbations under decision 044, masking from CLOAK's removal statistics, discordance if flagged, 30 to
-1000 genes, a taxa arm or not); estimands; methods (`-p` Level 1 on the true rooted tree, one size at
-Level 2, starts LG at π*, the GTR20 fit and a distant start; decision 039's declared stopping setting and
-its check); performance measures with Monte Carlo standard errors; replicate counts from the pilot;
-failed fits counted and every failed validation attempt reported (Mendes et al. 2024); compute and
-cluster jobs (PLAN.md risk 26), the first of which reruns the AliSim check, the wiring check and the
-CPU-count identity on the cluster's binaries. Before writing it the agent asks Peter for risk 25's open
-items, each with a recommendation from the screen and pilot.
+**SIM-2's plan** (written in its own session after SIM-1's close, approved by Peter before SIM-2 runs;
+decisions 040, 045). ADEMP form (Morris et al. 2019): aims; data mechanisms (truths; the dial, with
+power at decision 041's smallest effect; site profiles; targets off by up to total variation 0.06 in
+several directions under decision 044; column-context masking at several strengths, one from CLOAK's
+removals on BAliBASE 3.0; 30 to 1000 genes; 26 against 52 taxa); estimands (recovery with high- and
+low-flux rates apart, Ĉ, power); methods (`-p` Level 1 on the true rooted tree, one size at Level 2,
+starts LG at π*, the GTR20 fit and a distant start; the 20-round cap and its check, decision 039);
+performance measures with Monte Carlo standard errors; replicate counts from the pilot; failed fits
+counted and every failed validation attempt reported (Mendes et al. 2024); compute and cluster jobs
+(PLAN.md risk 26), the first of which reruns the AliSim check, the wiring check and the CPU-count
+identity on the cluster's binaries and compares capped and default fits at the largest size.
 
 ## 4. Per-slice lists
 
@@ -1234,60 +1235,38 @@ SIM-1 and SIM-2 run in decision 040's order, with gates in PLAN.md; the simulati
 and literature are frozen in `docs/agent/archive/SIM_plan_2026-11-07.md`. In both, π* denotes the
 simulated composition, NQ.bird's stationary distribution (decision 040), never the real target.
 
-SIM-1 (laptop; planned 2026-11-16; specification in section 3.8; the approved plan, with its planning
-measurements and review findings, frozen in `docs/agent/archive/SIM1_plan_2026-11-16.md`). Commits:
-1. The plan in its homes (done, 2026-11-16).
-2. The oracle additions (section 3.1) and their tests (done, 2026-11-16).
-3. `sim/alisim_check.py` and its tests, with π*'s committed file; M2's NQC fit; the check from a clean
-   commit (done, 2026-11-16: every row passed at `b6ad2070`, 49 s; gate record in `CHANGELOG.md`).
-4. `sim/exact.py` and its tests; a read-only code review before this first confirmatory fit run;
-   `recover` from a clean commit (R1 to R4 and R6 in one invocation, then R5). Done 2026-11-17: the first run
-   at `49635fae` failed R4, counted (the flux finish's early exit; decision 042 revised); the rerun at
-   `4ef10188` passed R1 to R6 (gate record in `CHANGELOG.md`).
-5. `sim/birddata.py`: fetch, inventory, the scaffold fit (under 1.5 h), the scaffold fixtures
-   committed; then `screen` from a clean commit (14 fits 1.5 to 3.5 h, restarts under 1.5 h, each
-   4-taxon repeat 2 to 6 h). 2026-11-17, unattended: fetch, inventory and the scaffold done (committed);
-   the screen ran at `84be73e4`, 10 of its 14 fits not evaluable at the certificate's then threshold
-   1e-12 and all 14 evaluable at 1e-6, Peter's threshold from 2026-11-17; flagged S3 Q.bird, S4b Q.bird and
-   S4b NQ.bird. Their restarts from the generating reference ran at 3 taxa (`3719111d`) and reproduced every
-   flagged peak (lnL within 2e-9, C within 3e-11; selected endpoints' certificates 1.9e-9 to 3.8e-4 against
-   lines 4.6e-3 to 5.9e-3). The 4-taxon S4b repeat on Q.bird ran (`72077ade`, provisional when started, 6.5 h
-   partly beside the first pilot run, stopped by the agent after this fit), C 0.0378, certified at 1e-6 (1.24e-4, saved by
-   `explore/screen_endpoint_certificate.py` at `f0c61a7d`), not restarted from its generating reference.
-   The S3 and S4b NQ.bird 4-taxon repeats were not run.
-6. `sim/pipeline.py` and its tests; the reproducibility and wiring checks; the pilot (5 to 12 h);
-   CLAUDE.md's commands gain the drivers. 2026-11-17: code, tests and commands done, reviewed; the checks
-   passed for NQ.bird, Q.bird, LG and dial:0.5 at `ec462978`; the cut pilot ran at `3719111d` (record in
-   `CHANGELOG.md`); its `GTR20` cell hit maintainer question 17 and, rerun alone on the tree unrooted at
-   `ddf0c395`, ended by the round-gain threshold. Every NQC fit of both pilot runs ended at its round cap,
-   which their own records misread (`explore/round_endings_recheck.py` at `1ab3b1a1`). Known shortfalls:
-   no unit test reaches `exact.screen_data`'s S1 and S4a branches or `simulate.context_mask`'s "alone" rule
-   on its own; the mixture-weights test cannot catch a wrong root composition; `screen_fit` and the
-   held-out `parts.nex` are exercised only by runs.
-7. The close: risk 25's open items asked of Peter; section 3.8's "SIM-2's plan" written and approved;
-   the gate record in the CHANGELOG entry; PLAN.md's state replaced; this list cut to one line and S6's
-   list written; the AI_DISCLOSURE.md entry; a fresh read-only check of the records against the gate.
-Each long run goes under the keep-awake helper and is monitored; the steps span sessions, each session
-stopping after a commit. No IQ-TREE source changes, so there is no rebuild, regression or sanitizer
-run; the full pytest suite passes at every commit. The estimates are unverified and total about 15 to
-35 h.
+SIM-1 (done 2026-11-18; gate record in `CHANGELOG.md`, SIM-1 close; the approved plan, with its planning
+measurements and review, frozen in `docs/agent/archive/SIM1_plan_2026-11-16.md`): the oracle's simulation
+additions, `sim/alisim_check.py`, `sim/exact.py`, `sim/birddata.py` with the committed scaffold,
+`sim/pipeline.py` and exploratory scripts in `explore/` (sections 3.1, 3.8); no IQ-TREE source change.
+SIM-2's plan, listed in SIM-1's close, moved to its own session (Peter). Known shortfalls: no unit
+test reaches `exact.screen_data`'s S1 and S4a branches or `simulate.context_mask`'s "alone" rule on its
+own; the mixture-weights test cannot catch a wrong root composition; `screen_fit` and the held-out
+`parts.nex` are exercised only by runs.
 
-SIM-2 (cluster; decisions 039, 040, 041, 043, 044), per section 3.8's "SIM-2's plan" once approved;
-outline:
-- Lean recovery: reversible and NQ.bird-strength truths at π*; 30, 100, 300 and 1000 genes; `-p`
-  on the true rooted tree, Level 1, one size at Level 2 (decision 043); starts LG at π*, the GTR20
-  fit and a distant start;
-  per-rate log error (Pearson correlation alone hides twofold errors in small rates, Tinh et al.
-  2024), net-flux error, held-out log-likelihood against the truth, ending rules and
-  relaxed-setting checks.
-- Finite-sample false-circulation runs for the screen's flagged scenarios and the reversible
-  truth at the correct target.
-- Content-dependent masking from CLOAK's removal statistics, comparing NQC at π*, frequency
-  replacement and the reversible refit at π* against the known truth: the only known-truth
-  evidence for the claim that frequency replacement estimates worse.
+SIM-2 (cluster; decisions 039 to 041 and 043 to 045), planned in its own session as section 3.8's
+"SIM-2's plan" and run once Peter approves it; outline:
+- Recovery: reversible and NQ.bird-strength truths at π*; 30, 100, 300 and 1000 genes; `-p` on the
+  true rooted tree, Level 1, one size at Level 2 (decision 043); starts LG at π*, the GTR20 fit and a
+  distant start; per-rate log error with high- and low-flux rates reported apart (Pearson correlation
+  alone hides twofold errors in small rates, Tinh et al. 2024), net-flux error, held-out
+  log-likelihood against the truth, ending rules and relaxed-setting checks; the cause of the
+  low-flux rates SIM-1's 100-gene fit pushed toward the floor (PLAN.md risk 28).
+- Circulation: Ĉ under reversible truths at the correct target; power from dial truths near decision
+  041's smallest effect at each gene count; targets off by up to total variation 0.06 in several
+  directions (decision 044); site profiles (SIM-1's S3) at 52 taxa; 26 against 52 taxa.
+- Masking, more likely the rarer a residue is in its column, at several strengths, one measured from
+  CLOAK v0.3.0's removals on BAliBASE 3.0 reference sets 1 to 5 (realigned from full-length sequences,
+  as Wheeler et al. did, doi:10.1093/molbev/msag182; tools and paths in CLAUDE.md), comparing NQC at π*, frequency replacement and
+  the reversible refit at π* against the known truth: the only known-truth evidence for the claim that
+  frequency replacement estimates worse. CLOAK removes residues where alternative alignments disagree,
+  and simulated alignments have no indels, so which of its removal patterns carry over is the arm's
+  design question.
+- The first cluster job reruns the AliSim check, the wiring check and the CPU-count identity on the
+  cluster's binaries and compares 20-round and default fits at the largest size (decision 039).
 
-S6: list written when SIM-1 closes, using the simulation results then available (for instance,
-whether the Level 3 driver is worth building). S7: list written when SIM-2 closes; it starts from
+S6: list written in SIM-2's planning session, using the simulation results then available (for
+instance, whether the Level 3 driver is worth building). S7: list written when SIM-2 closes; it starts from
 decision 039's convergence protocol and includes the parametric bootstraps of decisions 040 and 041
 and the gene resampling of π*.
 

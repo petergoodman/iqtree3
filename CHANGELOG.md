@@ -8,6 +8,30 @@ gate record and may run to 25 lines. The next session starts from the top entry.
 This is a fork of `iqtree/iqtree3`. Entries here describe work on the fork, not upstream
 development.
 
+## 2026-11-18 (sixth session): SIM-1 closed; SIM-2's inputs settled (decisions 039, 041, 045)
+
+Gate record (PLAN.md's SIM-1 row; outputs `~/iqtree3-runs/sim1/`; frozen and gate `25d78d6e` binaries):
+- **AliSim exact check** (confirmatory, `b6ad2070`): every row passed; X² p 0.93, 0.60, 0.89; root 0.83.
+- **Exact recovery** (confirmatory): R4 failed at `49635fae`, counted (the flux finish's early exit,
+  decision 042 revised); the rerun at `4ef10188` passed R1 to R6 on every row.
+- **Screen** (exploratory, `84be73e4`): 10 of 14 fits not evaluable at the certificate's 1e-12, all at the
+  1e-6 Peter set (021's one loosening); flagged S3 Q.bird (C 0.0071), S4b Q.bird (0.0343), S4b NQ.bird (ΔC −0.0058),
+  peaks reproduced from the generating references (`3719111d`); 4-taxon S4b Q.bird C 0.0378, certified;
+  the 4-taxon repeats of S3 Q.bird and S4b NQ.bird not run (Peter).
+- **Scaffold** (run `5a299751`, committed `ec462978`); **pipeline checks** passed, 4 truths (`ec462978`).
+- **Pilot** (exploratory, `3719111d`, cut by Peter): every capped NQC fit at its 20 rounds, the default fit
+  at 99, which the records first misread (fixed at `1ab3b1a1`); the first run's NQ.bird r1 at its 3 h
+  cap, counted; GTR20 crashed upstream (maintainer question 17), rerun unrooted.
+- **Not met as listed:** SIM-2's plan, moved by Peter to its own session; S6's list moved there too.
+- **Settled (Peter, on the agent's recommendations and the audit's caveats):** smallest effect C 0.00577
+  with power measured directly (041); targets off up to TV 0.06 in several directions, site profiles,
+  column-context masking at several strengths (one from CLOAK v0.3.0 on BAliBASE 3.0, the CLOAK paper's
+  benchmark), 26 against 52 taxa, recovery split by flux; no 190-taxon or discordance arm (045); the
+  20-round cap provisional, checked at full size first (039); only Peter loosens a pass line (021).
+- **Records:** risk 25 retired, risk 28 (low-flux rates) opened, risk 9 holds the study data's size;
+  CLOAK in CLAUDE.md, checked against its README's SHA-256. pytest 386 passed.
+- **Next.** Peter downloads BAliBASE (PLAN.md next step); SIM-2's plan in a new session, in plan mode.
+
 ## 2026-11-18 (fifth session, unattended): SIM-1 loose ends cleared; SIM-1 audited
 
 - **Loose ends** (`1ab3b1a1`, `f0c61a7d`): `run_state` reads endings from printed rounds; rechecked from a clean commit,
@@ -25,9 +49,8 @@ development.
 
 - **Pilot** (exploratory, clean `3719111d`, `~/iqtree3-runs/sim1/20261117T165446Z-3719111d-pilot`; 52 taxa, 30
   genes, 3 replicates, 20-round cap): mean Ĉ 0.047 for Q.bird (truth 0, SD 0.0028), 0.078 for NQ.bird (truth
-  0.0577, SD 0.0081); held-out lnL 62 to 102 below the truth's; 26 to 48 min and 0.6 GB a fit. Default rounds
-  moved Ĉ by 0.0004 and 0.0005 at 4.9 (contended; 3.2 by evaluations) and 3.3 times the time. 100 genes: Ĉ 0.0610, 2.4 h, 1.5 GB; 1000 genes need over
-  10 GB. Per cell in the commit message.
+  0.0577, SD 0.0081); held-out lnL 62 to 102 below the truth's; 26 to 48 min, 0.6 GB a fit. Default rounds moved
+  Ĉ 0.0004, 0.0005 at 4.9 (contended) and 3.3 times the time. 100 genes: Ĉ 0.0610, 2.4 h, 1.5 GB; 1000 over 10 GB.
 - **Endings mislabelled** (my code): every fit recorded "round gain below the threshold" but stopped at its cap,
   gaining 0.097 to 1.06 a round, the default fit 0.026 at round 99 (`explore/pilot_round_endings.py`); fixed by
   `pipeline.round_ending`. `convergence.run_state`'s `-q` label can mislabel a capped fit the same way; earlier
@@ -82,8 +105,7 @@ development.
 - **Screen code** (`exact.py screen`); review: 2 blockers in birddata (`.best_model.nex`'s braces hold tree
   lengths, now read from the checkpoint; an import), 1 major, 9 minor; fixed, but for the flag kept at
   0.1 × 0.0577 and part of the test gaps (`screen_fit` itself is exercised only by the runs).
-- **Failed.** Twice a stray `python -` hung on Windows' Store alias; stopped, nothing ran.
-- **Next.** Screen (14 fits) and scaffold fit from this commit; 4-taxon repeats; the pipeline (commit 6).
+- **Failed.** Two stray `python -` hangs (Store alias), nothing ran. **Next.** Screen, scaffold fit; the pipeline.
 
 ## 2026-11-16 (fourth session, continued): SIM-1 recovery, first run; R4 failed; flux finish revised
 

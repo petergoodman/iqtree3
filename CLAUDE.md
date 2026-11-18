@@ -124,6 +124,16 @@ cmake --build ~/iqtree3-build -j 4
   ~/iqtree3-baseline/iqtree3`; `pipeline.py simulate`, `fit`, `metrics`, `checks`, `pilot`. π* is
   `sim/target.txt`, the bird scaffold `sim/scaffold/`; the raw bird data in
   `~/iqtree3-data/raw/nqmaker-dryad/` were downloaded by Peter in a browser (Dryad refuses scripts).
+- **CLOAK** (SIM-2's masking arm, decision 045): Peter's validated build in
+  `~/iqtree3-data/tools/muscle-cloak-v0.3.0/`, read-only; read its `README.md` first. Ensemble:
+  `muscle-cloak-v0.3.0 -align seqs.fa -stratified -output ens.efa` (16 alignments, input unaligned);
+  then `muscle-cloak-v0.3.0 -cloak ens.efa -output out.afa` (default `-mincol 2` is the published
+  algorithm). Which residues CLOAK removes comes only from that folder's `cloak_residue_map.py`, run in
+  the conda environment, never from matching output rows to sequences (repeated letters make that
+  ambiguous). Record the binary's SHA-256 (in the README, `f461271d...`) with every result. Input is
+  BAliBASE 3.0 reference sets 1 to 5 (Thompson et al. 2005, doi:10.1002/prot.20527), the benchmark of
+  CLOAK's paper, Wheeler et al. (doi:10.1093/molbev/msag182): `BAliBASE_R1-5.tar.gz` from
+  `http://bigest-icube.fr/balibase/BalibaseDownload/`, placed by Peter in `~/iqtree3-data/raw/balibase/`.
 - **`python` in the Bash tool is the Windows Store alias** and hangs waiting for input; never call it
   there (three hangs on 2026-11-16 and 17). Python runs only through WSL's conda, as above.
 - **Long jobs need the laptop awake.** Windows Modern Standby pauses the WSL VM and every job in

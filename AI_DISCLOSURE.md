@@ -11,6 +11,23 @@ lines: tool and model, operator, up to five "what it did" bullets, files touched
 No AI-generated scientific claim, numerical result, or citation in this project has been accepted
 without human verification against source.
 
+## 2026-11-18: SIM-1 milestone, simulation support (gate G5's simulation part, G6 in part)
+
+**Tool:** Claude Code (VS Code extension). **Model:** Claude Opus 5.5, model id `claude-opus-5-5`
+(commit trailers). **Operator:** Peter Goodman.
+
+**What it did.**
+- **Plan.** It planned SIM-1 with a fresh review and, at the close, gave a recommendation for each
+  of SIM-2's open inputs; the operator chose the threshold, the root, the pilot's cut and every input.
+- **Code.** It wrote the oracle's simulation module, the AliSim check, exact recovery and screen, the
+  bird-data and scaffold driver, the pipeline and exploratory scripts, with their tests.
+- **Validation.** It ran the checks, recovery, screen and pilot from clean commits under a keep-awake
+  helper, counted the failures and had subagents review the code and audit the records against outputs.
+- **Records.** It wrote the plan records, decisions 044 and 045, the gate record and this entry.
+
+**Files touched.** `test_scripts/fixedeq/`: `oracle/{simulate,builtin,likelihood,flux,nqc}.py`,
+`sim/` (drivers, `scaffold/`, `target.txt`), `explore/`, `tests/`; `CLAUDE.md`; `docs/agent/` records.
+
 ## 2026-11-09: S5 milestone, gate G4 as reduced by D01
 
 **Tool:** Claude Code (VS Code extension). **Model:** Claude Opus 5.5, model id `claude-opus-5-5`

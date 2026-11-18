@@ -153,24 +153,24 @@ infrastructure.
 
 ### 039. Fit with NONREV's optimization process; compare fits under one declared protocol
 
-**Rule.** NQC's matrix fit uses NONREV's optimization process (IQ-TREE's optimizer and round
-rules) unless there is a clear reason to depart; problems found in it are noted for the
-maintainers, not fixed. SIM-2's and S7's plans require, for every compared fit, one declared
-stopping setting, each fit's ending rule and a check that conclusions survive relaxed settings or
-a reference fit on a subset. An oracle endpoint is a peak only if `flux.certificate` passes
-(021); SIM-1's reference fit is the flux reference (042); SIM-2's plan sets the one at scale.
-**Why.** S3c: endpoints 0.77 to 4.2 below converged peaks at defaults, 0.67 to 2.5 after 300
-relaxed rounds; where fits stop reversed two of three comparisons. Risk 27: the z climb passed its
-test 0.30 below aa_example's peak (a near-zero flux hid the slope) and did not converge on V2, V3.
-**Not chosen.** IQ-TREE's L-BFGS-B for NQC, revisited if a pilot or SIM-2 shows arm differences the
-size of the stopping shortfall; relaxed settings alone (5 to 12 times the time); `lbfgsb_fit`.
-**Since** 2026-10-25 (Peter); SIM 2026-11-07 (040); reference fit 2026-11-16 (Peter, risk 27); its activity threshold 1e-6, 2026-11-17 (Peter).
+**Rule.** NQC's matrix fit uses NONREV's optimization process (IQ-TREE's optimizer and round rules)
+unless there is a clear reason to depart; problems in it are noted for the maintainers, not fixed.
+Each compared fit in SIM-2 and S7 has one declared stopping setting, its ending rule and a check
+that conclusions survive relaxed settings or a reference fit on a subset. SIM-2 caps linked rounds
+at 20 unless its first cluster job finds capped and default fits at its largest size apart by more
+than its plan's line; S7 uses SIM-2's setting. A peak needs `flux.certificate` (021); the reference
+fit is the flux reference (042) in SIM-1, and SIM-2's plan sets the one at scale.
+**Why.** S3c: endpoints up to 4.2 below converged peaks; where fits stop reversed two of three
+comparisons; risk 27's false peak. Pilot: cap moved Ĉ ≤ 0.0005 at 30 genes; at 100, round 20 gained 1.06.
+**Not chosen.** IQ-TREE's L-BFGS-B for NQC, revisited if SIM-2 shows arm differences the size of
+the stopping shortfall; relaxed settings alone (5 to 12 times the time); `lbfgsb_fit`.
+**Since** 2026-10-25; SIM 2026-11-07; reference fit 2026-11-16, threshold 2026-11-17; cap 2026-11-18 (Peter).
 
 ### 040. Validate the estimator by simulation in two slices after S5
 
 **Rule.** Two simulation slices follow S5 (contents: PLAN.md's slice table, `CODE_PLAN.md`
 section 4): SIM-1, then SIM-2, whose cluster runs may overlap S6 if S6 changes no code NQC's fits
-use; both close before S7; SIM-2 runs only once Peter approves its plan (section 3.8, from SIM-1).
+use; both close before S7; SIM-2 runs only once Peter approves its plan (section 3.8; arms in 045).
 Trees, per-gene settings, truths (NQ.bird, Q.bird, LG) and composition (NQ.bird's) come from bird
 data, removal statistics from outside the mammal study data. S7 adds 041's null bootstrap and a
 recovery bootstrap from the real NQC fit.
@@ -187,14 +187,14 @@ realignment; a second simulator; an estimated-target arm; full-workflow recovery
 real data are read: C = Σ_{i<j} |f_ij − f_ji| / Σ_{i≠j} f_ij, f_ij = π*_i q_ij, 0 when reversible.
 C is compared with its distribution under reversible truths: SIM-2's false-circulation scenarios
 and, decisively, S7's parametric bootstrap from the real cleaned data's reversible fit. The
-likelihood-ratio statistic is reported, not used as the test.
-**Why.** At about a million columns any misspecification makes the test significant; a 5% tail
-needs hundreds of full-scale replicates; chi-square references need not hold (D09 item 5).
-Held-out likelihood does not guard against a wrong target, which shifts training and test data
-alike. C is scale-free and reads as the share of all flux that is net one-way flow.
+likelihood-ratio statistic is reported, not used as the test. The smallest effect of interest is
+C = 0.00577, a tenth of NQ.bird's 0.0577; SIM-2 measures power at it directly (045).
+**Why.** At about a million columns any misspecification makes the test significant, a 5% tail needs
+hundreds of full-scale replicates and chi-square references need not hold (D09 item 5); held-out
+likelihood cannot catch a wrong target, which shifts training and test data alike. C is scale-free.
 **Not chosen.** A likelihood-ratio test calibrated by parametric bootstrap at 5%; chi-square
-references; per-pair net fluxes as the primary statistic.
-**Since** 2026-11-07 (Peter); C 2026-11-16 (Peter, on the agent's recommendation).
+references; per-pair net fluxes as the primary statistic; the smallest effect read as a rise in Ĉ.
+**Since** 2026-11-07 (Peter); C 2026-11-16, smallest effect 2026-11-18 (Peter, on the agent's advice).
 
 ### 043. Fit the study with `-p` at Level 2 on a fixed, rooted species tree
 
@@ -223,6 +223,21 @@ variation of 0.062 toward LG's composition), so circulation is compared with the
 **Not chosen.** T1, fixed flux (`chart.transfer_seed`, which is also the jump-chain transfer): it keeps
 C but gives a reversible truth non-standard exchangeabilities.
 **Since** 2026-11-16 (Peter; SIM-1 plan).
+
+### 045. SIM-2 measures recovery and circulation in these arms
+
+**Rule.** SIM-2 measures recovery (per-rate log error with high- and low-flux rates apart and risk
+28's cause; net-flux error; held-out lnL), Ĉ under reversible truths, and power from dial truths
+near 041's smallest effect at each gene count. Arms: targets off by up to total variation 0.06 (044)
+in several directions; SIM-1's site profiles (S3) at 52 taxa; masking likelier the rarer a residue
+is in its column, at several strengths, one from CLOAK v0.3.0 on BAliBASE 3.0; 26 against 52 taxa.
+**Why.** SIM-1's pilot: Ĉ is not the reversible Ĉ plus C (0.047 and 0.078, not 0.105). Screen: a
+target off by 0.062 gave false C 0.0051; S3 flagged (0.0071); column-context masking gave 0.034 at
+a 13.3% that 52 taxa cannot reach (2.0% of residues unique there); discordance 0.0006.
+**Not chosen.** A 190-taxon arm (the maintainers suggested more sequences; S7's bootstrap runs at
+190; a 26-taxon fit read 0.090, 52 taxa 0.078); discordance (it cut NQ.bird's C by 0.0027, a power
+loss SIM-2's plan notes); CLOAK on simulated alignments; 4-taxon S3 Q.bird and S4b NQ.bird repeats.
+**Since** 2026-11-18 (Peter, risk 25, on the agent's recommendations and the SIM-1 audit's caveats).
 
 ## Model class
 
@@ -410,12 +425,12 @@ default box the first line search clamped the start's 146 of 360 outside coordin
 
 ## Tests
 
-### 021. Pass lines are set before their tests and never loosened
+### 021. Pass lines are set before their tests and loosened only by Peter
 
-**Rule.** The lines below are fixed before the tests that use them are written, and none is
-loosened after a failure. The class's state is read from its 17-digit checkpoint keys and export
-files, not from the log, and IQ-TREE's printed final score is reported, not compared; the seed Q
-(`-v`) and first gradient (`-vv`) are printed only because no file holds them.
+**Rule.** Lines are fixed before the tests that use them are written; no agent loosens one, only
+Peter, by an explicit decision on recorded evidence noted in its row. State is read from 17-digit
+checkpoint keys and export files, not the log; IQ-TREE's printed final score is reported, not
+compared; the seed Q (`-v`) and first gradient (`-vv`) are printed only because no file holds them.
 
 | Check | Line | Set by |
 |---|---|---|
@@ -473,11 +488,8 @@ step-size line cannot show that a small step fails, so D02's point is measured b
 max(1, |g_ref|), reported at a near-zero start; the oracle reports its central differences' spread.
 **Why.** A line chosen after seeing results is not a test; each rests on a measurement or derivation
 in the archive (1e-10: the synthesis's goal, section 4.3; the κ-scaled Q line: two correct routes).
-**Since** 2026-10-04; merged 026 (2026-10-05), 030 and 034 item 7 (2026-10-20) and 036's
-measure, its claim withdrawn (2026-10-22); later rows are identified in the Set by column; last
-revised 2026-11-07 (S5's rows, 042; the concave row's statistic, Peter); the certificate row
-2026-11-16 (039), its activity threshold widened 2026-11-17 by Peter's explicit decision after the
-evidence, the one loosening of a row so far; SIM-1's rows 2026-11-16 (Peter, SIM-1 plan).
+**Since** 2026-10-04, merging 026, 030, 034 item 7 and 036's measure; later rows identified in the
+Set by column; Peter's loosening clause 2026-11-18, used once (the certificate row, 2026-11-17).
 
 ### 012. Test the pure module with googletest in a standalone CMake project
 
