@@ -155,16 +155,16 @@ infrastructure.
 
 **Rule.** NQC's matrix fit uses NONREV's optimization process (IQ-TREE's optimizer and round rules)
 unless there is a clear reason to depart; problems in it are noted for the maintainers, not fixed.
-Each compared fit in SIM-2 and S7 has one declared stopping setting, its ending rule and a check
-that conclusions survive relaxed settings or a reference fit on a subset. SIM-2 caps linked rounds
-at 20 unless its first cluster job finds capped and default fits at its largest size apart by more
-than its plan's line; S7 uses SIM-2's setting. A peak needs `flux.certificate` (021); the reference
-fit is the flux reference (042) in SIM-1, and SIM-2's plan sets the one at scale.
+Each compared fit in SIM-2 and S7 has one declared stopping setting, its ending rule and a check that
+conclusions survive relaxed settings or a reference fit. In SIM-2 every NQC fit runs IQ-TREE capped at
+20 linked rounds (stage P), then the oracle's z climb from P's endpoint (stage B, stall rule and caps
+in `CODE_PLAN.md` 3.8); B is a peak only where `flux.certificate` passes (021), else "highest found";
+GTR20 fits are capped at 20, checked by relaxed refits; default rounds compared at 300. S7 uses this setting.
 **Why.** S3c: endpoints up to 4.2 below converged peaks; where fits stop reversed two of three
-comparisons; risk 27's false peak. Pilot: cap moved Ĉ ≤ 0.0005 at 30 genes; at 100, round 20 gained 1.06.
-**Not chosen.** IQ-TREE's L-BFGS-B for NQC, revisited if SIM-2 shows arm differences the size of
-the stopping shortfall; relaxed settings alone (5 to 12 times the time); `lbfgsb_fit`.
-**Since** 2026-10-25; SIM 2026-11-07; reference fit 2026-11-16, threshold 2026-11-17; cap 2026-11-18 (Peter).
+comparisons. The cap moved Ĉ ≤ 0.0005 at 30 genes; at 100 the capped fit sat ≥ 90 below B, Ĉ 0.0017 off.
+**Not chosen.** IQ-TREE's L-BFGS-B for NQC, revisited if SIM-2 shows arm differences the size of the
+stopping shortfall; relaxed settings alone; z climbs read as certified peaks (risk 27's false peak).
+**Since** 2026-10-25; SIM 2026-11-07; certificate 2026-11-16, threshold 2026-11-17; cap 2026-11-18; P and B 2026-11-19 (Peter).
 
 ### 040. Validate the estimator by simulation in two slices after S5
 
@@ -227,17 +227,17 @@ C but gives a reversible truth non-standard exchangeabilities.
 ### 045. SIM-2 measures recovery and circulation in these arms
 
 **Rule.** SIM-2 measures recovery (per-rate log error with high- and low-flux rates apart and risk
-28's cause; net-flux error; held-out lnL), Ĉ under reversible truths, and power from dial truths
-near 041's smallest effect at each gene count. Arms: targets off by up to total variation 0.06 (044)
-in several directions; SIM-1's site profiles (S3) at 52 taxa; masking likelier the rarer a residue
-is in its column, at several strengths, one from CLOAK v0.3.0 on BAliBASE 3.0; 26 against 52 taxa.
-**Why.** SIM-1's pilot: Ĉ is not the reversible Ĉ plus C (0.047 and 0.078, not 0.105). Screen: a
-target off by 0.062 gave false C 0.0051; S3 flagged (0.0071); column-context masking gave 0.034 at
-a 13.3% that 52 taxa cannot reach (2.0% of residues unique there); discordance 0.0006.
-**Not chosen.** A 190-taxon arm (the maintainers suggested more sequences; S7's bootstrap runs at
-190; a 26-taxon fit read 0.090, 52 taxa 0.078); discordance (it cut NQ.bird's C by 0.0027, a power
-loss SIM-2's plan notes); CLOAK on simulated alignments; 4-taxon S3 Q.bird and S4b NQ.bird repeats.
-**Since** 2026-11-18 (Peter, risk 25, on the agent's recommendations and the SIM-1 audit's caveats).
+28's cause; net-flux error; held-out lnL), Ĉ under reversible truths, and power from dial truths near
+041's smallest effect at each gene count. Arms: targets off by up to total variation 0.06 (044) toward
+built-in model compositions, used only as directions, never as truths or data (the one exception to
+040's mammal and Pfam data); SIM-1's site profiles (S3) at 52 taxa; masking likelier the rarer a
+residue is in its column, at several strengths, one from CLOAK v0.3.0 on BAliBASE 3.0; 26 against 52.
+**Why.** Pilot: Ĉ is not the reversible Ĉ plus C. Screen: false C 0.0051 at a target off by 0.062; S3
+0.0071; column masking 0.034 at a 13.3% 52 taxa cannot reach. Bird-locus axes move rare residues 7-fold.
+**Not chosen.** A 190-taxon arm (S7's bootstrap runs at 190); discordance (it cut NQ.bird's C by
+0.0027, so real-data power may fall below SIM-2's); CLOAK on simulated alignments; 4-taxon repeats;
+directions along per-locus bird composition axes.
+**Since** 2026-11-18 (Peter, risk 25); directions 2026-11-19 (Peter, SIM-2's plan).
 
 ## Model class
 
@@ -481,6 +481,8 @@ compared; the seed Q (`-v`) and first gradient (`-vv`) are printed only because 
 | SIM-1 exact recovery: every rate | \|q̂ − q\|/q ≤ max(1e-3, 10 p_r), p_r = 1e-6 Σ_k \|(J H⁻¹)_rk\| at the truth (J = ∂log q/∂z, H the Hessian of −lnL in z), recorded before the fit | SIM-1 |
 | SIM-1 pipeline: same seed; AliSim on 2 against 12 CPUs | byte-identical | SIM-1 |
 | SIM-1 wiring: IQ-TREE `--show-lh` under `-q` at the true Q against `LinkedObjective` built from the trees AliSim used | ≤ 1e-8 × \|lnL\|, with \|lnL\| ≥ 5e4 | SIM-1 |
+| SIM-2 cross-machine: genes Puma simulates for the committed fixture replicates against the laptop's (frozen AliSim, same seeds), at every job start | byte-identical | SIM-2 (Peter, 2026-11-19) |
+| SIM-2 stage B against stage P, Level 1 cells (039): B's lnL against the oracle's re-score of P's checkpointed coordinates | not lower | SIM-2 (Peter, 2026-11-19) |
 
 h_k is the step's displacement (`CODE_PLAN.md` section 2.1); for the export's central differences,
 h⁺_k + h⁻_k. S4 applies the compiled-Q row to the exported Q and the residual row to its file. The
@@ -574,7 +576,7 @@ endpoint-anchored checks only; risk 9's small real set; a smaller N or relative 
 
 | No. | Rule | Since |
 |---|---|---|
-| 013 | The oracle, drivers and fixture generator live in `test_scripts/fixedeq/` and run in the conda environment `iqtree3-fixedeq` in WSL, built from `environment.yml` (conda-forge, pinned) with an exported lock. The system Python is never used. | 2026-09-23 |
+| 013 | The oracle, drivers and fixture generator live in `test_scripts/fixedeq/` and run in the conda environment `iqtree3-fixedeq` in WSL, built from `environment.yml` (conda-forge, pinned) with an exported lock, and on Puma for SIM-2 and S7, built there by Peter from the lock. The system Python is never used. | 2026-09-23; Puma 2026-11-19 |
 | 014 | Drivers are Python files; one-off `wsl.exe` command scripts use LF endings. The new directories carry their own `.gitattributes`; there is no root `.gitattributes` and `core.autocrlf` is unchanged. | 2026-09-23 |
 | 019, 020 | The design scripts are rerun from copies by `test_scripts/fixedeq/design_rerun.py`, each documented value matched in one of four classes fixed before any run: exact (counts, ranks, labels: equal), digits (rounded to the printed digits: equal), zero (both below 1e-12) and bound (the printed inequality holds). The 2026-10-04 rerun is the reproduced record: 109 of 133 values reproduced; the other 24 are platform-sensitive, stay "reported" and are not test targets. | 2026-10-04 |
 | 022 | Sanitizer builds use IQ-TREE's `Mem` build type with clang 14 and AddressSanitizer plus UndefinedBehaviorSanitizer, in a new directory for each slice; fallbacks are a build without cmaple, then UndefinedBehaviorSanitizer alone. Findings in upstream code are recorded, not fixed. Flags and run options: `CODE_PLAN.md` section 3.6. | 2026-10-04; per-slice directory 2026-10-21 (035 item 2) |

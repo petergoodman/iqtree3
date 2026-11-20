@@ -193,4 +193,14 @@ profiling: NONREV's `-S` fits all ended at the 10-round cap, NQC's 10-set `-q` a
 the 99-round cap, so time per fit mostly follows where fits stop (NQC to NONREV 0.26 to 1.09)
 while time per evaluation is equal.
 
+SIM-1's pilot, measured while planning SIM-2 on 2026-11-19 (exploratory; commands in
+`docs/agent/archive/SIM2_plan_2026-11-19.md`). An NQC Level 1 `-q` fit of 100 simulated genes (52 taxa,
+NQ.bird truth), capped at 20 linked rounds (`-nparam 21`), still gained 1.06 in its last round. The
+oracle evaluates the same objective and re-scored the accepted endpoint exactly (−852797.834). From that
+endpoint, its L-BFGS-B with analytic gradients rose 90.2 in 90 iterations (20 minutes) and was still
+rising. The capped fit's training lnL exceeded the true matrix's by 42.6 against 132.8 after the climb,
+and Ĉ moved from 0.0610 to 0.0592 (truth 0.0577). At 30 genes the climb rose 15.6 in 124 iterations.
+This is NONREV's process at scale, which bears on maintainer question 7. SIM-2 measures it for every fit
+(decision 039, stages P and B) before any question is put.
+
 Anchors: `dfpmin`'s scaled-gradient stop; the round loops, `modelEps` and the round counts.

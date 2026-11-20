@@ -992,7 +992,8 @@ read-only and outside the repository; derived data come only from this script.
   outgroups HUMAN, ALLIG, ANOCA and CHEMY; ASTRAL trees `ASTRAL_NEW` and `ASTRAL_REV`, differing in topology.
 - inventory: every locus's length, taxa and residue counts (7,295 loci, mean 543 columns, 537 for training
   loci, against QMaker's reported 545; 1,174 with all 52 taxa, at least 42 in every locus), written to the
-  committed `sim/scaffold/compositions.tsv` for the screen's S2 and SIM-2.
+  committed `sim/scaffold/compositions.tsv` for the screen's S2 (SIM-2's planning measured its
+  composition axes and rejected them as shift directions).
 - scaffold: `ASTRAL_NEW` rooted on HUMAN, since the outgroups make Palaeognathae the wrong root for this
   taxon set (the plan's "rooted on Palaeognathae" assumed birds only; the HUMAN root confirmed by Peter on
   2026-11-17, `ASTRAL_NEW` the agent's default, which he left); branch lengths, per-locus `+G4` shapes and partition rates (from the
@@ -1046,17 +1047,255 @@ against taxa × columns; the SDs of Ĉ, per-rate log error and held-out lnL, wit
 n = (SD / target MCSE)² from each SD's upper 80% confidence bound; ending rules and failures; the round
 cap's effect; the export diagnostic's share (section 4, "Known and left alone").
 
-**SIM-2's plan** (written in its own session after SIM-1's close, approved by Peter before SIM-2 runs;
-decisions 040, 045). ADEMP form (Morris et al. 2019): aims; data mechanisms (truths; the dial, with
-power at decision 041's smallest effect; site profiles; targets off by up to total variation 0.06 in
-several directions under decision 044; column-context masking at several strengths, one from CLOAK's
-removals on BAliBASE 3.0; 30 to 1000 genes; 26 against 52 taxa); estimands (recovery with high- and
-low-flux rates apart, Ĉ, power); methods (`-p` Level 1 on the true rooted tree, one size at Level 2,
-starts LG at π*, the GTR20 fit and a distant start; the 20-round cap and its check, decision 039);
-performance measures with Monte Carlo standard errors; replicate counts from the pilot; failed fits
-counted and every failed validation attempt reported (Mendes et al. 2024); compute and cluster jobs
-(PLAN.md risk 26), the first of which reruns the AliSim check, the wiring check and the CPU-count
-identity on the cluster's binaries and compares capped and default fits at the largest size.
+**SIM-2's plan** (approved by Peter on 2026-11-19; decisions 039 to 041 and 043 to 045). The approved
+plan, with its planning measurements, their commands and two read-only reviews, is frozen in
+`docs/agent/archive/SIM2_plan_2026-11-19.md`. The form is ADEMP (Morris et al. 2019,
+doi:10.1002/sim.8086). The estimands, cells, checks and summaries below are confirmatory; anything added
+later is exploratory and logged with every variant tried. Each step writes into the run directory it is
+given: on Puma, one under Peter's xdisk directory; on the laptop,
+`~/iqtree3-runs/sim2/<stamp>-<commit8>-<step>/`. No IQ-TREE source change.
+
+- **Aims.**
+  1. Recovery and data needs at 30, 100, 300 and 1000 genes (52 taxa), with high- and low-flux rates
+     apart.
+  2. Reference distributions of Ĉ under reversible truths (decision 041).
+  3. Power at C = 0.00577.
+  4. Robustness of Ĉ to wrong targets, site profiles and 26 taxa.
+  5. Masking: NQC at π* against frequency replacement and the GTR20 refit at π*.
+  6. Procedure: starts, Level 2, and default rounds against 20.
+  7. What stopping costs (stage P against stage B), and risk 28's cause.
+
+  Gene-tree discordance is not simulated; decision 045 records the power loss this may hide.
+- **Truths at π\*.**
+  - R0 = dial:0, the reversible null.
+  - D1 = dial:0.1, C 0.00577.
+  - NQ = NQ.bird, C 0.0577.
+  - QB = Q.bird at π*.
+
+  Seeds are `SeedSequence(base, replicate, gene)` and do not depend on the truth, so replicate k of
+  every truth shares gene draws and AliSim seeds, and cells are paired by replicate. `draw` is
+  prefix-stable, so sizes are nested: replicate k at 30 genes is the first 30 genes of replicate k at
+  100, 300 and 1000.
+- **Mechanisms.** AliSim from the frozen binary through `pipeline.simulate_genes` on the bird scaffold;
+  genes drawn from `scaffold/loci.tsv`.
+  - **B, shifted targets.** R0 is T3-transported, which for a reversible truth is frequency replacement,
+    to π_d = normalize(π* ⊙ exp(s v)), with v = log(π_M/π*) and π_M a built-in model's composition
+    (`builtin.exchangeabilities`):
+    - LG, Q.mammal, Q.insect and WAG at TV 0.06, with s solved;
+    - Q.mammal at its own TV, 0.020.
+
+    Fitted at π*. Reference C 0. Held-out data come from the transported truth. These compositions are
+    directions only (decision 045); Q.mammal's comes from QMaker's mammal data, not the study's
+    OrthoMaM. The four are the most distinct of nine built-in compositions (log-ratio cosines at most
+    0.67); per-locus bird composition axes were rejected, since they moved rare residues up to 7-fold.
+  - **C, site profiles.** The C20 profiles are recentred, π_k' = π* + λ(π_k − π̄), with λ half the
+    positivity limit and C20's weights, and R0 is transported to each.
+    - Per gene, the component counts are multinomial(n_g, w), with one AliSim call per component, seeded
+      by `SeedSequence(base, replicate, gene, component)`. So C shares gene draws with R0, not AliSim
+      draws.
+    - The mean-flux generator at π* (C 0) is both C's reference and the matrix held-out data are scored
+      against, since `heldout_lnl` scores one Q per partition.
+    - Held-out data come from the same mechanism.
+  - **D, masking.** A residue is masked to `-` with probability min(1, s · p(r)), where r is the share
+    of the other 51 residues in its unmasked column identical to it, and p is CLOAK's binned removal
+    curve (`sim/masking/cloak_curve.tsv`).
+    - s = 0.5, 1 and 2, with one uniform draw per residue shared, so the masks are nested.
+    - Applied to the ladder's 100-gene replicates 1 to 10 of R0 and NQ.
+    - The masked fraction and composition shift are recorded.
+    - Held-out data are unmasked, from the truth.
+  - **E, 26 taxa.** The ladder's 300-gene R0 and NQ data are cut down to the pilot's seeded 26-taxon set
+    (`pipeline.pruned_taxa`), with degree-2 nodes merged.
+  - **Held-out data.** One replicate per mechanism: 10 genes, replicate 1000. E uses its pruned copy.
+- **Cells:**
+
+  | Cell | Truths and methods | Genes | n | Fits |
+  |---|---|---|---|---|
+  | A ladder | R0, D1, NQ, QB | 30, 100, 300 | 10 | 120 NQC |
+  | A ladder | R0, D1, NQ | 1000 | 5 | 15 NQC |
+  | B shifted targets | R0 at 5 targets | 300 | 10 | 50 NQC |
+  | C site profiles | R0 | 300 | 10 | 10 NQC |
+  | D masking | R0 and NQ × 3 strengths: NQC, GTR20+F, GTR20+F{π*}; unmasked: GTR20+F, GTR20+F{π*} | 100 | 10 | 60 NQC, 160 GTR20 |
+  | D convergence check (039) | GTR20 relaxed (`-me 1e-6`, 300 rounds): both GTR20 methods, unmasked and s = 1, both truths | 100 | 2 | 16 GTR20 |
+  | E 26 taxa | R0, NQ | 300 | 10 | 20 NQC |
+  | F starts | R0, NQ: from D's unmasked GTR20+F{π*} fit; from NQ.bird's transposed flux | 100 | 5 | 20 NQC |
+  | G Level 2 | R0, NQ | 100 | 5 | 10 NQC |
+  | H default rounds | R0, D1, NQ, replicate 1 | 300 | 1 | 3 NQC |
+
+  The MCSE of the null's mean Ĉ, from the pilot's Q.bird SD scaled by √(30/G), point value then upper
+  80% bound, against a target of 0.000577. The NQ Ĉ, log-rate RMS and held-out rows are in the
+  archive's table:
+  - 300 genes: 0.0003 (0.0006). The upper bound misses the target by 3%; the rule n = (SD/target)²
+    would give n = 11; n = 10 is kept and the shortfall stated.
+  - 1000 genes: 0.0002 (0.0005).
+  - 30 and 100 genes serve the trends, since the null's floor (0.047 at 30 genes) dwarfs the smallest
+    effect.
+- **Methods.** The gate binary `~/iqtree3-binaries/25d78d6e/iqtree3`, the default domain, and seeds
+  fixed per task. Fits at more than one thread are not bitwise reproducible (decision 038; maintainer
+  question 12).
+  - **Stage P, every NQC fit.** Level 1 through `pipeline.fit_args`: `-q parts.nex --model-joint
+    NQC+F{π*} -te T·m -blfix -keep-ident -nparam 21`, from LG at π*. This is decision 043's `-p` Level 1
+    in decision 024's form: `-q` with the true partition rates fixed.
+    - Threads: 1 at 30 and 100 genes, 4 at 300 (2 at 26 taxa), 16 at 1000.
+    - Wall caps: 8, 30, 40 and 40 h. A P at its cap is a counted failure.
+  - **Stage B, every NQC fit** (decision 039). `optimize.stage_b_climb`, new;
+    `lbfgsb_fit` and `_analytic_lbfgsb` are unchanged.
+    - SciPy L-BFGS-B, memory 20, ftol 0, from P's checkpointed coordinates in the default domain.
+    - The analytic linked gradient runs over W gene-parallel workers: 1, 4, 8 and 32 by size.
+    - It stalls when, over the last 100 iterations, all three hold: lnL rises less than 0.1; Ĉ moves
+      less than 1e-4; and no rate in the two lowest fitted-flux quintiles moves by more than 0.01 in
+      log. Low-flux rates lie in flat directions (risk 28), and their last-window movement is recorded.
+    - Time caps are provisionally 2, 4, 6 and 6 h, set by the calibration. SciPy's endings are recorded.
+    - No projected Newton finish and no central-difference gradient.
+    - Then `flux.certificate`: "certified peak", otherwise "highest found". B is deterministic given P.
+  - **Certified subset**, if the calibration finds it affordable: `flux.fit` from B's endpoint on
+    replicates 1 to 3 of R0 and NQ at 30 genes, giving the gap from "highest found" to the certified
+    peak.
+  - **H.** P without `-nparam`, 16 threads, then B. The B endpoints from the capped and the default
+    starts are compared.
+  - **GTR20+F{π*}.** Unrooted tree (maintainer question 17), `-q`, capped at 20 rounds. Convergence is
+    checked by the relaxed refits.
+  - **GTR20+F.** Frequencies are counted as IQ-TREE does under `--model-joint`; whether per partition
+    or pooled is read in the smoke run and recorded. The rates come from the checkpoint and are scored
+    as fitted and with frequencies replaced (`chart.reversible_seed`). Reversible arms have Ĉ 0 and are
+    compared on rates and held-out lnL.
+  - **F.** `--init-model` from D's unmasked GTR20+F{π*} fit (decision 025's carry, checkpoint to PAML;
+    the default box's clamping is reported) or from NQ.bird's transposed flux
+    (`differential.write_matrix`); then B. Whether the three starts' B endpoints coincide is reported.
+    F shares a shard with D. If the smoke run finds that `--init-model` does not reach the linked `-q`
+    fit, F is reported as not run and Peter decides.
+  - **G.** `pipeline` `--level2`, capped at 20. B runs at G's final tree (at the highest precision IQ-TREE
+    stores it) and at its per-partition rates and shapes from the checkpoint, so it is conditional on
+    them. The re-score gap is reported. G is outside 021's B-against-P row (section 3.5: no oracle
+    score at Level 2).
+- **Estimands, at P and at B.**
+  - **Per fit:**
+    - Ĉ, and ΔC against the cell's reference C.
+    - For cells whose truth is at π* (A, D, E, F, G, H): per-rate log error (RMS, RMS by true-flux
+      quintile, flux-weighted, counts off twofold and tenfold); risk 28's split (pair-sum flux error by
+      quintile, and direction-share error); net-flux error; and the training excess over the truth.
+    - For B and C, Ĉ and held-out lnL only.
+    - Held-out lnL minus the reference's.
+    - Bound activity.
+    - At P: the ending rule, rounds, last-round gain, evaluations, time and memory.
+    - At B: iterations, the stop reason, gain over P, projected gradient, and the certificate residual
+      and label.
+  - **Per cell:** mean and SD with MCSEs: SD/√n, and a seeded bootstrap over replicates for the SD.
+  - **Reference distributions and power:**
+    - Normals fitted to log Ĉ give each null's 95th percentile, with a bootstrap MCSE. Empirical
+      extreme quantiles at n = 10 are descriptive only.
+    - Power at C = 0.00577 = P(log Ĉ_D1 > q95(log Ĉ_R0)) under the fitted normals, the primary estimate.
+      The empirical proportion is descriptive.
+    - MCSEs come from bootstrapping replicates jointly across R0 and D1.
+  - **How much data the fit needs:**
+    - the smallest gene count with power at least 0.8 at B;
+    - for each flux quintile, the smallest gene count whose RMS log error at B is at most log 1.25.
+  - **Arms:** paired differences against R0 or NQ at the same size. Masking methods are compared on the
+    same masked data.
+  - **Failures** are counted, never rerun with a new seed (Mendes et al. 2024): a non-zero exit, a P cap,
+    an `ASSERT` or abort, "Tree logl gets worse", or a climb that cannot build Q.
+    - A B endpoint at its cap or stalled uncertified is "highest found".
+    - A phase stopped by its job's deadline is rerun and recorded as interrupted.
+    - Every failed calibration variant, smoke run and check is reported.
+- **Pass lines (decision 021).** The two SIM-2 rows: the cross-machine identity, and B not below P.
+  Reused:
+  - Level 1 accepted score against the oracle's re-evaluation, for every P;
+  - the certificate row, which labels B;
+  - at every job start: the three AliSim rows, the pipeline row (same seed; 2 against 12 CPUs) and the
+    wiring row, for R0, D1, NQ and QB.
+- **Puma execution.**
+  - **`sim/slurm/sim2.sbatch`**, one shard per submission:
+    - `--nodes=1 --ntasks=1 --time=48:00:00 --mem-per-cpu=5gb`.
+    - Arguments: the shard, the shard count, the run directory, and the frozen and gate binaries.
+    - The core count is set by `sbatch --cpus-per-task`, 94 by default, fewer for leftovers.
+    - The account is given on the command line.
+    - It sets `OMP_NUM_THREADS`, `OPENBLAS_NUM_THREADS` and `MKL_NUM_THREADS` to 1.
+  - **`sim/sim2.py`:**
+    - `design`: tasks, seeds, estimates and the charged-cost projection; deterministic.
+    - `checks`: AliSim exact; `pipeline` checks for R0, D1, NQ and QB, with taskset's two CPUs taken
+      from `os.sched_getaffinity(0)`; the cross-machine row against `sim/fixtures/sim2_crossmachine.json`.
+    - `run`:
+      - checks first, stopping on a failure;
+      - then phases longest first under `--cores` (IQ-TREE `-T`, AliSim `-nt 1`, B's workers);
+      - a phase starts only if 1.5 × its estimate fits before `--deadline-hours 46`;
+      - one record per phase, so B resumes from a finished P; an unfinished phase is renamed
+        `.interrupted-N`;
+      - estimates are corrected as phases finish.
+    - `collect`: one small tarball.
+    - `analyze`: on the laptop.
+  - **Shards** are balanced by estimated core-hours, with dependent tasks together. A dataset two
+    shards need is simulated in each from the same seeds, and the manifests' SHA-256 hashes show the
+    copies agree.
+  - **Budget.** Charged = cores × job wall time. After each round the agent projects the total from
+    measured times, and stops for Peter only above his ceiling (PLAN.md risk 26).
+  - **Round 2.** A 1000-gene P that reaches its 40 h cap leaves its B for round 2.
+  - **CLOAK contingency.** If CLOAK's curve is not committed when the rest is ready, shards 1 to 4 go
+    first. Shard 5, holding D and F, follows once the curve is committed.
+- **Peter's runbook.** The account and paths are placeholders; the real values never appear in
+  committed files.
+  1. **Login node** (`ssh hpc.arizona.edu`, then `shell`): clone or pull the fork into the xdisk
+     directory, then `git checkout <commit>`. The tree must be clean, since the drivers refuse an
+     unclean one. The binaries are already there (verified 2026-11-18).
+  2. **Compute node, once** (`interactive -a <account> -t 1:00:00`): `conda create -n iqtree3-fixedeq
+     --file test_scripts/fixedeq/environment.lock.txt`. Modules exist only on compute nodes.
+  3. **Compute node, preflight** (`interactive -a <account> -t 0:30:00`, 12 or more cores; the core flag
+     is checked against Puma's documentation when this runbook is finalized): `sim2.py checks` asserts
+     the AliSim, pipeline, wiring and cross-machine rows. Go on only if every row passes; otherwise
+     send `checks/report.md`.
+  4. **Login node:** for k = 1 to 5, `sbatch --account=<account> --partition=standard
+     --cpus-per-task=94 test_scripts/fixedeq/sim/slurm/sim2.sbatch k 5 <run dir> <frozen> <gate>`.
+  5. **Login node:** watch with `squeue -u $USER` and each job's `slurm-*.out`.
+  6. **After each round:** run `sim2.py collect` (login or compute node), download the tarball with
+     WinSCP (`filexfer.hpc.arizona.edu`) into
+     `\\wsl.localhost\Debian\home\petergoodman\iqtree3-runs\sim2\`, and tell the agent.
+     Resubmit only the shards it names, with the core counts it names. Finished phases are skipped.
+- **Laptop work before submission,** in this order:
+  1. **Calibration.** An engineering measurement, recorded here with its commands, about 3 to 5 h, run
+     alone because it times the climb. `stage_b_climb` runs from the pilot's capped 30-gene and
+     100-gene NQ.bird endpoints, recording:
+     - iterations against gain and Ĉ;
+     - when the stall rule fires;
+     - the certificate;
+     - the gene-parallel speed-up;
+     - a `flux.fit` probe at 30 genes.
+
+     It sets B's caps and the scheduler's estimates. If a 100-gene climb has not stalled by 4 h, stop
+     for Peter.
+  2. **CLOAK measurement** (`sim/cloak.py`, overnight, under the keep-awake helper; it measures a
+     setting):
+     - BAliBASE 3.0's 218 full-length BB cases are extracted by the script into
+       `~/iqtree3-data/derived/balibase/`.
+     - Per case: `-align BBc.tfa -stratified`, then `cloak_residue_map.py`.
+     - Residues are joined to `.msf` columns by the label's first token and the ungapped position; a
+       mismatched case is excluded and counted.
+     - Output: removal frequency by r bin with case-bootstrap intervals, the overall fraction, and
+       core columns beside it, written to `sim/masking/cloak_curve.tsv` with CLOAK's SHA-256.
+     - Estimated 3 to 30 h; largest cases first.
+  3. **Smoke run:** every task type at 5 genes and 2 rounds with short climbs, in minutes. It covers
+     `--init-model` under linked `-q`, Level 2, GTR20+F with frequency replacement, masking, profiles,
+     shifts, pruning, the deadline and resume, and `collect`.
+  4. **Cross-machine fixture:** replicate 1 of R0 and of the profile mechanism at 30 genes, with the
+     genes' SHA-256 written to `sim/fixtures/sim2_crossmachine.json`.
+
+  `analyze` is written while Puma runs.
+- **Cost** (planning estimates). The model is built from S3c's 2.55 ms per 500 columns at 20 taxa (T1),
+  scaled by branches. It reproduces the pilot to 12%. Assumed, not measured: Puma 1.3 times slower per
+  core than the laptop; thread efficiencies; evaluation counts at 300 and 1000 genes; 520 columns a
+  gene; 1,000 to 2,500 climb iterations; gene-parallel efficiency 0.8.
+
+  Stage P per fit on Puma:
+
+  | Genes | Threads | Core-h | Wall |
+  |---|---|---|---|
+  | 30 | 1 | 2.3 | 2.3 h |
+  | 100 | 1 | 10.4 | 10.4 h |
+  | 300 | 4 | 54 | 13.6 h (27 h if the evaluations double, as S3c's round counts allow) |
+  | 1000 | 16 | 290 | 18 h |
+
+  Charged core-hours:
+  - about 19,700 in one round with 1,000-iteration climbs;
+  - at least 26,300 with 2,500;
+  - at least 31,200 if the estimates are 1.5 times low;
+  - at least 39,900 if both, in up to three rounds.
 
 ## 4. Per-slice lists
 
@@ -1152,7 +1391,7 @@ Known and left alone:
   `-S`;
 - the report lines that cannot re-run an NQC fit (PLAN.md maintainer question 8);
 - the export diagnostic's evaluations (section 2.2), with no switch to skip them unless SIM-2 or
-  S7 needs one (SIM-2 runs thousands of NQC fits, each paying them; in SIM-1's pilot 722 evaluations,
+  S7 needs one (SIM-2 runs 308 NQC fits, each paying them; in SIM-1's pilot 722 evaluations,
   0.8 to 2.8% of a fit's);
 - decision 009's label reads "first-order stationary" far from flux stationarity, at aa_example's
   N_r (1.35 below the peak) and the z climb's Z_e (0.30 below; `explore/risk27_probe.py`), as a
@@ -1244,29 +1483,58 @@ test reaches `exact.screen_data`'s S1 and S4a branches or `simulate.context_mask
 own; the mixture-weights test cannot catch a wrong root composition; `screen_fit` and the held-out
 `parts.nex` are exercised only by runs.
 
-SIM-2 (cluster; decisions 039 to 041 and 043 to 045), planned in its own session as section 3.8's
-"SIM-2's plan" and run once Peter approves it; outline:
-- Recovery: reversible and NQ.bird-strength truths at π*; 30, 100, 300 and 1000 genes; `-p` on the
-  true rooted tree, Level 1, one size at Level 2 (decision 043); starts LG at π*, the GTR20 fit and a
-  distant start; per-rate log error with high- and low-flux rates reported apart (Pearson correlation
-  alone hides twofold errors in small rates, Tinh et al. 2024), net-flux error, held-out
-  log-likelihood against the truth, ending rules and relaxed-setting checks; the cause of the
-  low-flux rates SIM-1's 100-gene fit pushed toward the floor (PLAN.md risk 28).
-- Circulation: Ĉ under reversible truths at the correct target; power from dial truths near decision
-  041's smallest effect at each gene count; targets off by up to total variation 0.06 in several
-  directions (decision 044); site profiles (SIM-1's S3) at 52 taxa; 26 against 52 taxa.
-- Masking, more likely the rarer a residue is in its column, at several strengths, one measured from
-  CLOAK v0.3.0's removals on BAliBASE 3.0 reference sets 1 to 5 (realigned from full-length sequences,
-  as Wheeler et al. did, doi:10.1093/molbev/msag182; tools and paths in CLAUDE.md), comparing NQC at π*, frequency replacement and
-  the reversible refit at π* against the known truth: the only known-truth evidence for the claim that
-  frequency replacement estimates worse. CLOAK removes residues where alternative alignments disagree,
-  and simulated alignments have no indels, so which of its removal patterns carry over is the arm's
-  design question.
-- The first cluster job reruns the AliSim check, the wiring check and the CPU-count identity on the
-  cluster's binaries and compares 20-round and default fits at the largest size (decision 039).
+SIM-2 (Puma; decisions 039 to 041 and 043 to 045; approved 2026-11-19; design, runbook and cost in
+section 3.8's "SIM-2's plan"; the approved plan with its planning measurements in
+`docs/agent/archive/SIM2_plan_2026-11-19.md`). No IQ-TREE source change, so no rebuild, regression or
+sanitizer run. Commits:
+1. The plan's records.
+2. Oracle additions with their tests:
+   - `simulate`: the shift toward a composition, solved for TV; the nested rarity mask; the transposed
+     flux;
+   - `nqc`: the gene-parallel linked gradient, equal to the serial one;
+   - `optimize.stage_b_climb`: stall rule and caps, tested on a toy objective.
+3. The code, then the laptop work, then the hand-off to Peter:
+   - `pipeline.py` edits: truth names; per-component AliSim; `metrics_of` for any matrix with per-cell
+     references (GTR20 rates from the checkpoint, frequency replacement, risk 28's split, the training
+     excess for at-π* cells); an `--init-model` hook; GTR20+F; a Level 2 state reader; taskset's CPUs
+     from the affinity mask.
+   - `sim/sim2.py` (`design`, `checks`, `run`, `collect`), `sim/cloak.py`, `sim/slurm/sim2.sbatch`
+     and `tests/test_sim2.py`. The tests use no binary or downloaded data, so CI runs them:
+     - shifts reach their TV and stay positive;
+     - masks are nested and monotone in s;
+     - profile counts sum to n;
+     - pruning keeps the charsets;
+     - tasks are deterministic, with unique seeds;
+     - shards are balanced, with dependent tasks together;
+     - the scheduler's deadline, per-phase resume and core budget (fake tasks);
+     - frequency replacement equals T3 transport for reversible truths;
+     - `draw(…, 30, …)` is a prefix of `draw(…, 100, …)`;
+     - risk 28's split is 0 at the truth;
+     - the gene-parallel gradient equals the serial one;
+     - `stage_b_climb` stalls and caps on a toy objective;
+     - log-normal power and its paired bootstrap on constructed inputs;
+     - the GTR20 checkpoint reader on a fixture;
+     - the taskset CPU choice.
+   - The laptop calibration, run alone; the CLOAK curve; the smoke run; the cross-machine fixture.
+   - A read-only code review before the commit, then a push when Peter asks, and Peter's preflight and
+     submission.
+4. `sim2.py analyze`, written while Puma runs, with vector figures in a colour-blind-safe palette.
+5. The close: rounds collected and analysed with MCSEs; the gate record; records; S6's and S7's lists;
+   the AI_DISCLOSURE entry.
 
-S6: list written in SIM-2's planning session, using the simulation results then available (for
-instance, whether the Level 3 driver is worth building). S7: list written when SIM-2 closes; it starts from
+Known limits, stated with the results:
+- stage B is "highest found" unless certified;
+- G's B is conditional on IQ-TREE's final Level 2 nuisances;
+- the GTR20 fits' convergence is checked on a relaxed subset only;
+- discordance is not simulated;
+- at 300 genes n = 10 misses the null-Ĉ MCSE target by 3% at the SD's upper bound;
+- fits at more than one thread are not bitwise reproducible;
+- `--init-model` under linked `-q` is first exercised by the smoke run;
+- CLOAK removes residues where alternative alignments disagree, and simulated alignments have no
+  indels, so the masking rule carries over only CLOAK's dependence on column rarity.
+
+S6: list written at SIM-2's close, using its results (for instance, whether the Level 3 driver is worth
+building). S7: list written when SIM-2 closes; it starts from
 decision 039's convergence protocol and includes the parametric bootstraps of decisions 040 and 041
 and the gene resampling of π*.
 

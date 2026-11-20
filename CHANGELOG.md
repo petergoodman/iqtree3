@@ -8,6 +8,19 @@ gate record and may run to 25 lines. The next session starts from the top entry.
 This is a fork of `iqtree/iqtree3`. Entries here describe work on the fork, not upstream
 development.
 
+## 2026-11-19 (seventh session): SIM-2 planned and approved (decisions 013, 021, 039, 045)
+
+- **Done.** SIM-2 planned and approved after two read-only reviews; records in CODE_PLAN 3.8 and 4, PLAN,
+  UPSTREAM_FINDINGS, CLAUDE.md (Puma); archive `SIM2_plan_2026-11-19.md`. pytest 386 passed.
+- **Measured while planning** (exploratory): the 100-gene pilot fit, capped at 20 rounds, sat at least
+  90 lnL below the oracle's climb from its endpoint, Ĉ 0.0017 apart; risk 28 has two parts.
+- **Peter decided:** 30 to 1000 genes; every NQC fit at stage P, then stage B, "highest found" unless
+  certified (039); built-in compositions as shift directions only (045); 40,000 charged core-hours;
+  account and path out of committed files; S6's list at SIM-2's close.
+- **Failed.** My first packing model reserved climb cores for whole fits, corrected; my first two oracle
+  climbs printed nothing (a key mismatch; a pkill that killed the pipe); standby paused the VM.
+- **Next.** SIM-2's commits 2 and 3 in a new session (PLAN.md next step).
+
 ## 2026-11-18 (sixth session): SIM-1 closed; SIM-2's inputs settled (decisions 039, 041, 045)
 
 Gate record (PLAN.md's SIM-1 row; outputs `~/iqtree3-runs/sim1/`; frozen and gate `25d78d6e` binaries):

@@ -80,9 +80,10 @@ cmake --build ~/iqtree3-build -j 4
   They do not exercise `NONREV`, `NQ.*`, `GTR20`, or `--model-joint`, and `test_iqtree.sh` needs
   `/usr/bin/time`, which this Debian does not have installed (nor `bc`).
 - **Python runs only in the project's conda environment**, `iqtree3-fixedeq` in WSL (decision 013,
-  built from `test_scripts/fixedeq/environment.yml`), never in the Windows or Debian system
-  Python: `~/anaconda3/bin/conda run --no-capture-output -n iqtree3-fixedeq python ...`. Tests,
-  from the repository root: `... python -m pytest test_scripts/fixedeq/tests -q -p no:cacheprovider`.
+  built from `test_scripts/fixedeq/environment.yml`; on Puma, Peter builds it from the lock file),
+  never in the Windows or Debian system Python:
+  `~/anaconda3/bin/conda run --no-capture-output -n iqtree3-fixedeq python ...`. Tests, from the
+  repository root: `... python -m pytest test_scripts/fixedeq/tests -q -p no:cacheprovider`.
   Conda's FutureWarning about the `defaults` channel is harmless.
 - **Drivers and git.** Pass `--git git.exe`: Linux git inside WSL sees hundreds of false changes
   in this working copy (line endings). `regress.py run`, `probes.py`, `differential.py` and
@@ -134,6 +135,21 @@ cmake --build ~/iqtree3-build -j 4
   BAliBASE 3.0 reference sets 1 to 5 (Thompson et al. 2005, doi:10.1002/prot.20527), the benchmark of
   CLOAK's paper, Wheeler et al. (doi:10.1093/molbev/msag182): `BAliBASE_R1-5.tar.gz` from
   `http://bigest-icube.fr/balibase/BalibaseDownload/`, placed by Peter in `~/iqtree3-data/raw/balibase/`.
+- **Puma (UA HPC), for SIM-2 and S7.**
+  - **Policy.** Under UA's agentic AI policy the agent never connects to the cluster, submits or
+    operates jobs, or holds credentials. It writes and commits the scripts; Peter clones or pulls,
+    submits, watches and downloads.
+  - **Peter's norms.** One node, at most 94 cores, per job; about 5 jobs at once; no job arrays; jobs
+    that finish within 48 h.
+  - **No account or path in committed files.** His Slurm account and xdisk path are given on the
+    command line and never written into a committed file.
+  - **The machine.** Rocky Linux 9; AMD EPYC 7642 (AVX2); 5 GB a core; charged as cores × wall time;
+    modules only on compute nodes.
+  - **Binaries.** The frozen and gate binaries run there unrebuilt (verified 2026-11-18).
+  - **Where things are.** Runbook, design and cost: `CODE_PLAN.md` 3.8, "SIM-2's plan"; the budget
+    ceiling: PLAN.md risk 26. Driver `test_scripts/fixedeq/sim/sim2.py` (`design`, `checks`, `run`,
+    `collect`, `analyze`) and `sim/slurm/sim2.sbatch`, both from SIM-2's commit 3, which adds their
+    invocations here.
 - **`python` in the Bash tool is the Windows Store alias** and hangs waiting for input; never call it
   there (three hangs on 2026-11-16 and 17). Python runs only through WSL's conda, as above.
 - **Long jobs need the laptop awake.** Windows Modern Standby pauses the WSL VM and every job in
