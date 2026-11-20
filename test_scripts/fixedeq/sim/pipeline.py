@@ -52,10 +52,10 @@ HERE = Path(__file__).resolve().parent
 for _p in ("", "regression", "probes", "nqc", "differential", "explore", "profile"):
     sys.path.insert(0, str(HERE.parent / _p))
 sys.path.insert(0, str(HERE))
-from oracle import likelihood as lk, nqc, readers, simulate  # noqa: E402
+from oracle import builtin, chart, flux, likelihood as lk, nqc, readers, simulate  # noqa: E402
 from regress import REPO, read, sha256, write  # noqa: E402
-from probes import PREFIX, Run, Runner, unroot, with_charpartition  # noqa: E402
-from nqcchecks import check  # noqa: E402
+from probes import PREFIX, Run, Runner, paml_rows, read_checkpoint, unroot, with_charpartition  # noqa: E402
+from nqcchecks import check, gamma_shapes  # noqa: E402
 from differential import write_matrix  # noqa: E402
 from convergence import (LOOP_DEFAULT, ME_DEFAULT, ME_RELAXED, NPARAM_DEFAULT, ended_by, run_state,  # noqa: E402
                          trajectory)
@@ -71,6 +71,8 @@ TOL_RATES = 1e-12                   # the -q rates against IQ-TREE's renormaliza
 TOL_LNL = 1e-8                      # 021's wiring row
 MIN_LNL = 5e4                       # so that --show-lh's 3-decimal total is within the line
 TOTAL = re.compile(r"^Initial log-likelihood: (\S+)", re.M)   # -q's total, 3 decimals (nqcchecks.PARTITION_INITIAL)
+TREE_RATE1 = "tree_rate1.nwk"       # the tree AliSim used at partition rate 1 (the oracle's, stage B's)
+DATA_FILES = ("truth.qmat", "alignment.phy", "sets.nex", "parts.nex", "tree.nwk", TREE_RATE1)
 
 
 # ---------------------------------------------------------------- inputs
@@ -100,19 +102,53 @@ def check_rooted(tree, where):
 
 
 def truth(name, pi):
-    """The truth's Q at pi* (unit mean rate)."""
+    """The truth's Q (unit mean rate) and its stationary distribution: NQ.bird, Q.bird, LG and dial:LAMBDA at
+    pi; shift:MODEL:TV (SIM-2's cell B), R0 = dial:0 transported (decision 044) to pi shifted toward MODEL's
+    composition to total variation TV, or to that composition itself with TV = own."""
     t = simulate.truths()[1]
     if name in t:
-        return t[name]
+        return t[name], pi
     if name.startswith("dial:"):
-        return simulate.dial(t["NQ.bird"], pi, float(name[5:]))
+        return simulate.dial(t["NQ.bird"], pi, float(name[5:])), pi
+    if name.startswith("shift:"):
+        _, model, tv = name.split(":")
+        toward = np.asarray(builtin.exchangeabilities(model)[1], dtype=float)
+        toward = toward / toward.sum()
+        pi_d = toward if tv == "own" else simulate.shift_to_tv(pi, toward, float(tv))[1]
+        return simulate.t3_transport(simulate.dial(t["NQ.bird"], pi, 0.0), pi, pi_d), pi_d
     raise ValueError(f"unknown truth {name}")
 
 
-def gene_seed(base, replicate, gene):
-    """AliSim's seed for one gene, in [1, SEED_MAX]."""
-    v = int(np.random.SeedSequence([base, replicate, gene]).generate_state(1, np.uint64)[0])
+def at_target(name):
+    """Whether the truth generating the data lies at pi* (rates are then compared with it)."""
+    return not name.startswith(("shift:", "profiles"))
+
+
+def profile_components(pi):
+    """SIM-2's cell C (CODE_PLAN 3.8): R0 = dial:0 transported to each C20 profile recentred at pi with half
+    the positivity limit, weighted as C20; and the reference, the mean-flux generator at pi (C 0)."""
+    profiles, weights = builtin.frequency_profiles("C20")
+    lam = simulate.recentre_limit(pi, profiles, weights) / 2
+    r0 = simulate.dial(simulate.truths()[1]["NQ.bird"], pi, 0.0)
+    comps = [simulate.Component(w, None, simulate.t3_transport(r0, pi, p), p)
+             for w, p in zip(weights, simulate.recentre(pi, profiles, weights, lam))]
+    return comps, flux.generator(simulate.mean_flux(comps), pi)
+
+
+def gene_seed(base, replicate, gene, *more):
+    """AliSim's seed for one gene (or one of its components, more = (c,)), in [1, SEED_MAX]."""
+    v = int(np.random.SeedSequence([base, replicate, gene, *more]).generate_state(1, np.uint64)[0])
     return 1 + v % SEED_MAX
+
+
+COUNTS_KEY = 1000   # SeedSequence pads short entropy with zeros, so a key of 0 would repeat the gene's own seed
+
+
+def component_counts(base, replicate, gene, length, weights):
+    """Cell C: a gene's sites per component, multinomial(length, weights), seeded by (base, replicate, gene,
+    COUNTS_KEY); the components' AliSim seeds take the keys 1 to K."""
+    rng = np.random.default_rng(np.random.SeedSequence([base, replicate, gene, COUNTS_KEY]))
+    return [int(c) for c in rng.multinomial(length, np.asarray(weights, dtype=float))]
 
 
 def draw(loci, genes, base, replicate):
@@ -186,13 +222,58 @@ def simulate_genes(out, alisim_bin, tree, genes, Q, pi, base, replicate, prefix=
     return alns, rows
 
 
+def write_phylip(path, aln, order):
+    write(path, f"{len(order)} {len(aln[order[0]])}\n" + "".join(f"{t} {aln[t]}\n" for t in order))
+
+
+def simulate_profile_genes(out, alisim_bin, tree, genes, pi, base, replicate, prefix=()):
+    """Cell C's genes: each gene's sites split among the C20 components (component_counts), each part simulated
+    by AliSim from its component's matrix with seed gene_seed(base, replicate, gene, c), the parts joined in
+    component order; truth.qmat holds the reference, the mean-flux generator at pi."""
+    comps, reference = profile_components(pi)
+    write_matrix(out / "truth.qmat", reference, pi)
+    for c, comp in enumerate(comps, start=1):
+        write_matrix(out / f"component{c:02d}.qmat", comp.Q, comp.pi)
+    order, rows, alns = leaf_order(tree), [], []
+    for k, g in enumerate(genes, start=1):
+        gdir = out / f"gene{k:04d}"
+        gdir.mkdir()
+        counts = component_counts(base, replicate, k, g["length"], [c.weight for c in comps])
+        parts, seeds, ok = [], [], True
+        for c, n in enumerate(counts, start=1):
+            if not n:
+                continue
+            seed = gene_seed(base, replicate, k, c)
+            code, path, printed, argv = alisim(alisim_bin, gdir / f"c{c:02d}", f"g{k:04d}c{c:02d}",
+                                               out / f"component{c:02d}.qmat", g["shape"], scale_tree(tree, g["rate"]),
+                                               n, seed, prefix)
+            part = readers.read_phylip(path) if code == 0 and path.exists() else {}
+            if not (code == 0 and part and sorted(part) == sorted(order) and printed == seed):
+                ok = False
+                rows.append(check(f"gene {k}, component {c}: AliSim exits 0 with every taxon and its seed", False,
+                                  exit_code=code, printed_seed=printed, seed=seed, argv=argv))
+            parts.append(part)
+            seeds.append(seed)
+        aln = {t: "".join(p[t] for p in parts) for t in order} if ok else {}
+        if aln:
+            write_phylip(gdir / f"g{k:04d}.phy", aln, order)
+        g.update({"counts": counts, "seeds": seeds, "sha256": sha256(gdir / f"g{k:04d}.phy") if aln else None,
+                  "identical": [p for p in twopart.problems(aln) if "identical" in p] if aln else None})
+        alns.append(aln)
+    return alns, rows
+
+
 # ---------------------------------------------------------------- steps
 
 def simulate_into(out, alisim_bin, tree, loci, truth_name, genes_n, base, replicate, prov=None):
-    """One replicate's data in the existing directory out: data.json (manifest) and the rows of its checks."""
+    """One replicate's data in the existing directory out: data.json (manifest) and the rows of its checks.
+    profiles:C20 simulates cell C's mixture (simulate_profile_genes); every other name is a truth (truth())."""
     pi = common.target_values()
     genes = draw(loci, genes_n, base, replicate)
-    alns, rows = simulate_genes(out, alisim_bin, tree, genes, truth(truth_name, pi), pi, base, replicate)
+    if truth_name.startswith("profiles"):
+        alns, rows = simulate_profile_genes(out, alisim_bin, tree, genes, pi, base, replicate)
+    else:
+        alns, rows = simulate_genes(out, alisim_bin, tree, genes, *truth(truth_name, pi), base, replicate)
     m, rates = tree_factor(genes)
     renorm = nqc.normalize_part_rates(rates, [g["length"] for g in genes])
     worst = float(np.max(np.abs(np.array(renorm) - rates) / np.array(rates)))
@@ -204,14 +285,89 @@ def simulate_into(out, alisim_bin, tree, loci, truth_name, genes_n, base, replic
         write(out / "sets.nex", sets)
         write(out / "parts.nex", q_file(sets, genes, rates))
         write(out / "tree.nwk", scale_tree(tree, m) + "\n")
+    write(out / TREE_RATE1, tree + "\n")
     identical = sum(len(g["identical"] or []) for g in genes)
     rows.append(check("identical sequences within genes (counted)", None, pairs=identical))
     manifest = {"truth": truth_name, "replicate": replicate, "seed": base, "genes": genes, "m": m, "rates": rates,
-                "target": common.target_text(), "taxa": len(leaf_order(tree)),
-                "files": {f: sha256(out / f) for f in ("truth.qmat", "alignment.phy", "sets.nex", "parts.nex",
-                                                       "tree.nwk") if (out / f).exists()}}
+                "target": common.target_text(), "taxa": len(leaf_order(tree)), "at_target": at_target(truth_name),
+                "files": {f: sha256(out / f) for f in DATA_FILES if (out / f).exists()}}
     write(out / "data.json", json.dumps({"provenance": prov, **manifest}, indent=1, default=common._json))
     return manifest, rows
+
+
+STATES = "ARNDCQEGHILKMFPSTWYV"     # IQ-TREE's amino-acid order
+MASK_KEY = 99                       # cell D's uniform draws: SeedSequence([base, replicate, gene, MASK_KEY])
+
+
+def read_curve(path):
+    """CLOAK's binned removal curve (sim/cloak.py curve): the bin edges and each bin's removal probability."""
+    rows = [line.split("\t") for line in _lines(path)]
+    head, body = rows[0], rows[1:]
+    lo, hi, p = (head.index(c) for c in ("bin_lo", "bin_hi", "p"))
+    edges = [float(body[0][lo])] + [float(r[hi]) for r in body]
+    probs = np.array([float(r[p]) for r in body])
+    if not np.all(np.isfinite(probs)):
+        raise ValueError(f"{path}: a bin without a finite removal probability (no residues in it)")
+    return np.array(edges), probs
+
+
+def derived_dataset(src, dst, alns, order, extra):
+    """A dataset made from src's genes (masked or pruned): the genes' alignments, their concatenation, src's
+    partition files, truth and rate-1 tree unless replaced, and a manifest recording extra."""
+    src, dst = Path(src), Path(dst)
+    man = json.loads(read(src / "data.json"))
+    for k, aln in enumerate(alns, start=1):
+        (dst / f"gene{k:04d}").mkdir()
+        write_phylip(dst / f"gene{k:04d}" / f"g{k:04d}.phy", aln, order)
+    text, sets = concatenate(alns, order)
+    write(dst / "alignment.phy", text)
+    for f in DATA_FILES:
+        if not (dst / f).exists() and f != "alignment.phy" and (src / f).exists():
+            shutil.copyfile(src / f, dst / f)
+    man.update({"source": str(src), "taxa": len(order), **extra,
+                "files": {f: sha256(dst / f) for f in DATA_FILES if (dst / f).exists()}})
+    write(dst / "data.json", json.dumps(man, indent=1, default=common._json))
+    return man, sets == read(src / "sets.nex")
+
+
+def mask_dataset(src, dst, s, edges, p, curve_sha256=None):
+    """Cell D (decision 045): src's genes masked by simulate.rarity_mask at strength s, with one uniform draw per
+    residue from SeedSequence([base, replicate, gene, MASK_KEY]) in the tree's leaf order, so strengths nest.
+    Records the masked fraction and the total variation between the masked and the unmasked composition."""
+    src = Path(src)
+    man = json.loads(read(src / "data.json"))
+    order = leaf_order(read(src / TREE_RATE1).strip())
+    alns, kept, before, after = [], 0, np.zeros(20), np.zeros(20)
+    for k, aln in enumerate(gene_alignments_of(src, len(man["genes"])), start=1):
+        states = np.array([[STATES.index(c) for c in aln[t]] for t in order])
+        u = np.random.default_rng(np.random.SeedSequence([man["seed"], man["replicate"], k, MASK_KEY])).uniform(
+            size=states.shape)
+        masked = simulate.rarity_mask(states, s, edges, p, u)
+        before += np.bincount(states.ravel(), minlength=20)
+        after += np.bincount(states[~masked], minlength=20)
+        kept += int((~masked).sum())
+        alns.append({t: "".join("-" if m else c for c, m in zip(aln[t], row)) for t, row in zip(order, masked)})
+    total = int(before.sum())
+    return derived_dataset(src, dst, alns, order, {"masking": {
+        "s": s, "curve_sha256": curve_sha256, "masked_fraction": 1 - kept / total,
+        "composition_tv": simulate.total_variation(after / after.sum(), before / before.sum())}})
+
+
+def prune_dataset(src, dst, keep):
+    """Cell E: src's genes restricted to the taxa in keep, on src's rate-1 tree pruned (prune), the fit tree that
+    pruned tree times m; returns the manifest and whether the charsets are unchanged."""
+    src, dst = Path(src), Path(dst)
+    man = json.loads(read(src / "data.json"))
+    pruned = prune(read(src / TREE_RATE1).strip(), set(keep))
+    write(dst / TREE_RATE1, pruned + "\n")
+    write(dst / "tree.nwk", scale_tree(pruned, man["m"]) + "\n")
+    order = leaf_order(pruned)
+    alns = [{t: a[t] for t in order} for a in gene_alignments_of(src, len(man["genes"]))]
+    return derived_dataset(src, dst, alns, order, {"pruned": sorted(keep)})
+
+
+def gene_alignments_of(data, genes):
+    return [readers.read_phylip(Path(data) / f"gene{k:04d}" / f"g{k:04d}.phy") for k in range(1, genes + 1)]
 
 
 def cmd_simulate(a):
@@ -296,17 +452,21 @@ def round_ending(run, relaxed=False, rounds=None):
 
 
 def fit_step(level2, relaxed, gtr20):
-    return f"fit-{'gtr20' if gtr20 else 'nqc'}-{'p2' if level2 else 'q1'}{'-relaxed' if relaxed else ''}"
+    kind = {"counted": "gtr20f"}.get(gtr20, "gtr20") if gtr20 else "nqc"
+    return f"fit-{kind}-{'p2' if level2 else 'q1'}{'-relaxed' if relaxed else ''}"
 
 
-def fit_into(out, data, binary, threads, timeout, level2=False, relaxed=False, gtr20=False, rounds=None):
+def fit_into(out, data, binary, threads, timeout, level2=False, relaxed=False, gtr20=False, rounds=None,
+             init_model=None, extra=()):
     """One fit of a replicate's data in the existing directory out (its run in out/fit); the fit's record
-    (a timeout is counted as a fit at its cap)."""
+    (a timeout is counted as a fit at its cap). gtr20: True or "pi" fits GTR20+F{pi*}, "counted" GTR20+F (SIM-2's
+    cell D), both on the tree unrooted; init_model = (file name, text) starts NQC from that matrix (--init-model:
+    a PAML file is rebuilt at pi*, a full -m FILE matrix keeps its jump chain)."""
     data = Path(data)
     manifest = json.loads(read(data / "data.json"))
     bad = [f for f, h in manifest["files"].items() if sha256(data / f) != h]
     text = manifest["target"]
-    model = f"GTR20+F{{{text}}}" if gtr20 else f"NQC+F{{{text}}}"
+    model = ("GTR20+F" if gtr20 == "counted" else f"GTR20+F{{{text}}}") if gtr20 else f"NQC+F{{{text}}}"
     # Level 2 (-p) estimates the shapes and partition rates, so its charpartition fixes neither
     parts = (with_charpartition(read(data / "sets.nex"), [("LG+G4", f"g{k:04d}", None)
                                                           for k in range(1, len(manifest["genes"]) + 1)])
@@ -314,8 +474,11 @@ def fit_into(out, data, binary, threads, timeout, level2=False, relaxed=False, g
     files = {"parts.nex": parts}
     if gtr20:
         files[UNROOTED] = unrooted(read(data / "tree.nwk")) + "\n"
-    run, usage = measured_run(binary, out, "fit", fit_args(data, model, level2, relaxed, rounds,
-                                                           UNROOTED if gtr20 else None), files, threads, timeout)
+    args = fit_args(data, model, level2, relaxed, rounds, UNROOTED if gtr20 else None)
+    if init_model is not None:
+        files[init_model[0]] = init_model[1]
+        args += ["--init-model", init_model[0]]
+    run, usage = measured_run(binary, out, "fit", args + list(extra), files, threads, timeout)
     state = run_state(run, "-q", not gtr20, "relaxed" if relaxed else "default", ROUNDS) if run.code == 0 else {}
     if run.code == 0:
         state["ended_by"] = round_ending(run, relaxed, rounds)
@@ -327,9 +490,76 @@ def fit_into(out, data, binary, threads, timeout, level2=False, relaxed=False, g
             "threads": threads, "columns": sum(g["length"] for g in manifest["genes"]), "taxa": manifest.get("taxa"),
             "evaluations_key": int(info["evaluations"]) if "evaluations" in info else None,
             "diagnostic_evaluations": int(info["diagnostic_evaluations"]) if "diagnostic_evaluations" in info else None,
-            "stop": info.get("stop"),
+            "stop": info.get("stop"), "start_score": float(info["start_score"]) if "start_score" in info else None,
+            "init_model": init_model[0] if init_model else None,
             **{k: state.get(k) for k in ("final_lnl", "initial_lnl", "rounds", "ended_by", "evaluations", "fits",
-                                         "switches", "falls", "assertion_or_abort")}}
+                                         "switches", "falls", "assertion_or_abort", "bounds", "outside_box")}}
+
+
+def gtr20_state(ck):
+    """A linked GTR20 fit's state from its checkpoint dict (probes.read_checkpoint): the exchangeabilities R,
+    symmetric, from the 190 rates IQ-TREE stores row by row over the upper triangle (also kept as their 10-digit
+    strings, for a PAML carry), the linked model's frequencies and each partition's. The linked model is named
+    GTR20 for GTR20+F{pi*} and GTR20+F for counted frequencies, which --model-joint pools (SIM-2's smoke run)."""
+    def linked(k, key):
+        return k.endswith(f"!ModelProtein!{key}") and k.split("!")[1] in ("GTR20", "GTR20+F")
+
+    rates = [v for k, v in ck.items() if linked(k, "rates")]
+    freqs = [v for k, v in ck.items() if linked(k, "state_freq")]
+    if len(rates) != 1 or len(freqs) != 1:
+        raise ValueError(f"expected one linked GTR20 rates and frequencies, found {len(rates)} and {len(freqs)}")
+    text = [v.strip() for v in rates[0].split(",")]
+    if len(text) != 190:
+        raise ValueError(f"{len(text)} GTR20 rates, expected 190")
+    R = np.zeros((20, 20))
+    R[np.triu_indices(20, 1)] = [float(v) for v in text]
+    parts = {k.split("!")[1]: np.array([float(x) for x in v.split(",")]) for k, v in ck.items()
+             if k.endswith("!ModelProtein!state_freq") and not linked(k, "state_freq")}
+    return {"R": R + R.T, "rates_text": text, "freq": np.array([float(x) for x in freqs[0].split(",")]),
+            "part_freqs": parts}
+
+
+def gtr20_paml(state, target_text):
+    """decision 025's carry as nqcchecks.case_nesting writes it: the 19 lower-triangle rows of the checkpoint's
+    10-digit rates in PAML order, then pi*'s 20 values; --init-model rebuilds it at the target."""
+    return "\n".join(" ".join(row) for row in paml_rows(state["rates_text"])) + "\n" + target_text.replace(",", " ") \
+        + "\n"
+
+
+def level2_state(fitdir, taxa):
+    """A -p fit's state for the oracle (SIM-2's cell G): the tree from the checkpoint (PhyloTree!newick, 10
+    significant digits where .treefile has 10 decimals; taxon IDs index taxa, the alignment's rows), its paths
+    checked against .treefile's; each partition's rate (PartitionModelPlen!part_rates) and gamma shape, in
+    partition order g0001, g0002, ..."""
+    fitdir = Path(fitdir)
+    ck = read_checkpoint(fitdir / f"{PREFIX}.ckp.gz")
+    tree = readers.parse_newick(ck["PhyloTree!newick"])
+    for leaf in tree.leaves():
+        leaf.name = taxa[int(leaf.name)]
+    printed = readers.parse_newick(read(fitdir / f"{PREFIX}.treefile").strip())
+    a, b = leaf_depths(tree), leaf_depths(printed)
+    if sorted(a) != sorted(b) or any(abs(a[t] - b[t]) > 1e-9 * max(1.0, b[t]) + 1e-9 for t in a):
+        raise ValueError(f"{fitdir}: the checkpoint's tree does not match .treefile")
+    rates = [float(v) for v in ck["PartitionModelPlen!part_rates"].split(",")]
+    names = [f"g{k:04d}" for k in range(1, len(rates) + 1)]
+    shapes = gamma_shapes(ck, names)
+    if None in shapes:
+        raise ValueError(f"{fitdir}: a partition's gamma shape is missing")
+    return {"tree": newick17(tree), "rates": rates, "shapes": [float(s) for s in shapes]}
+
+
+def leaf_depths(tree):
+    """Each leaf's path length from the root."""
+    out = {}
+
+    def rec(node, depth):
+        if not node.children:
+            out[node.name] = depth
+        for c in node.children:
+            rec(c, depth + (c.length or 0.0))
+
+    rec(tree, 0.0)
+    return out
 
 
 def cmd_fit(a):
@@ -359,32 +589,76 @@ def heldout_lnl(binary, rundir_parent, name, heldout, qmat_text, timeout):
 
 
 def metrics_of(fitdir, data, heldout=None, binary=None, timeout=3600, rundir=None):
-    """C, per-rate log error (RMS, maximum, twofold counts), net-flux error and, with a held-out replicate,
-    held-out lnL of the fitted against the true Q (--show-lh under -q, 3-decimal totals), its runs in rundir
-    (default fitdir)."""
-    fitdir, data = Path(fitdir), Path(data)
-    rundir = fitdir if rundir is None else Path(rundir)
-    manifest = json.loads(read(data / "data.json"))
-    pi = np.array([float(v) for v in manifest["target"].split(",")])
-    Qt = readers.read_qmat(read(data / "truth.qmat"))[0]
-    qmat = fitdir / "fit" / f"{PREFIX}.NQC.qmat"
+    """matrix_metrics of an NQC fit's export in fitdir/fit, its held-out runs in rundir (default fitdir)."""
+    qmat = Path(fitdir) / "fit" / f"{PREFIX}.NQC.qmat"
     if not qmat.exists():
         return {"fitted": False}
-    Qh = readers.read_qmat(read(qmat))[0]
-    off = ~np.eye(20, dtype=bool)
-    e = np.log(Qh[off] / Qt[off])
-    net = 2 * (simulate.flux_parts(Qh, pi)[1] - simulate.flux_parts(Qt, pi)[1])
-    out = {"fitted": True, "C_fit": simulate.circulation(Qh, pi), "C_truth": simulate.circulation(Qt, pi),
-           "log_error_rms": float(np.sqrt(np.mean(e ** 2))), "log_error_max": float(np.max(np.abs(e))),
-           "twofold": int(np.sum(np.abs(e) > np.log(2))), "net_flux_error_max": float(np.max(np.abs(net))),
-           "net_flux_error_rms": float(np.sqrt(np.mean(net ** 2)))}
+    return matrix_metrics(readers.read_qmat(read(qmat))[0], data, heldout, binary, timeout,
+                          Path(fitdir) if rundir is None else Path(rundir), qmat_text=read(qmat))
+
+
+def matrix_metrics(Qh, data, heldout=None, binary=None, timeout=3600, rundir=None, name="fit", qmat_text=None,
+                   pi_fit=None):
+    """A fitted matrix against its cell's reference (data's truth.qmat, at its own pi): C and its error, and
+    with a truth at pi* (data.json's at_target, true when absent) rate_metrics; with a held-out replicate, the
+    --show-lh totals (-q, true shapes and rates, 3 decimals) of the fitted and the reference matrix, its runs in
+    rundir as heldout-NAME and heldout-truth. pi_fit is the fitted matrix's stationary distribution, pi* by
+    default; qmat_text, the file scored, write_matrix's of (Qh, pi_fit) by default."""
+    data = Path(data)
+    manifest = json.loads(read(data / "data.json"))
+    pi = np.array([float(v) for v in manifest["target"].split(",")])
+    pi_fit = pi if pi_fit is None else np.asarray(pi_fit, dtype=float)
+    Qt, pi_t = readers.read_qmat(read(data / "truth.qmat"))
+    out = {"fitted": True, "C_fit": simulate.circulation(Qh, pi_fit), "C_truth": simulate.circulation(Qt, pi_t)}
     out["C_error"] = out["C_fit"] - out["C_truth"]
+    if manifest.get("at_target", True):
+        out.update(rate_metrics(Qh, Qt, pi, pi_fit))
     if heldout is not None:
-        lf = heldout_lnl(binary, rundir, "heldout-fit", heldout, read(qmat), timeout)
-        lt = heldout_lnl(binary, rundir, "heldout-truth", heldout, read(data / "truth.qmat"), timeout)
+        if qmat_text is None:
+            write_matrix(Path(rundir) / f"{name}.qmat", Qh, pi_fit)
+            qmat_text = read(Path(rundir) / f"{name}.qmat")
+        lf = heldout_lnl(binary, rundir, f"heldout-{name}", heldout, qmat_text, timeout)
+        lt = heldout_lnl(binary, rundir, "heldout-truth", heldout, read(data / "truth.qmat"), timeout) \
+            if not (Path(rundir) / "heldout-truth").exists() else _heldout_total(Path(rundir) / "heldout-truth")
         out.update({"heldout_lnl_fit": lf, "heldout_lnl_truth": lt,
                     "heldout_difference": None if lf is None or lt is None else lf - lt})
     return out
+
+
+def _heldout_total(rundir):
+    printed = TOTAL.findall(read(rundir / "stdout.txt"))
+    return float(printed[-1]) if printed else None
+
+
+def rate_metrics(Qh, Qt, pi, pi_fit=None):
+    """Per-rate log error of Qh against the truth Qt at pi: RMS, maximum, counts off twofold and tenfold, RMS by
+    quintile of true flux and flux-weighted RMS; net-flux error; and risk 28's split, the pair-sum flux's log
+    error (RMS) and the direction share's error (mean absolute) by quintile of true pair-sum flux (archive
+    SIM2_plan, A4). Qh's fluxes are taken at its own stationary distribution pi_fit (pi by default), so a
+    reversible fit at other frequencies has none net. Quintiles run from the highest true flux to the lowest."""
+    pi = np.asarray(pi, dtype=float)
+    pi_fit = pi if pi_fit is None else np.asarray(pi_fit, dtype=float)
+    off = ~np.eye(len(pi), dtype=bool)
+    F, Fh = pi[:, None] * Qt, pi_fit[:, None] * Qh
+    e, f = np.log(Qh[off] / Qt[off]), F[off]
+    iu = np.triu_indices(len(pi), 1)
+    S, Sh = (F + F.T)[iu], (Fh + Fh.T)[iu]
+    share_error = np.abs((Fh / (Fh + Fh.T))[iu] - (F / (F + F.T))[iu])
+    pair_error = np.log(Sh / S)
+    net = 2 * (simulate.flux_parts(Qh, pi_fit)[1] - simulate.flux_parts(Qt, pi)[1])
+
+    def rms(v):
+        return float(np.sqrt(np.mean(v ** 2)))
+
+    by_flux = np.array_split(np.argsort(-f, kind="stable"), 5)
+    by_pair = np.array_split(np.argsort(-S, kind="stable"), 5)
+    return {"log_error_rms": rms(e), "log_error_max": float(np.max(np.abs(e))),
+            "twofold": int(np.sum(np.abs(e) > np.log(2))), "tenfold": int(np.sum(np.abs(e) > np.log(10))),
+            "log_error_rms_by_flux_quintile": [rms(e[k]) for k in by_flux],
+            "log_error_rms_flux_weighted": float(np.sqrt(f @ e ** 2 / f.sum())),
+            "pair_sum_log_error_by_quintile": [rms(pair_error[k]) for k in by_pair],
+            "direction_share_error_by_quintile": [float(np.mean(share_error[k])) for k in by_pair],
+            "net_flux_error_max": float(np.max(np.abs(net))), "net_flux_error_rms": rms(net)}
 
 
 def cmd_metrics(a):
@@ -424,6 +698,15 @@ def wiring_objective(alns, tree, genes, pi):
                                               shape=g["shape"]) for a, g in zip(alns, genes)])
 
 
+def two_cpus(affinity=None):
+    """taskset's argument for AliSim's two-CPU check: the two lowest CPUs this process may use (a cluster job's
+    CPUs need not include 0 and 1)."""
+    cpus = sorted(os.sched_getaffinity(0) if affinity is None else affinity)
+    if len(cpus) < 2:
+        raise ValueError("the two-CPU check needs at least two CPUs")
+    return f"{cpus[0]},{cpus[1]}"
+
+
 def cmd_checks(a):
     prov = common.provenance(a, SCRIPT, f"checks-{a.truth.replace(':', '')}", "confirmatory", truth=a.truth,
                              genes=a.genes, seed=a.seed)
@@ -433,19 +716,25 @@ def cmd_checks(a):
     prov["binary"] = {"path": str(binary), "sha256": sha256(binary)}
     tree, loci = read_scaffold(a.scaffold)
     prov["scaffold"] = scaffold_record(a.scaffold)
+    rows = checks_rows(out, alisim_bin, binary, tree, loci, a.truth, a.genes, a.seed, a.timeout, prov)
+    common.finish(out, prov, f"SIM-1 pipeline checks ({a.truth})", rows)
+
+
+def checks_rows(out, alisim_bin, binary, tree, loci, truth_name, genes_n, seed, timeout, prov=None):
+    """Decision 021's pipeline rows and the wiring row for one truth, run in the existing directory out."""
     pi = common.target_values()
-    Q = truth(a.truth, pi)
-    taskset = ("taskset", "-c", "0,1")
+    Q, pi_t = truth(truth_name, pi)
+    taskset = ("taskset", "-c", two_cpus())
     first = out / "first"
     first.mkdir()
-    manifest, rows = simulate_into(first, alisim_bin, tree, loci, a.truth, a.genes, a.seed, 0, prov)
+    manifest, rows = simulate_into(first, alisim_bin, tree, loci, truth_name, genes_n, seed, 0, prov)
     hashes = {"first": [g["sha256"] for g in manifest["genes"]]}
     alns = {}
     for name, prefix in (("again", ()), ("two-cpus", taskset)):
         d = out / name
         d.mkdir()
-        genes = draw(loci, a.genes, a.seed, 0)
-        alns[name], found = simulate_genes(d, alisim_bin, tree, genes, Q, pi, a.seed, 0, prefix)
+        genes = draw(loci, genes_n, seed, 0)
+        alns[name], found = simulate_genes(d, alisim_bin, tree, genes, Q, pi_t, seed, 0, prefix)
         rows += found
         hashes[name] = [g["sha256"] for g in genes]
     made = None not in hashes["first"]
@@ -465,7 +754,7 @@ def cmd_checks(a):
         # the files a fit reads (simulate_into's), with the true matrix in place of LG
         files = {"parts.nex": read(first / "parts.nex").replace("LG+G4{", "truth.qmat+G4{"),
                  "truth.qmat": read(first / "truth.qmat")}
-        run = Runner(binary, out, a.timeout).run("wiring", ["-s", first / "alignment.phy", "-q", "parts.nex", "-te",
+        run = Runner(binary, out, timeout).run("wiring", ["-s", first / "alignment.phy", "-q", "parts.nex", "-te",
                                                             first / "tree.nwk", "--show-lh", "-keep-ident"], files)
         printed = TOTAL.findall(run.stdout())
         Qf, pif = lk.file_model(readers.read_qmat(files["truth.qmat"])[0])
@@ -477,7 +766,7 @@ def cmd_checks(a):
                           and abs(iq - oracle) <= TOL_LNL * abs(oracle),
                           iqtree=iq, oracle=oracle, difference=None if iq is None else iq - oracle, exit_code=run.code,
                           printed=printed))
-    common.finish(out, prov, f"SIM-1 pipeline checks ({a.truth})", rows)
+    return rows
 
 
 # ---------------------------------------------------------------- pilot (exploratory)

@@ -341,20 +341,31 @@ audits' low findings are in `CODE_PLAN.md` section 4, "Known and left alone".
   not 0.047 + 0.058), so power is measured directly (041). Gate record and counted failures:
   `CHANGELOG.md`, SIM-1 close; the audit's corrections: its fifth-session entry and commit `f181cf38`.
   SIM-2's arms: decision 045; specification `CODE_PLAN.md` section 3.8; transport 044; pass lines 021.
-- **SIM-2 (planned and approved 2026-11-19; commit 2 done, the oracle additions):** the design, cells,
-  methods, Puma execution and Peter's runbook are `CODE_PLAN.md` section 3.8's "SIM-2's plan"; the task
-  list is section 4. Every NQC fit runs IQ-TREE capped at 20 rounds (stage P), then the oracle's climb
-  (stage B, `optimize.stage_b_climb`, "highest found" unless certified; decision 039). BAliBASE 3.0 is in
-  place (CLAUDE.md, CLOAK). S6's list is written at SIM-2's close.
+- **SIM-2 (planned and approved 2026-11-19; commits 2 and 3a done):** the design, cells, methods, Puma
+  execution and Peter's runbook are `CODE_PLAN.md` section 3.8's "SIM-2's plan"; the task list is section
+  4. Every NQC fit runs IQ-TREE capped at 20 rounds (stage P), then the oracle's climb (stage B,
+  `optimize.stage_b_climb`, "highest found" unless certified; decision 039). The drivers (`sim2.py`,
+  `cloak.py`, the sbatch script) are written, reviewed and smoke-tested. In the calibration no climb
+  stalled within its cap, so B's caps are still provisional (section 3.8). BAliBASE 3.0 is in place
+  (CLAUDE.md, CLOAK). S6's list is written at SIM-2's close.
 
 ## Next step
 
-SIM-2's commit 3 of `CODE_PLAN.md` section 4's SIM-2 list, started in plan mode with the prompt:
-"Implement SIM-2's commit 3 as `CODE_PLAN.md` section 4 lists it, following section 3.8's 'SIM-2's
-plan': the `pipeline.py` edits, `sim2.py` without `analyze`, `sim/cloak.py`, the sbatch script and
-`tests/test_sim2.py`, then the calibration (first and alone; stop for Peter if a 100-gene climb has not
-stalled by 4 h), the CLOAK curve, the smoke run and the cross-machine fixture, with a read-only code
-review before the commit. End with commit 3, a push when Peter asks, and Peter's preflight and
-submission." The session's own plan is its steps; Peter can accept it and switch to auto.
+SIM-2's commit 3b (`CODE_PLAN.md` section 4): the cross-machine fixture and CLOAK's curve from 3a's clean
+tree, `sim2.py design` and `checks`, and the runbook finalized. Then a push when Peter asks, and Peter's
+preflight and submission. Before submission Peter decides two things.
+
+1. **Stage B's stall rule and caps.** The rule's low-flux condition kept every calibration climb from
+   stalling, so every B runs to its cap (2, 4, 6 and 6 h, provisional).
+   - At 100 genes the lnL and Ĉ conditions alone would have stopped the climb at iteration 642, after
+     which it gained another 7.0 lnL.
+   - At 30 genes they would have stopped it at iteration 322, 0.06 below the endpoint.
+   - The choices: keep the rule and caps; loosen the low-flux line from 0.01; or drop the condition.
+   - The agent recommends keeping both. Every B records its final window movements, so round 1 shows
+     whether the caps cut climbs short, and the budget guard acts after each round.
+2. **The budget at 1.5 times the estimates.** With every B at its cap the projection is 26,879 charged
+   core-hours at the estimates and 40,394 at 1.5 times them, above the 40,000 ceiling (risk 26). The agent
+   recommends submitting round 1 as designed and deciding round 2 on the measured times, as the runbook's
+   budget check already provides.
 
 The working rules are in `CODE_PLAN.md` section 4, "Implementation".

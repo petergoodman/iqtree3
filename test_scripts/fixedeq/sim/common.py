@@ -53,11 +53,11 @@ def provenance(a, script, step, label, **extra):
             "scipy": scipy.__version__, "platform": platform.platform(), **extra}
 
 
-def new_out(path, prov):
-    """path, or by default RUNS/<YYYYmmddTHHMMSSZ>-<commit8>-<step>; new and outside the repository."""
+def new_out(path, prov, runs=RUNS):
+    """path, or by default runs/<YYYYmmddTHHMMSSZ>-<commit8>-<step>; new and outside the repository."""
     if path is None:
         stamp = datetime.datetime.fromisoformat(prov["started_utc"]).strftime("%Y%m%dT%H%M%SZ")
-        path = RUNS / f"{stamp}-{prov['git_commit'][:8]}-{prov['step']}"
+        path = Path(runs) / f"{stamp}-{prov['git_commit'][:8]}-{prov['step']}"
     out = Path(path).expanduser().resolve()
     if out.exists() or out.is_relative_to(REPO):
         sys.exit(f"{out}: needs a new directory outside the repository")

@@ -21,7 +21,7 @@ Labels are those of PLAN.md. Source anchors refer to `63c330d9` and were verifie
 | `model/modelnonrevfixedeq.{h,cpp}` | S2 to S4 | Class `ModelNonrevFixedEq : public ModelProtein`, public name "NQC" held in one constant (decision 002; section 2.2); from S3b also `public LinkedModelHooks`, listed second |
 | `model/linkedmodelhooks.h` | S3b | Header only: the abstract `LinkedModelHooks` through which `PartitionModel::optimizeLinkedModel` lets a linked model check, differentiate and record its fits (decision 005; section 2.2, "Linked hooks"). A separate header because NQC's header is included by `model/modelmixture.cpp` and `partitionmodel.h` pulls in the super tree, so putting the interface in either would create an include cycle |
 | `unittest/` | S1 | Standalone CMake project that compiles `model/fixedeqchart.cpp` directly, with IQ-TREE's clang Release flags and the `model` target's SSE flags (verified, `CMakeLists.txt:420`, `711-718`, `984`), and fetches googletest 1.12.1 at cmaple's pinned commit, checked by the archive's SHA-256 (verified, `cmaple/CMakeLists.txt:283-293`; decision 012); `fixtures/`, 27 chart cases and `targets.txt` in plain text at 17 significant digits with a provenance header (section 3.2); its own `.gitattributes` (decision 014) |
-| `test_scripts/fixedeq/` | S0 onward | `environment.yml` and lock (decision 013); `oracle/`; `tests/`; drivers `regression/`, `differential/`, `probes/`, `sanitizer/`, `unittests/`, `nqc/` and `design_rerun.py`; `manifest/` (G0 manifest); `explore/` (exploratory measurements behind decisions 007, 021, 023, 025 and 038); `make_fixtures.py`; `.gitattributes` and `.gitignore`. Added in S3: `nqc/twopart.py`, the two-partition data (S3b); `explore/convergence.py`, the stopping study and risk 22's converged evidence, with `oracle/optimize.py`'s reference climber `lbfgsb_fit` (S3c's first part); `profile/profiling.py`, the profiling driver (S3c). Added in S4: the oracle's export functions (`chart.first_order_test`, `nqc.export_gradient`, `readers.read_qmat`, `readers.read_info`) and `tests/test_export.py`. Added in S5: `oracle/flux.py`, the balanced-flux reference (section 3.1), with `likelihood.log_likelihood_gradient`, `nqc.Objective.from_patterns`, the analytic gradients and `nqc.z_gradient`, `lbfgsb_fit`'s analytic pass, and `tests/test_oracle_flux.py`; the driver `reference/reference.py` with `tests/test_reference.py`; `explore/v3_diagnosis.py`, the exploratory diagnosis of validation's V3, `explore/z_climb_diagnosis.py`, that of the z climbs' unmet A5(i) on toy, and `explore/z_face_check.py`, the check of aa_example's z climb endpoint on the lower face. Added after S5: `flux.certificate` with its test, and `explore/risk27_probe.py`, the exploratory probe behind decision 039's revision (PLAN.md retired risk 27). Added in SIM-1: `oracle/simulate.py` (section 3.1), `builtin.frequency_profiles`, `likelihood.tip_arrays` with the objectives' cache, and `tests/test_oracle_simulate.py`; `sim/` (section 3.8): `common.py` (run directories, provenance, reports, π*'s writer), `target.txt` (π* at 17 digits), `alisim_check.py`, `exact.py` (`recover`, `screen`), `birddata.py` (`fetch`, `inventory`, `scaffold`), `pipeline.py` (`simulate`, `fit`, `metrics`, `checks`, `pilot`), `scaffold/` (`compositions.tsv`, `tree.nwk`, `loci.tsv`) and `.gitattributes`, with `tests/test_sim.py`; `explore/r4_finish_diagnosis.py`, the exploratory diagnosis behind decision 042's finish revision, with its test in `tests/test_oracle_flux.py`; `explore/screen_certificate_probe.py`, the exploratory diagnosis of the screen's not-evaluable fits; `explore/screen_endpoint_certificate.py`, the certificate at a screen run's saved endpoints; `explore/pilot_round_endings.py`, the pilot's fits' round endings relabelled. Added in SIM-2: `simulate.shift_to_tv`, `rarity_mask` and `transposed`; `nqc.GeneParallel` and `climb_watch`; `optimize.stage_b_climb` and `low_flux`; each tested in the oracle's test file for its module |
+| `test_scripts/fixedeq/` | S0 onward | `environment.yml` and lock (decision 013); `oracle/`; `tests/`; drivers `regression/`, `differential/`, `probes/`, `sanitizer/`, `unittests/`, `nqc/` and `design_rerun.py`; `manifest/` (G0 manifest); `explore/` (exploratory measurements behind decisions 007, 021, 023, 025 and 038); `make_fixtures.py`; `.gitattributes` and `.gitignore`. Added in S3: `nqc/twopart.py`, the two-partition data (S3b); `explore/convergence.py`, the stopping study and risk 22's converged evidence, with `oracle/optimize.py`'s reference climber `lbfgsb_fit` (S3c's first part); `profile/profiling.py`, the profiling driver (S3c). Added in S4: the oracle's export functions (`chart.first_order_test`, `nqc.export_gradient`, `readers.read_qmat`, `readers.read_info`) and `tests/test_export.py`. Added in S5: `oracle/flux.py`, the balanced-flux reference (section 3.1), with `likelihood.log_likelihood_gradient`, `nqc.Objective.from_patterns`, the analytic gradients and `nqc.z_gradient`, `lbfgsb_fit`'s analytic pass, and `tests/test_oracle_flux.py`; the driver `reference/reference.py` with `tests/test_reference.py`; `explore/v3_diagnosis.py`, the exploratory diagnosis of validation's V3, `explore/z_climb_diagnosis.py`, that of the z climbs' unmet A5(i) on toy, and `explore/z_face_check.py`, the check of aa_example's z climb endpoint on the lower face. Added after S5: `flux.certificate` with its test, and `explore/risk27_probe.py`, the exploratory probe behind decision 039's revision (PLAN.md retired risk 27). Added in SIM-1: `oracle/simulate.py` (section 3.1), `builtin.frequency_profiles`, `likelihood.tip_arrays` with the objectives' cache, and `tests/test_oracle_simulate.py`; `sim/` (section 3.8): `common.py` (run directories, provenance, reports, π*'s writer), `target.txt` (π* at 17 digits), `alisim_check.py`, `exact.py` (`recover`, `screen`), `birddata.py` (`fetch`, `inventory`, `scaffold`), `pipeline.py` (`simulate`, `fit`, `metrics`, `checks`, `pilot`), `scaffold/` (`compositions.tsv`, `tree.nwk`, `loci.tsv`) and `.gitattributes`, with `tests/test_sim.py`; `explore/r4_finish_diagnosis.py`, the exploratory diagnosis behind decision 042's finish revision, with its test in `tests/test_oracle_flux.py`; `explore/screen_certificate_probe.py`, the exploratory diagnosis of the screen's not-evaluable fits; `explore/screen_endpoint_certificate.py`, the certificate at a screen run's saved endpoints; `explore/pilot_round_endings.py`, the pilot's fits' round endings relabelled. Added in SIM-2: `simulate.shift_to_tv`, `rarity_mask` and `transposed`; `nqc.GeneParallel` and `climb_watch`; `optimize.stage_b_climb` and `low_flux`; each tested in the oracle's test file for its module. Commit 3a: `sim/sim2.py` (`design`, `checks`, `run`, `collect`, and the internal `phase`), `sim/cloak.py` (`run`, `curve`), `sim/slurm/sim2.sbatch`; `pipeline.py`'s additions (shifted and profile truths, `matrix_metrics` and `rate_metrics`, GTR20 with counted frequencies, `gtr20_state`, `gtr20_paml`, `level2_state`, `--init-model`, `checks_rows`, `two_cpus`, masked and pruned datasets, `read_curve`); `explore/stage_b_calibration.py`, the calibration; and `tests/test_sim2.py` |
 | `.github/workflows/fixedeq.yaml` | S1 | Fork-only workflow that builds and runs the unit tests and the oracle's tests on Linux, and from S2 a short NQC run |
 
 Run outputs never go into the working copy; they go under `~/iqtree3-runs/` in WSL. Fixtures and
@@ -1157,20 +1157,26 @@ given: on Puma, one under Peter's xdisk directory; on the laptop,
       hold: lnL rises less than 0.1; Ĉ moves less than 1e-4; and no rate among the 152 of 380 with the
       smallest fitted flux at the current iterate (the two lowest quintiles) moves by more than 0.01 in
       log. Low-flux rates lie in flat directions (risk 28), and their last-window movement is recorded.
-    - Time caps are provisionally 2, 4, 6 and 6 h, set by the calibration. SciPy's endings are recorded.
+    - Time caps 2, 4, 6 and 6 h, still provisional. Under the calibration no climb stalled within its cap
+      (the low-flux condition), so Peter's cap rule found no stall time to project, and the scheduler
+      estimates each B at its cap. The rule and caps are open for Peter (PLAN.md, next step). SciPy's
+      endings are recorded.
     - No projected Newton finish and no central-difference gradient.
     - Then `flux.certificate`: "certified peak", otherwise "highest found". B is deterministic given P.
-  - **Certified subset**, if the calibration finds it affordable: `flux.fit` from B's endpoint on
-    replicates 1 to 3 of R0 and NQ at 30 genes, giving the gap from "highest found" to the certified
-    peak.
+  - **Certified subset, not run.** It would be `flux.fit` from B's endpoint on replicates 1 to 3 of R0
+    and NQ at 30 genes, giving the gap from "highest found" to the certified peak. Peter's rule
+    (2026-11-19): run it only if the calibration's probe projects each fit within 8 h on Puma and all 6
+    within 500 charged core-hours. The probe ended unconverged at its 1 h cap, with no projection, so
+    `sim2.CERTIFY` stays false.
   - **H.** P without `-nparam`, 16 threads, then B. The B endpoints from the capped and the default
     starts are compared.
   - **GTR20+F{π*}.** Unrooted tree (maintainer question 17), `-q`, capped at 20 rounds. Convergence is
     checked by the relaxed refits.
-  - **GTR20+F.** Frequencies are counted as IQ-TREE does under `--model-joint`; whether per partition
-    or pooled is read in the smoke run and recorded. The rates come from the checkpoint and are scored
-    as fitted and with frequencies replaced (`chart.reversible_seed`). Reversible arms have Ĉ 0 and are
-    compared on rates and held-out lnL.
+  - **GTR20+F.** Frequencies are counted as IQ-TREE does under `--model-joint`, pooled over partitions:
+    the smoke run found every partition holding the linked model's frequencies. The checkpoint names
+    that model `GTR20+F`, against `GTR20` for GTR20+F{π*}. The rates come from the checkpoint and are
+    scored as fitted (fluxes at the fitted frequencies) and with frequencies replaced
+    (`chart.reversible_seed`). Reversible arms have Ĉ 0 and are compared on rates and held-out lnL.
   - **F.** `--init-model` from D's unmasked GTR20+F{π*} fit (decision 025's carry, checkpoint to PAML;
     the default box's clamping is reported) or from NQ.bird's transposed flux
     (`differential.write_matrix`); then B. Whether the three starts' B endpoints coincide is reported.
@@ -1218,7 +1224,8 @@ given: on Puma, one under Peter's xdisk directory; on the laptop,
 - **Puma execution.**
   - **`sim/slurm/sim2.sbatch`**, one shard per submission:
     - `--nodes=1 --ntasks=1 --time=48:00:00 --mem-per-cpu=5gb`.
-    - Arguments: the shard, the shard count, the run directory, and the frozen and gate binaries.
+    - Arguments: the shard, the shard count, the run directory, the frozen and gate binaries, and the
+      clone. Slurm runs a copy of the script, so the script cannot find the clone from its own path.
     - The core count is set by `sbatch --cpus-per-task`, 94 by default, fewer for leftovers.
     - The account is given on the command line.
     - It sets `OMP_NUM_THREADS`, `OPENBLAS_NUM_THREADS` and `MKL_NUM_THREADS` to 1.
@@ -1232,16 +1239,38 @@ given: on Puma, one under Peter's xdisk directory; on the laptop,
       from `os.sched_getaffinity(0)`; the cross-machine row against `sim/fixtures/sim2_crossmachine.json`.
     - `run`:
       - checks first, stopping on a failure;
-      - then phases longest first under `--cores` (IQ-TREE `-T`, AliSim `-nt 1`, B's workers);
+      - then phases longest first under `--cores` (IQ-TREE `-T`, AliSim `-nt 1`, B's workers), each
+        phase in its own process;
+      - EASY backfilling: the first phase in line that does not fit the free cores reserves the
+        earliest time enough cores free up, and later phases start only if they end before then or
+        use spare cores. Without it the projection starved the 16-core 1000-gene fits;
       - a phase starts only if 1.5 × its estimate fits before `--deadline-hours 46`;
-      - one record per phase, so B resumes from a finished P; an unfinished phase is renamed
-        `.interrupted-N`;
-      - estimates are corrected as phases finish.
+      - one record per phase, so B resumes from a finished P. A phase works in `.partial` and is
+        renamed on success; a leftover `.partial` becomes `.interrupted-N` and reruns. A phase that
+        raises, or whose process dies, is a counted failure, and its dependents are blocked;
+      - estimates are corrected by the median measured-to-estimated ratio per phase kind and size,
+        counting fits stopped at their cap, and seeded from earlier rounds' records;
+      - IQ-TREE's threads and B's workers are capped at `--cores`, for leftover shards given fewer;
+      - a task's metrics need its P (or GTR20 fit) and wait for its B to finish, done or failed, so P's
+        estimands survive a failed B;
+      - a shard holding cell D stops at the start while CLOAK's curve is missing.
+    - Settings fixed at implementation:
+      - seed base 20261119, so SIM-2's data are independent of the pilot's (base 20261117, whose SDs
+        set n);
+      - cell E keeps the pilot's 26-taxon set (seed 20261117);
+      - cell C's component counts use key 1000 and its AliSim components keys 1 to 20;
+      - cell D's uniform draws use key 99 (`SeedSequence` pads short entropy with zeros, so key 0 would
+        repeat a gene's own seed);
+      - cell F records whether its start reached the linked fit: the start's `--show-lh` total against
+        the first linked fit's start lnL, which IQ-TREE prints only at `-v`, so only the smoke run
+        decides it;
+      - the log-normal power test moves to commit 4 with `analyze`.
     - `collect`: one small tarball.
     - `analyze`: on the laptop.
-  - **Shards** are balanced by estimated core-hours, with dependent tasks together. A dataset two
-    shards need is simulated in each from the same seeds, and the manifests' SHA-256 hashes show the
-    copies agree.
+  - **Shards.** Cells D, its GTR20 convergence check and F are alone in shard 5, so that waiting for
+    CLOAK's curve delays nothing else. The other cells are balanced over shards 1 to 4 by estimated
+    core-hours. A dataset two shards need is simulated in each from the same seeds, and the manifests'
+    SHA-256 hashes show the copies agree.
   - **Budget.** Charged = cores × job wall time. After each round the agent projects the total from
     measured times, and stops for Peter only above his ceiling (PLAN.md risk 26).
   - **Round 2.** A 1000-gene P that reaches its 40 h cap leaves its B for round 2.
@@ -1278,6 +1307,26 @@ given: on Puma, one under Peter's xdisk directory; on the laptop,
 
      It sets B's caps and the scheduler's estimates. If a 100-gene climb has not stalled by 4 h, stop
      for Peter.
+
+     **Done 2026-11-19 to 20; the stop fired.** Command: `explore/stage_b_calibration.py --pilot
+     ~/iqtree3-runs/sim1/20261117T165446Z-3719111d-pilot --git git.exe --allow-dirty`; output
+     `~/iqtree3-runs/sim2/20261120T042039Z-05413d2b-calibration/` (uncommitted code at `05413d2b`).
+     - **Gradient on 100 genes,** laptop: 13.2 s at W = 1, 7.2 s at 2, 4.1 s at 4, 3.6 s at 8. Each W
+       gave values equal to W = 1's.
+     - **30 genes, W = 1, cap 1.54 h:** time cap at 1,655 iterations (3.35 s each), gain 16.35 over P.
+       Over the last 100 iterations lnL rose 0.0002 and Ĉ moved 1.3e-6, but the low-flux rates moved 0.18
+       in log; 35 coordinates ended at the lower bound.
+     - **100 genes, W = 4, cap 4 h:** time cap at 3,517 iterations (4.1 s each), gain 133.7. Over the last
+       100 iterations lnL rose 1.8e-5 and Ĉ moved 8.9e-8; the low-flux movement was 0.0175, against the
+       line of 0.01.
+     - **Without the low-flux condition,** the lnL and Ĉ conditions alone would have stopped the climbs
+       at iteration 322 (30 genes; 0.06 below the endpoint) and 642 (100 genes; 7.0 below it, since lnL
+       rose 3.9 and 2.8 over iterations 800 to 1,000).
+     - **Certificate** at both endpoints: "highest found" (residuals 2.2e4 and 225).
+     - **`flux.fit` probe** from the 30-gene endpoint, 8 workers: unconverged at its 1 h cap, after 12
+       Newton steps with μ still 0.1.
+     - **Pass lines:** in both climbs P's accepted score matched the oracle's re-score to 1e-12 relative,
+       and B was not below P.
   2. **CLOAK measurement** (`sim/cloak.py`, overnight, under the keep-awake helper; it measures a
      setting):
      - BAliBASE 3.0's 218 full-length BB cases are extracted by the script into
@@ -1291,6 +1340,23 @@ given: on Puma, one under Peter's xdisk directory; on the laptop,
   3. **Smoke run:** every task type at 5 genes and 2 rounds with short climbs, in minutes. It covers
      `--init-model` under linked `-q`, Level 2, GTR20+F with frequency replacement, masking, profiles,
      shifts, pruning, the deadline and resume, and `collect`.
+
+     **Done 2026-11-20** at 3 genes. At 5 genes a GTR20 fit, or NQC's first linked round from LG, took
+     over 15 min on two threads, and the 15-minute cap killed every fit. The first two attempts were
+     stopped by hand and are kept: `~/iqtree3-runs/sim2/20261120T105750Z-smoke` and `…T111705Z-smoke`.
+     The run kept is `~/iqtree3-runs/sim2/20261120T114049Z-smoke`; its script is the "smoke run" block
+     in this commit's message.
+     - The 0.02 h deadline started only the dataset phases. The run killed after 150 s left 9 phases in
+       `.partial`, which the next run renamed `.interrupted-1` and reran.
+     - All 53 phases ended done except the two GTR20+F metrics phases, whose checkpoint key (`GTR20+F`)
+       the reader missed. Fixed, and rerun on those checkpoints.
+     - `--init-model` reaches the linked fit: for the transposed NQ.bird start, `--show-lh` matched the
+       first linked fit's start lnL. The GTR20 start had 78 coordinates outside the default domain, which
+       the box clamps.
+     - G re-scored 5.57 above IQ-TREE's accepted Level 2 score at 3 genes. This is consistent with Level
+       2 refitting the nuisances after NQC's last linked fit (unverified); it is reported, outside 021's
+       row.
+     - `collect` wrote its tarball.
   4. **Cross-machine fixture:** replicate 1 of R0 and of the profile mechanism at 30 genes, with the
      genes' SHA-256 written to `sim/fixtures/sim2_crossmachine.json`.
 
@@ -1314,6 +1380,12 @@ given: on Puma, one under Peter's xdisk directory; on the laptop,
   - at least 26,300 with 2,500;
   - at least 31,200 if the estimates are 1.5 times low;
   - at least 39,900 if both, in up to three rounds.
+
+  With every B at its cap, as the calibration found, `sim2.design`'s projection (the scheduler on the
+  estimates, 5 shards of 94 cores, 46 h) gives:
+  - 19,718 charged plus 7,161 core-hours left for round 2, total 26,879, at the estimates;
+  - 21,098 plus 19,296, total 40,394, at 1.5 times them. That is above the 40,000 ceiling, and open for
+    Peter.
 
 ## 4. Per-slice lists
 
@@ -1509,27 +1581,30 @@ sanitizer run. Commits:
 2. Done (2026-11-19): `simulate.shift_to_tv`, `rarity_mask`, `transposed`; `nqc.GeneParallel`,
    `climb_watch`; `optimize.stage_b_climb`, `low_flux`; tested in `tests/test_oracle_simulate.py`,
    `test_oracle_nqc.py` and `test_oracle_optimize.py`.
-3. The code, then the laptop work, then the hand-off to Peter:
-   - `pipeline.py` edits: truth names; per-component AliSim; `metrics_of` for any matrix with per-cell
-     references (GTR20 rates from the checkpoint, frequency replacement, risk 28's split, the training
-     excess for at-π* cells); an `--init-model` hook; GTR20+F; a Level 2 state reader; taskset's CPUs
-     from the affinity mask.
-   - `sim/sim2.py` (`design`, `checks`, `run`, `collect`), `sim/cloak.py`, `sim/slurm/sim2.sbatch`
-     and `tests/test_sim2.py`. The tests use no binary or downloaded data, so CI runs them:
-     - profile counts sum to n;
-     - pruning keeps the charsets;
-     - tasks are deterministic, with unique seeds;
-     - shards are balanced, with dependent tasks together;
-     - the scheduler's deadline, per-phase resume and core budget (fake tasks);
-     - frequency replacement equals T3 transport for reversible truths;
-     - `draw(…, 30, …)` is a prefix of `draw(…, 100, …)`;
-     - risk 28's split is 0 at the truth;
-     - log-normal power and its paired bootstrap on constructed inputs;
-     - the GTR20 checkpoint reader on a fixture;
-     - the taskset CPU choice.
-   - The laptop calibration, run alone; the CLOAK curve; the smoke run; the cross-machine fixture.
-   - A read-only code review before the commit, then a push when Peter asks, and Peter's preflight and
-     submission.
+3. Split by Peter (2026-11-19) into 3a and 3b, so that the committed derived inputs come from
+   committed code.
+   - **3a, done 2026-11-20.**
+     - The code: `pipeline.py`'s additions, `sim/sim2.py`, `sim/cloak.py`, `sim/slurm/sim2.sbatch`,
+       `explore/stage_b_calibration.py`, and `tests/test_sim2.py`, whose 23 tests use no binary or
+       downloaded data.
+     - The calibration (section 3.8), whose stop fired: no climb stalled.
+     - The smoke run, with all phases done after one fix (GTR20+F's checkpoint name).
+     - A read-only review: 13 items, 12 fixed, and the sbatch module block left for a short test job
+       (runbook).
+     - The log-normal power test moves to commit 4.
+     - Known shortfalls:
+       - no unit test reaches `cmd_run`'s loop, a dead phase process, `do_phase`'s failure
+         classification or `cmd_collect`'s filter; the smoke run exercises them;
+       - `nqc_state` and `stage_b` are tested only by the calibration and the smoke run;
+       - the GTR20 and Level 2 checkpoint readers are confirmed on real checkpoints only by the smoke run.
+   - **3b.**
+     - From 3a's clean tree: the cross-machine fixture (`sim2.py checks --write-fixture`), the CLOAK
+       measurement (`cloak.py run`, then `cloak.py curve`) and `sim2.py design`.
+     - `sim2.py checks` on the laptop, every row passing.
+     - The runbook finalized, and `CLAUDE.md`'s Puma commands.
+     - If the curve is not ready, 3b goes without it and 3c adds it (CLOAK contingency).
+     - Then a push when Peter asks, and Peter's preflight and submission, after his decisions on the
+       stall rule and caps and on the 1.5 times projection (PLAN.md, next step).
 4. `sim2.py analyze`, written while Puma runs, with vector figures in a colour-blind-safe palette.
 5. The close: rounds collected and analysed with MCSEs; the gate record; records; S6's and S7's lists;
    the AI_DISCLOSURE entry.

@@ -8,19 +8,21 @@ gate record and may run to 25 lines. The next session starts from the top entry.
 This is a fork of `iqtree/iqtree3`. Entries here describe work on the fork, not upstream
 development.
 
-## 2026-11-19 (eighth session): SIM-2 commit 2, the oracle additions
+## 2026-11-19 to 20 (eighth session, overnight unattended): SIM-2 commits 2 and 3a
 
-- **Done.** `simulate.shift_to_tv`, `rarity_mask`, `transposed`; `nqc.GeneParallel` (bitwise the serial
-  linked gradient) and `climb_watch`; `optimize.stage_b_climb` and `low_flux`; 13 tests in the oracle's
-  test files. pytest 399 passed (386 before). Records: CODE_PLAN 1.1, 3.1, 3.8 and 4; PLAN.
-- **Peter decided:** the stall rule compares the current iterate with the one 100 iterations earlier,
-  its low-flux set the 152 lowest-flux rates there; B's pgtol 1e-6; his Puma edits (conda before
-  `set -euo pipefail`, submitting from the run directory) committed here.
-- **Checked** (development): `shift_to_tv` gives the planning solver's s for the four directions; TV
-  rises in s on [0, 20] for eight compositions. The frozen archive's "0.0104 to 0.0121" minimum
-  frequency omits WAG (0.0138) and JTT (0.0143); no live record repeats it.
-- **Failed.** No test; one probe command lost `~` to Git Bash's expansion, rerun from a script.
-- **Next.** Commit 3, planned first (PLAN.md next step).
+- **Done.** Commit 2, the oracle additions (`05413d2b`). Commit 3a: the pipeline additions, `sim2.py`,
+  `cloak.py`, the sbatch script and the calibration script, with 23 new tests (pytest 422).
+- **Peter decided:** the stall rule's net-change reading and pgtol 1e-6; commit 3 split into 3a and 3b;
+  rules for the certified subset and B's caps; CLOAK's r and bins.
+- **Calibration:** no climb stalled, held up by the low-flux condition; 100 genes gained 133.7 in 4 h.
+  The probe ended unconverged, so the certified subset is not run. The stop fired: decisions for Peter in
+  PLAN's next step.
+- **Smoke run** (3 genes): every phase done after one fix (GTR20+F's checkpoint name). `--init-model`
+  reaches the linked fit, and GTR20+F's frequencies are pooled. The review: 13 items, 12 fixed.
+- **Failed:** the scheduler starved wide phases (EASY backfilling added); seed key 0 would repeat gene
+  seeds (key 1000); the first calibration crashed writing its record (rerun); two smoke runs stopped
+  (5 genes too slow).
+- **Next.** 3b from 3a's clean tree: fixture, CLOAK, runbook. Then Peter's two decisions.
 
 ## 2026-11-19 (seventh session): SIM-2 planned and approved (decisions 013, 021, 039, 045)
 
