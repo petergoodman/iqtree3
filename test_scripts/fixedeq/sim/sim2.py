@@ -640,6 +640,7 @@ def checks(out, frozen, gate, git, allow_dirty, write_fixture=False):
         genes[name] = [g["sha256"] for g in man["genes"]]
         rows += found
     if write_fixture:
+        FIXTURE.parent.mkdir(parents=True, exist_ok=True)
         write(FIXTURE, json.dumps({"provenance": {"script": SCRIPT, "base": BASE, "genes": 30, "replicate": 1,
                                                   "frozen_sha256": sha256(frozen)}, "genes": genes}, indent=1) + "\n")
         rows.append(check("cross-machine fixture written", None, path=str(FIXTURE)))
