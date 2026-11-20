@@ -8,16 +8,16 @@ gate record and may run to 25 lines. The next session starts from the top entry.
 This is a fork of `iqtree/iqtree3`. Entries here describe work on the fork, not upstream
 development.
 
-## 2026-11-20 (ninth session): 3c checked and pushed; CI's OpenBLAS kernels pinned; Peter's two decisions
+## 2026-11-20 (ninth session): 3c checked and pushed; CI's π* test to rounding; Peter's two decisions
 
-- **Done.** Checked 3c (`909e8c05`: curve, records only, no Python; `pipeline.read_curve` parses it) and
-  pushed `05413d2b` to `909e8c05`. Peter kept stage B's stall rule and caps, and approved round 1 as
-  designed (round 2 on measured times). Runbook: the target test after the preflight. pytest 422 passed
-  under the pinned kernels.
-- **Failed:** CI's oracle job since `3dfe9c3b` (records only), at `test_committed_target_is_the_oracles`,
-  with the runner image and lock unchanged. Cause: OpenBLAS's kernel choice. On the laptop, π* is bitwise
-  the file's under its own, Zen and Haswell kernels, and off by up to 1.1e-16 in 19 of 20 entries under
-  SandyBridge, Nehalem and Prescott. GitHub's CPU is not logged (inferred). Fix: the Python jobs pin Haswell.
+- **Done.** Checked 3c (`909e8c05`: curve and records, no Python) and pushed it. Peter kept stage B's stall
+  rule and caps, and approved round 1 as designed (round 2 on measured times). Runbook: a bitwise π* check.
+- **Failed:** CI's oracle job since `3dfe9c3b` (records only) at `test_committed_target_is_the_oracles`,
+  image and lock unchanged. Cause: OpenBLAS's kernel choice. On the laptop, π* is bitwise the file's under
+  its own and Haswell kernels, and up to 1.1e-16 off under SandyBridge, Nehalem and Prescott. GitHub's CPU
+  is not logged (inferred). The first fix, pinning CI to Haswell (`c0526f0e`), segfaulted SciPy's
+  `null_space` on the runner and was reverted; the test now checks a relative 1e-13 (Peter). pytest 422
+  passed under all four kernels.
 - **Next.** Peter's preflight and five shards; commit 4 (`analyze`) while Puma runs.
 
 ## 2026-11-19 to 20 (eighth session, overnight unattended): SIM-2 commits 2 and 3 (3a to 3c)

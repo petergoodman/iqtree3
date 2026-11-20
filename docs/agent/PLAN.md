@@ -320,8 +320,9 @@ audits' low findings are in `CODE_PLAN.md` section 4, "Known and left alone".
 - **Continuous integration:** Actions is back on since 2026-10-22. Upstream's Build workflow is
   switched off on the fork's Actions page (`ci.yaml` unchanged), so the fork no longer checks the
   macOS, Windows or ARM builds. fixedeq's first run (39817703469, `76dd4301`) passed all jobs, as
-  did the run on S4 and its audit (40550150265, `548dad20`). Its Python jobs hold OpenBLAS to its
-  Haswell kernels, since other kernels move the oracle's π* in its last bits (`CODE_PLAN.md` 3.7).
+  did the run on S4 and its audit (40550150265, `548dad20`). OpenBLAS's kernels, chosen by the
+  runner's CPU, move the oracle's π* in its last bits, so CI compares it with `sim/target.txt` to
+  rounding and the Puma preflight checks it bitwise (`CODE_PLAN.md` 3.7).
 - **Independent reference (S5):** the balanced-flux reference (decision 042) passed its known-answer
   validation and, on toy, toy300 and twopart, reached the peak that the z climbs from NQC's relaxed
   endpoint reached; on aa_example the z climb met its first-order test 0.299 below the reference's
@@ -357,8 +358,8 @@ pushed (`909e8c05`). Peter kept stage B's stall rule and caps, and approved roun
 round 2 decided on the measured times (2026-11-20; `CODE_PLAN.md` 3.8).
 
 Remaining steps:
-1. Peter's runbook (`CODE_PLAN.md` 3.8) at `909e8c05`: preflight, with the target test after it; the
-   test job; then shards 1 to 5.
+1. Peter's runbook (`CODE_PLAN.md` 3.8): preflight, with the bitwise π* check after it; the test job;
+   then shards 1 to 5.
 2. While Puma runs, commit 4 (`sim2.py analyze`) in a new session.
 3. After each round, the projection from measured times against the 40,000 ceiling (risk 26).
 

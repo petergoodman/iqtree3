@@ -910,12 +910,15 @@ The fork workflow is `.github/workflows/fixedeq.yaml`:
   `github.repository == 'petergoodman/iqtree3'`.
 - **Unit tests.** Both variants on `ubuntu-22.04`, with the flags of `unittests.py`. A
   sanitizer report fails the job.
-- **Oracle tests.** In the environment created by micromamba from `environment.lock.txt`, with
-  OpenBLAS held to its Haswell kernels (`OPENBLAS_CORETYPE`). The laptop's own kernels (Zen) give the
-  same bits; on SandyBridge, Nehalem or Prescott kernels the oracle's π* moves by up to 1.1e-16, and
-  `test_committed_target_is_the_oracles`, a bitwise check, fails, as it did on GitHub's runners from
-  2026-11-20 with the image and lock unchanged.
-- **NQC run, from S2.** Builds IQ-TREE on Linux and runs the S2 seed case, with the same kernels.
+- **Oracle tests.** In the environment created by micromamba from `environment.lock.txt`. OpenBLAS
+  picks its kernels by CPU, and GitHub's runners vary: from 2026-11-20 the oracle's π* there differed
+  from `sim/target.txt` in its last bits, with the image and lock unchanged. On the laptop the
+  SandyBridge, Nehalem and Prescott kernels move it by up to 1.1e-16 (16 ulps).
+  `test_committed_target_is_the_oracles` therefore checks agreement to a relative 1e-13, which a
+  1e-12 change fails, and bitwise identity is checked only in the Puma preflight (section 3.8). The
+  tolerance cannot tell kernel noise from a file rewritten at 15 significant digits. Pinning CI to
+  the Haswell kernels instead crashed SciPy's `null_space` on GitHub's runner (2026-11-20).
+- **NQC run, from S2.** Builds IQ-TREE on Linux and runs the S2 seed case.
 - **Upstream.** The file is left out of the upstream pull request.
 
 ### 3.8 Simulation
@@ -1295,9 +1298,12 @@ given: on Puma, one under Peter's xdisk directory; on the laptop,
   3. **Compute node, preflight** (`interactive -a <account> -n 12 -t 00:30:00`): `S checks --frozen
      <frozen> --gate <gate> --out <run dir>/preflight --git git`. It asserts the AliSim, pipeline, wiring
      and cross-machine rows. Go on only if every row passes; otherwise send its `report.md`. Then, from
-     outside the clone, `python -m pytest <clone>/test_scripts/fixedeq/tests/test_sim.py::test_committed_target_is_the_oracles
-     -q -p no:cacheprovider`: whether Puma's OpenBLAS gives the laptop's π* bitwise (section 3.7). A
-     failure there, with every row passing, is reported, not a stop.
+     outside the clone, whether Puma's OpenBLAS gives the laptop's π* bitwise (section 3.7); False,
+     with every row passing, is reported, not a stop:
+
+     ```bash
+     python -c "import sys; c='<clone>/test_scripts/fixedeq'; sys.path[:0]=[c, c+'/sim']; import numpy as np, common; from oracle import simulate; print('pi* bitwise as the laptop:', np.array_equal(common.target_values(), simulate.target()))"
+     ```
   4. **Login node, a test job** (a scratch directory outside the clone and the run directory):
      `sbatch --account=<account> --partition=standard --cpus-per-task=4 --time=00:20:00
      <clone>/test_scripts/fixedeq/sim/slurm/sim2.sbatch 1 5 <scratch>/test <frozen> <gate> <clone>`.

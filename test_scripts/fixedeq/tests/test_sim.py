@@ -20,7 +20,9 @@ import pipeline as pl  # noqa: E402
 
 
 def test_committed_target_is_the_oracles():
-    assert np.array_equal(common.target_values(), simulate.target())
+    """To rounding, not bitwise: OpenBLAS's kernel, chosen by the CPU, moves the oracle's pi* by up to 1.1e-16
+    (CODE_PLAN 3.7); the Puma preflight checks bitwise identity (CODE_PLAN 3.8)."""
+    np.testing.assert_allclose(common.target_values(), simulate.target(), rtol=1e-13, atol=0)
 
 
 def test_exact_law_against_the_direct_product():
