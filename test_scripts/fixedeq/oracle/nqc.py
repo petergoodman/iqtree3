@@ -131,6 +131,74 @@ class LinkedObjective:
         return -lnL, -z_gradient(z, self.pi, self.ref, G)
 
 
+_PARTS = None
+
+
+def _keep_parts(parts):
+    global _PARTS
+    _PARTS = parts
+
+
+def _part_terms(Q, indices):
+    return [_PARTS[k].log_likelihood_gradient(Q) for k in indices]
+
+
+class GeneParallel(LinkedObjective):
+    """LinkedObjective with lnL and dlnL/dQ spread over worker processes by partition (SIM-2's stage B).
+    Workers return each partition's terms and the parent adds them from 0 in partition order, as
+    LinkedObjective does, so the result is bitwise the serial one for any number of workers. The pool
+    forks (Linux); close it, or use the object as a context manager."""
+
+    def __init__(self, parts, workers):
+        super().__init__(parts)
+        self.pool = None
+        if workers > 1:
+            import multiprocessing
+
+            self.pool = multiprocessing.get_context("fork").Pool(workers, _keep_parts, (self.parts,))
+            self.chunks = [c.tolist() for c in np.array_split(np.arange(len(self.parts)),
+                                                              min(len(self.parts), 4 * workers))]
+
+    def log_likelihood_gradient(self, Q):
+        if self.pool is None:
+            return super().log_likelihood_gradient(Q)
+        from functools import partial
+
+        total, G = 0.0, 0.0
+        for chunk in self.pool.map(partial(_part_terms, np.asarray(Q, dtype=float)), self.chunks):
+            for lnL, g in chunk:
+                total += lnL
+                G = G + g
+        return total, G
+
+    def close(self):
+        if self.pool is not None:
+            self.pool.close()
+            self.pool.join()
+            self.pool = None
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        self.close()
+
+
+def climb_watch(pi, ref, build=chart.build):
+    """z -> (C, log q_ij, pi_i q_ij) over the off-diagonal rates, row by row: what
+    optimize.stage_b_climb's stall rule watches."""
+    from . import simulate  # imported here: simulate imports flux, which imports this module
+
+    pi = np.asarray(pi, dtype=float)
+    off = ~np.eye(len(pi), dtype=bool)
+
+    def watch(z):
+        Q = build(z, pi, ref)[0]
+        return simulate.circulation(Q, pi), np.log(Q[off]), (pi[:, None] * Q)[off]
+
+    return watch
+
+
 def z_gradient(z, pi, ref, G):
     """<G, dQ/dz_k> for every coordinate k, as the adjoint of chart.derivative's linear map (tested
     against it): with H_ij = G_ij - G_ii, a_i = sum_j H_ij K_ij / pi_i and c solving

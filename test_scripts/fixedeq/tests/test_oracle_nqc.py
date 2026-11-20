@@ -6,7 +6,7 @@ import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "nqc"))
-from oracle import cases, chart, likelihood as lk, nqc, optimize, readers  # noqa: E402
+from oracle import cases, chart, likelihood as lk, nqc, optimize, readers, simulate  # noqa: E402
 import toy  # noqa: E402
 
 TREE = "((a:0.1,b:0.2):0.05,(c:0.3,d:0.1):0.2);"
@@ -94,6 +94,33 @@ def test_a_partition_rate_scales_every_branch():
             node.length *= 1.7
     folded = nqc.Objective(aln, tree, pi, ref, shape=0.5, p_invar=0.2, part_rate=1.7)(z)
     assert abs(folded - nqc.Objective(aln, scaled, pi, ref, shape=0.5, p_invar=0.2)(z)) <= 1e-12 * abs(folded)
+
+
+def test_gene_parallel_gradient_is_bitwise_the_serial_one():
+    pi, ref, aln, tree, z = small_problem()
+    cuts = [0, 5, 9, 16, 22, 28]
+    parts = [nqc.Objective({n: s[a:b] for n, s in aln.items()}, tree, pi, ref, shape=(None, 0.3, 0.7, 1.5, 0.5)[k],
+                           part_rate=0.5 + 0.3 * k) for k, (a, b) in enumerate(zip(cuts, cuts[1:]))]
+    serial = nqc.LinkedObjective(parts)
+    Q = chart.build(z, pi, ref)[0]
+    lnL, G = serial.log_likelihood_gradient(Q)
+    f, g = serial.gradient(z)
+    for workers in (1, 2, 3):
+        with nqc.GeneParallel(parts, workers) as par:
+            lnL_p, G_p = par.log_likelihood_gradient(Q)
+            f_p, g_p = par.gradient(z)
+        assert lnL_p == lnL and np.array_equal(G_p, G)
+        assert f_p == f and np.array_equal(g_p, g)
+
+
+def test_climb_watch():
+    pi, ref, _, _, z = small_problem()
+    Q = chart.build(z, pi, ref)[0]
+    c, log_rates, fluxes = nqc.climb_watch(pi, ref)(z)
+    off = ~np.eye(20, dtype=bool)
+    assert c == simulate.circulation(Q, pi)
+    assert np.array_equal(log_rates, np.log(Q[off])) and np.array_equal(fluxes, (pi[:, None] * Q)[off])
+    assert len(optimize.low_flux(fluxes)) == 152
 
 
 def test_normalize_part_rates_divides_by_the_site_weighted_mean():

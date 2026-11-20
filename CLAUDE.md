@@ -146,6 +146,17 @@ cmake --build ~/iqtree3-build -j 4
   - **The machine.** Rocky Linux 9; AMD EPYC 7642 (AVX2); 5 GB a core; charged as cores × wall time;
     modules only on compute nodes.
   - **Binaries.** The frozen and gate binaries run there unrebuilt (verified 2026-11-18).
+  - **Conda.** It loads through a module, so only on a compute node (a job or an `interactive`
+    session). Peter's block: `module load anaconda`, then `source ~/.bashrc && conda activate`, then
+    `conda activate iqtree3-fixedeq`. After `set -euo pipefail` it has failed for him now and then,
+    cause not established (`set -u` meeting an unset variable in `.bashrc` or conda's activation
+    scripts is a common one, unverified), so a job script runs the block before `set -euo pipefail`
+    and then stops unless the environment is active.
+  - **Nothing written into the clone.** The drivers refuse a working copy with untracked files
+    (`git status --porcelain`), and Slurm writes each job's `slurm-<jobid>.out` into the directory
+    `sbatch` ran from (Slurm's default, not checked on Puma). Jobs are therefore submitted from the
+    run directory, and the run directory, logs and any file Peter makes stay outside the clone;
+    otherwise every job stops at its clean-tree check.
   - **Where things are.** Runbook, design and cost: `CODE_PLAN.md` 3.8, "SIM-2's plan"; the budget
     ceiling: PLAN.md risk 26. Driver `test_scripts/fixedeq/sim/sim2.py` (`design`, `checks`, `run`,
     `collect`, `analyze`) and `sim/slurm/sim2.sbatch`, both from SIM-2's commit 3, which adds their

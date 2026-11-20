@@ -472,3 +472,107 @@ def _newton_finish(fun, gradient_map, x, fx, g, lower, upper, pgtol, deadline):
         x, fx, g = entry
         ending += "; kept its entry point"
     return x, fx, g, step, ending, probes
+
+
+# ---------------------------------------------------------------- SIM-2's stage B
+
+LOW_FLUX_SHARE = 0.4   # the two lowest quintiles
+
+
+@dataclass
+class StageB:
+    x: np.ndarray
+    f: float
+    f_start: float
+    gain: float            # f_start - f
+    iterations: int
+    gradients: int         # calls of the gradient function
+    seconds: float
+    stop: str              # "stalled", "time cap", or SciPy's message
+    message: str           # SciPy's message
+    pg_max: float          # the largest analytic projected-gradient component at x
+    at_lower: np.ndarray
+    at_upper: np.ndarray
+    window: dict           # the stall rule's three movements over the last window, and its span
+    trace: list            # (iteration, seconds, f, C) per iterate, the start first
+
+
+def low_flux(flux, share=LOW_FLUX_SHARE):
+    """Indices of the rates in the lowest share of flux: 152 of 380 at the default."""
+    return np.argsort(np.asarray(flux, dtype=float), kind="stable")[:int(round(share * len(flux)))]
+
+
+def _window_moves(history):
+    """The stall rule's movements from the oldest kept iterate to the newest: -f's rise, C's change and
+    the largest log-rate change among the newest iterate's low-flux rates."""
+    f_old, c_old, lr_old, _ = history[0]
+    f_new, c_new, lr_new, fl_new = history[-1]
+    low = low_flux(fl_new)
+    return {"span": len(history) - 1, "lnl_rise": float(f_old - f_new), "c_move": float(abs(c_new - c_old)),
+            "low_flux_move": float(np.max(np.abs(lr_new[low] - lr_old[low]))) if len(low) else 0.0}
+
+
+def stage_b_climb(gradient, x0, lower, upper, watch, max_seconds, window=100, gain=0.1, c_move=1e-4,
+                  low_move=0.01, pgtol=1e-6, maxcor=20, max_iter=10 ** 6, clock=None):
+    """SIM-2's stage B (decision 039; CODE_PLAN.md 3.8): SciPy's L-BFGS-B on gradient (x -> f, analytic
+    g) from x0 clipped into the box, ftol 0, memory maxcor. It ends by SciPy's own tests (pgtol, a failed
+    line search, max_iter), by the time cap, checked after each iteration, or by the stall rule: between
+    the current iterate and the one window iterations earlier, -f rises less than gain, C moves less than
+    c_move, and no rate among the current iterate's low-flux rates moves by more than low_move in log.
+    watch(x) returns C, the log rates and their fluxes. Returns the lowest iterate, never above the start;
+    no Newton finish, no central differences."""
+    import time
+    from collections import deque
+
+    from scipy.optimize import Bounds, minimize
+
+    clock = clock or time.monotonic
+    start = clock()
+    n = len(x0)
+    lower = np.broadcast_to(np.asarray(lower, dtype=float), (n,)).copy()
+    upper = np.broadcast_to(np.asarray(upper, dtype=float), (n,)).copy()
+    calls, last = [0], {}
+
+    def fun(x):
+        calls[0] += 1
+        fx, g = gradient(np.array(x, dtype=float))
+        last.update(x=np.array(x, dtype=float), f=np.float64(fx), g=np.asarray(g, dtype=float))
+        return last["f"], last["g"]
+
+    def observe(x, fx):
+        c, lr, fl = watch(x)
+        return float(fx), float(c), np.asarray(lr, dtype=float), np.asarray(fl, dtype=float)
+
+    x = np.clip(np.asarray(x0, dtype=float), lower, upper)
+    f_start, g = fun(x)
+    best = {"x": x, "f": f_start, "g": g}
+    history = deque([observe(x, f_start)], maxlen=window + 1)
+    trace = [(0, clock() - start, float(f_start), history[0][1])]
+    state = {"stop": None}
+
+    def callback(intermediate_result):
+        xk, fk = np.array(intermediate_result.x, dtype=float), np.float64(intermediate_result.fun)
+        now = clock() - start
+        history.append(observe(xk, fk))
+        trace.append((len(trace), now, float(fk), history[-1][1]))
+        if fk < best["f"]:
+            best.update(x=xk, f=fk, g=last["g"] if np.array_equal(last.get("x"), xk) else None)
+        if len(history) == window + 1:
+            m = _window_moves(history)
+            if m["lnl_rise"] < gain and m["c_move"] < c_move and m["low_flux_move"] <= low_move:
+                state["stop"] = "stalled"
+                raise StopIteration
+        if now > max_seconds:
+            state["stop"] = "time cap"
+            raise StopIteration
+
+    r = minimize(fun, x, jac=True, method="L-BFGS-B", bounds=Bounds(lower, upper), callback=callback,
+                 options={"maxiter": max_iter, "maxfun": 4 * max_iter, "gtol": pgtol, "ftol": 0.0,
+                          "maxcor": maxcor})
+    if best["g"] is None:
+        best["f"], best["g"] = fun(best["x"])
+    xb = best["x"]
+    return StageB(xb, float(best["f"]), float(f_start), float(f_start - best["f"]), len(trace) - 1, calls[0],
+                  clock() - start, state["stop"] or str(r.message), str(r.message),
+                  float(np.max(np.abs(projected_gradient(xb, best["g"], lower, upper)))),
+                  np.flatnonzero(xb == lower), np.flatnonzero(xb == upper), _window_moves(history), trace)

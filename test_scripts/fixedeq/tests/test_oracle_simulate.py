@@ -136,6 +136,37 @@ def test_masked_weights_sum_to_n_and_fractions_are_linear():
             <= 1e-12
 
 
+def test_rarity_mask_by_hand():
+    """Columns (0,0,0,1): r 2/3 for the 0s, 0 for the 1; (2,3,2,3): r 1/3; (5,5,5,5): r 1, the last bin.
+    With edges (0, 0.5, 1) and p (0.4, 0.1), s = 2 masks at 0.2, 0.8 and 0.2; s = 3 caps 1.2 at 1."""
+    states = np.array([[0, 2, 5], [0, 3, 5], [0, 2, 5], [1, 3, 5]])
+    edges, p = [0.0, 0.5, 1.0], [0.4, 0.1]
+    u = np.array([[0.15, 0.79, 0.1], [0.25, 0.81, 0.3], [0.9, 0.0, 0.19], [0.7, 0.5, 0.2]])
+    assert sim.rarity_mask(states, 2.0, edges, p, u).tolist() == [[True, True, True], [False, False, False],
+                                                                  [False, True, True], [True, True, False]]
+    assert sim.rarity_mask(states, 3.0, edges, p, np.full((4, 3), 0.999)).tolist() == \
+        [[False, True, False], [False, True, False], [False, True, False], [True, True, False]]
+
+
+def test_rarity_masks_are_nested_in_strength():
+    rng = np.random.default_rng(12)
+    states, u = rng.integers(0, 20, (52, 300)), rng.uniform(size=(52, 300))
+    edges, p = np.linspace(0, 1, 11), rng.uniform(0, 0.6, 10)
+    masks = [sim.rarity_mask(states, s, edges, p, u) for s in (0.5, 1.0, 2.0)]
+    for weaker, stronger in zip(masks, masks[1:]):
+        assert np.all(weaker <= stronger) and weaker.sum() <= stronger.sum()
+    assert 0 < masks[0].sum() < masks[2].sum()
+
+
+def test_rarity_mask_refuses_bad_input():
+    states, u = np.zeros((4, 3), dtype=int), np.zeros((4, 3))
+    for bad in (dict(states=states + 20), dict(states=states[:1], u=u[:1]), dict(u=u[:, :2]),
+                dict(edges=[0.0, 0.6, 0.5, 1.0], p=[0.1, 0.1, 0.1]), dict(edges=[0.0, 1.0]), dict(p=[0.1, -0.1])):
+        kw = dict(states=states, s=1.0, edges=[0.0, 0.5, 1.0], p=[0.1, 0.1], u=u) | bad
+        with pytest.raises(ValueError):
+            sim.rarity_mask(**kw)
+
+
 # ---------------------------------------------------------------- transports
 
 def test_t3_transport_of_a_reversible_q_is_frequency_replacement():
@@ -157,6 +188,22 @@ def test_t1_transport_keeps_the_flux():
     assert residuals(Q2, pi2) <= 1e-10
     assert rel(flux.flux_of(Q2, pi2), flux.flux_of(Qc, pi1)) <= 1e-10
     assert rel(sim.circulation(Q2, pi2), sim.circulation(Qc, pi1)) <= 1e-10
+
+
+def test_shift_to_tv():
+    pi = sim.target()
+    for name in ("LG", "Q.MAMMAL", "Q.INSECT", "WAG"):
+        toward = np.asarray(builtin.exchangeabilities(name)[1], dtype=float)
+        toward /= toward.sum()
+        s, p = sim.shift_to_tv(pi, toward, 0.06)
+        assert abs(sim.total_variation(p, pi) - 0.06) <= 1e-12
+        assert np.all(p > 0) and abs(p.sum() - 1) <= 1e-14 and np.array_equal(p, sim.shift(pi, toward, s))
+        s, p = sim.shift_to_tv(pi, toward, sim.total_variation(toward, pi))
+        assert abs(s - 1) <= 1e-9 and rel(p, toward) <= 1e-8
+        assert sim.shift_to_tv(pi, toward, 0.0)[0] == 0.0
+        for tv in (-0.01, 1.0):
+            with pytest.raises(ValueError):
+                sim.shift_to_tv(pi, toward, tv)
 
 
 # ---------------------------------------------------------------- circulation and the dial
@@ -189,6 +236,18 @@ def test_dial():
             assert rel(sim.circulation(Ql, pi), lam * c1) <= 1e-12
     with pytest.raises(chart.BuildError):
         sim.dial(Q, pi, sim.dial_limit(Q, pi) * (1 + 1e-6))
+
+
+def test_transposed_is_the_time_reversal():
+    pi_bird, truths = sim.truths()
+    _, pi_c, _, _, Qc = setting(13)
+    off = ~np.eye(20, dtype=bool)
+    for Q, pi in ((truths["NQ.bird"], pi_bird), (Qc, pi_c)):
+        Qt = sim.transposed(Q, pi)
+        assert rel(Qt[off], (pi[None, :] * Q.T / pi[:, None])[off]) <= 1e-12
+        assert residuals(Qt, pi) <= 1e-10
+        assert rel(sim.circulation(Qt, pi), sim.circulation(Q, pi)) <= 1e-12
+        assert rel(sim.transposed(Qt, pi)[off], Q[off]) <= 1e-12
 
 
 # ---------------------------------------------------------------- recentring and mixtures

@@ -1,7 +1,9 @@
-"""The port of IQ-TREE's optimizer (decision 017) and the derivative rules (decision 005).
+"""The port of IQ-TREE's optimizer (decision 017), the derivative rules (decision 005), and SIM-2's
+stage B climb.
 
-Each test checks one branch of utils/optimization.cpp at 63c330d9 against what the C++ does.
+Each port test checks one branch of utils/optimization.cpp at 63c330d9 against what the C++ does.
 """
+import itertools
 import sys
 from pathlib import Path
 
@@ -133,3 +135,65 @@ def test_model_call_recomputes_the_score_at_the_returned_point():
     r = opt.optimize_model(f, np.array([3.0, 0.5]), np.full(2, 1e-4), np.full(2, 100.0), gradient_epsilon=1e-6)
     assert r.gtol == opt.TOL_RATE
     assert r.score == -f.f(r.x)
+
+
+# ---------------------------------------------------------------- SIM-2's stage B
+
+BOX = (np.full(2, -5.0), np.full(2, 5.0))
+START = np.array([-1.2, 1.0])
+LOOSE = dict(gain=np.inf, c_move=np.inf, low_move=np.inf)
+
+
+def rosenbrock(x):
+    from scipy.optimize import rosen, rosen_der
+    return rosen(x), rosen_der(x)
+
+
+def watch_of(fluxes, scale=1000.0):
+    """C = x[0]; log rates 0 and scale x[0], with the given fluxes."""
+    return lambda x: (x[0], np.array([0.0, scale * x[0]]), np.asarray(fluxes, dtype=float))
+
+
+def test_low_flux_is_the_lowest_two_fifths():
+    assert sorted(opt.low_flux([5.0, 1.0, 4.0, 2.0, 3.0, 9.0, 8.0, 7.0, 6.0, 10.0])) == [1, 2, 3, 4]
+    assert len(opt.low_flux(np.arange(380.0))) == 152
+
+
+def test_stage_b_stalls_once_a_full_window_meets_all_three_conditions():
+    r = opt.stage_b_climb(rosenbrock, START, *BOX, watch_of([1.0, 2.0]), 1e9, window=5, **LOOSE)
+    assert r.stop == "stalled" and r.iterations == 5 and len(r.trace) == 6
+    assert r.window["span"] == 5
+    assert r.window["lnl_rise"] == r.trace[0][2] - r.trace[5][2]
+    assert r.window["c_move"] == abs(r.trace[5][3] - r.trace[0][3])
+
+
+def test_stage_b_does_not_stall_while_any_condition_fails():
+    for tight in (dict(gain=0.0), dict(c_move=0.0), dict(low_move=-1.0)):
+        r = opt.stage_b_climb(rosenbrock, START, *BOX, watch_of([1.0, 2.0]), 1e9, window=5, **(LOOSE | tight))
+        assert r.stop == r.message and r.iterations > 5
+
+
+def test_stage_b_watches_only_the_low_flux_rates():
+    tight = LOOSE | dict(low_move=0.01)
+    still = opt.stage_b_climb(rosenbrock, START, *BOX, watch_of([1.0, 2.0]), 1e9, window=5, **tight)
+    assert still.stop == "stalled" and still.iterations == 5 and still.window["low_flux_move"] == 0.0
+    moving = opt.stage_b_climb(rosenbrock, START, *BOX, watch_of([2.0, 1.0]), 1e9, window=5, **tight)
+    assert moving.iterations > 5
+
+
+def test_stage_b_time_cap_is_checked_after_each_iteration():
+    ticks = itertools.count()
+    r = opt.stage_b_climb(rosenbrock, START, *BOX, watch_of([1.0, 2.0]), 3.0, clock=lambda: float(next(ticks)))
+    assert r.stop == "time cap" and r.iterations == 3
+
+
+def test_stage_b_on_a_quadratic_ends_at_pgtol_with_a_bound_held():
+    """The optimum A^-1 b = (-1.2, 4.6) lies above the box's 3 in x[1]; with x[1] at 3 the best x[0] is
+    -2/3, where the gradient pushes x[1] out of the box. The start (4, 4) is clipped to (3, 3)."""
+    A, b = np.array([[3.0, 1.0], [1.0, 2.0]]), np.array([1.0, 8.0])
+    f = quadratic(A, b)
+    r = opt.stage_b_climb(lambda x: (f(x), A @ x - b), np.array([4.0, 4.0]), np.full(2, -5.0), np.full(2, 3.0),
+                          lambda x: (0.0, x, np.ones(2)), 1e9)
+    assert r.stop == r.message and "CONVERGENCE" in r.message
+    assert r.f_start == f(np.array([3.0, 3.0])) and r.f <= r.f_start and r.gain == r.f_start - r.f
+    assert r.pg_max <= 1e-6 and list(r.at_upper) == [1] and abs(r.x[0] + 2 / 3) <= 1e-6

@@ -62,6 +62,12 @@ def dial(Q, pi, lam):
     return flux.generator(S + lam * A, pi)
 
 
+def transposed(Q, pi):
+    """The generator at pi of Q's transposed flux f_ji, dial(Q, pi, -1) since S - A is the transpose: the
+    time reversal pi_j q_ji / pi_i, with C unchanged (SIM-2's cell F start)."""
+    return dial(Q, pi, -1.0)
+
+
 def dial_limit(Q, pi):
     """The largest lam at which every flux of the dial stays non-negative, min S / |A|."""
     S, A = flux_parts(Q, pi)
@@ -90,6 +96,33 @@ def shift(pi, toward, s):
 
 def total_variation(p, q):
     return float(np.abs(np.asarray(p, dtype=float) - np.asarray(q, dtype=float)).sum() / 2)
+
+
+def shift_to_tv(pi, toward, tv):
+    """s and shift(pi, toward, s) at total variation tv from pi (SIM-2's shifted targets): the root in
+    the first of the brackets [0, 1], [1, 2], [2, 4], ... whose upper end reaches tv, since TV is not
+    proven monotone in s. Raises ValueError for a tv below 0 or out of the direction's reach."""
+    from scipy.optimize import brentq
+
+    if tv < 0:
+        raise ValueError("tv must be non-negative")
+    if tv == 0:
+        return 0.0, shift(pi, toward, 0.0)
+
+    def gap(s):
+        return total_variation(shift(pi, toward, s), pi) - tv
+
+    lo, hi = 0.0, 1.0
+    with np.errstate(over="ignore", invalid="ignore"):
+        for _ in range(64):
+            g = gap(hi)
+            if not np.isfinite(g):
+                break
+            if g >= 0:
+                s = brentq(gap, lo, hi, xtol=1e-15)
+                return s, shift(pi, toward, s)
+            lo, hi = hi, 2 * hi
+    raise ValueError(f"total variation {tv} is out of reach toward this composition")
 
 
 def _deviations(profiles, weights):
@@ -179,6 +212,28 @@ def context_mask(k, p):
     d = column_digits(k)
     alone = (d[:, :, None] == d[:, None, :]).sum(axis=2) == 1
     return np.where(alone, p, 0.0)
+
+
+def rarity_mask(states, s, edges, p, u):
+    """SIM-2's masking of simulated alignments (decision 045), True where masked: a residue is masked
+    where u < min(1, s p[k]), k the bin edges[k] <= r < edges[k+1] (r = 1 in the last bin) of r, the
+    share of the other residues in its column identical to it. states is (taxa, sites) in 0..19, without
+    gaps; u holds one uniform draw per residue, and sharing it across strengths s nests the masks."""
+    states, u = np.asarray(states), np.asarray(u, dtype=float)
+    edges, p = np.asarray(edges, dtype=float), np.asarray(p, dtype=float)
+    if states.ndim != 2 or states.shape[0] < 2 or np.any((states < 0) | (states >= STATES)):
+        raise ValueError("states need two or more taxa and every residue in 0..19")
+    if u.shape != states.shape:
+        raise ValueError("u needs one draw per residue")
+    if (len(edges) != len(p) + 1 or edges[0] != 0.0 or edges[-1] != 1.0 or np.any(np.diff(edges) <= 0)
+            or np.any(p < 0)):
+        raise ValueError("edges must rise from 0 to 1, one more than the non-negative p")
+    taxa, sites = states.shape
+    counts = np.zeros((STATES, sites), dtype=int)
+    np.add.at(counts, (states, np.broadcast_to(np.arange(sites), states.shape)), 1)
+    r = (counts[states, np.arange(sites)] - 1) / (taxa - 1)
+    k = np.minimum(np.searchsorted(edges, r, side="right") - 1, len(p) - 1)
+    return u < np.minimum(1.0, s * p[k])
 
 
 def masked_fraction(weights, prob):

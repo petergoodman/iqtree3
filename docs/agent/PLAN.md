@@ -4,7 +4,7 @@
 > S5 comparison failed, counted and accepted by Peter; its cause, retired risk 27, settled by
 > decision 039's revision) and the branch is the first release
 > candidate; SIM-1, the first simulation slice (decision 040), closed 2026-11-18; SIM-2 planned and
-> approved 2026-11-19, its implementation next; approach accepted by the IQ-TREE maintainers (reported
+> approved 2026-11-19, its implementation under way; approach accepted by the IQ-TREE maintainers (reported
 > by Peter, 2026-10-01).**
 > Peter owns this document.
 
@@ -341,21 +341,20 @@ audits' low findings are in `CODE_PLAN.md` section 4, "Known and left alone".
   not 0.047 + 0.058), so power is measured directly (041). Gate record and counted failures:
   `CHANGELOG.md`, SIM-1 close; the audit's corrections: its fifth-session entry and commit `f181cf38`.
   SIM-2's arms: decision 045; specification `CODE_PLAN.md` section 3.8; transport 044; pass lines 021.
-- **SIM-2 (planned and approved 2026-11-19, no code yet):** the design, cells, methods, Puma execution
-  and Peter's runbook are `CODE_PLAN.md` section 3.8's "SIM-2's plan"; the task list is section 4. Every
-  NQC fit runs IQ-TREE capped at 20 rounds (stage P), then the oracle's climb (stage B, "highest found"
-  unless certified; decision 039). BAliBASE 3.0 is in place (CLAUDE.md, CLOAK). S6's list is written at
-  SIM-2's close.
+- **SIM-2 (planned and approved 2026-11-19; commit 2 done, the oracle additions):** the design, cells,
+  methods, Puma execution and Peter's runbook are `CODE_PLAN.md` section 3.8's "SIM-2's plan"; the task
+  list is section 4. Every NQC fit runs IQ-TREE capped at 20 rounds (stage P), then the oracle's climb
+  (stage B, `optimize.stage_b_climb`, "highest found" unless certified; decision 039). BAliBASE 3.0 is in
+  place (CLAUDE.md, CLOAK). S6's list is written at SIM-2's close.
 
 ## Next step
 
-SIM-2's implementation, commits 2 and 3 of `CODE_PLAN.md` section 4's SIM-2 list, in a new session
-started in plan mode with the prompt: "Implement SIM-2's commits 2 and 3 as `CODE_PLAN.md` section 4
-lists them, following section 3.8's 'SIM-2's plan': commit 2, the oracle additions with their tests;
-commit 3, the `pipeline.py` edits, `sim2.py` without `analyze`, `sim/cloak.py`, the sbatch script and
+SIM-2's commit 3 of `CODE_PLAN.md` section 4's SIM-2 list, started in plan mode with the prompt:
+"Implement SIM-2's commit 3 as `CODE_PLAN.md` section 4 lists it, following section 3.8's 'SIM-2's
+plan': the `pipeline.py` edits, `sim2.py` without `analyze`, `sim/cloak.py`, the sbatch script and
 `tests/test_sim2.py`, then the calibration (first and alone; stop for Peter if a 100-gene climb has not
 stalled by 4 h), the CLOAK curve, the smoke run and the cross-machine fixture, with a read-only code
 review before the commit. End with commit 3, a push when Peter asks, and Peter's preflight and
-submission." The session's own plan is its commits and steps; Peter can accept it and switch to auto.
+submission." The session's own plan is its steps; Peter can accept it and switch to auto.
 
 The working rules are in `CODE_PLAN.md` section 4, "Implementation".
