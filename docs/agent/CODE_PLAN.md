@@ -910,8 +910,12 @@ The fork workflow is `.github/workflows/fixedeq.yaml`:
   `github.repository == 'petergoodman/iqtree3'`.
 - **Unit tests.** Both variants on `ubuntu-22.04`, with the flags of `unittests.py`. A
   sanitizer report fails the job.
-- **Oracle tests.** In the environment created by micromamba from `environment.lock.txt`.
-- **NQC run, from S2.** Builds IQ-TREE on Linux and runs the S2 seed case.
+- **Oracle tests.** In the environment created by micromamba from `environment.lock.txt`, with
+  OpenBLAS held to its Haswell kernels (`OPENBLAS_CORETYPE`). The laptop's own kernels (Zen) give the
+  same bits; on SandyBridge, Nehalem or Prescott kernels the oracle's π* moves by up to 1.1e-16, and
+  `test_committed_target_is_the_oracles`, a bitwise check, fails, as it did on GitHub's runners from
+  2026-11-20 with the image and lock unchanged.
+- **NQC run, from S2.** Builds IQ-TREE on Linux and runs the S2 seed case, with the same kernels.
 - **Upstream.** The file is left out of the upstream pull request.
 
 ### 3.8 Simulation
@@ -1157,10 +1161,10 @@ given: on Puma, one under Peter's xdisk directory; on the laptop,
       hold: lnL rises less than 0.1; Ĉ moves less than 1e-4; and no rate among the 152 of 380 with the
       smallest fitted flux at the current iterate (the two lowest quintiles) moves by more than 0.01 in
       log. Low-flux rates lie in flat directions (risk 28), and their last-window movement is recorded.
-    - Time caps 2, 4, 6 and 6 h, still provisional. Under the calibration no climb stalled within its cap
-      (the low-flux condition), so Peter's cap rule found no stall time to project, and the scheduler
-      estimates each B at its cap. The rule and caps are open for Peter (PLAN.md, next step). SciPy's
-      endings are recorded.
+    - Time caps 2, 4, 6 and 6 h. Under the calibration no climb stalled within its cap (the low-flux
+      condition), so Peter's cap rule found no stall time to project, and the scheduler estimates each B
+      at its cap. Peter kept the rule and the caps for round 1 (2026-11-20); every B's final window
+      movements show whether the caps cut climbs short. SciPy's endings are recorded.
     - No projected Newton finish and no central-difference gradient.
     - Then `flux.certificate`: "certified peak", otherwise "highest found". B is deterministic given P.
   - **Certified subset, not run.** It would be `flux.fit` from B's endpoint on replicates 1 to 3 of R0
@@ -1290,7 +1294,10 @@ given: on Puma, one under Peter's xdisk directory; on the laptop,
      nodes.
   3. **Compute node, preflight** (`interactive -a <account> -n 12 -t 00:30:00`): `S checks --frozen
      <frozen> --gate <gate> --out <run dir>/preflight --git git`. It asserts the AliSim, pipeline, wiring
-     and cross-machine rows. Go on only if every row passes; otherwise send its `report.md`.
+     and cross-machine rows. Go on only if every row passes; otherwise send its `report.md`. Then, from
+     outside the clone, `python -m pytest <clone>/test_scripts/fixedeq/tests/test_sim.py::test_committed_target_is_the_oracles
+     -q -p no:cacheprovider`: whether Puma's OpenBLAS gives the laptop's π* bitwise (section 3.7). A
+     failure there, with every row passing, is reported, not a stop.
   4. **Login node, a test job** (a scratch directory outside the clone and the run directory):
      `sbatch --account=<account> --partition=standard --cpus-per-task=4 --time=00:20:00
      <clone>/test_scripts/fixedeq/sim/slurm/sim2.sbatch 1 5 <scratch>/test <frozen> <gate> <clone>`.
@@ -1419,8 +1426,8 @@ given: on Puma, one under Peter's xdisk directory; on the laptop,
   With every B at its cap, as the calibration found, `sim2.design`'s projection (the scheduler on the
   estimates, 5 shards of 94 cores, 46 h) gives:
   - 19,718 charged plus 7,161 core-hours left for round 2, total 26,879, at the estimates;
-  - 21,098 plus 19,296, total 40,394, at 1.5 times them. That is above the 40,000 ceiling, and open for
-    Peter.
+  - 21,098 plus 19,296, total 40,394, at 1.5 times them, above the 40,000 ceiling. Peter approved round
+    1 as designed, with round 2 decided on the measured times (2026-11-20).
 
 ## 4. Per-slice lists
 
@@ -1640,8 +1647,8 @@ sanitizer run. Commits:
      - the laptop's `sim2.py checks` against the fixture, every row passing;
      - the runbook finalized, and `CLAUDE.md`'s SIM-2 commands.
    - **3c, done 2026-11-20:** CLOAK's curve, `sim/masking/cloak_curve.tsv` (section 3.8, laptop step 2).
-   - Then a push when Peter asks, and Peter's preflight and submission, after his decisions on the stall
-     rule and caps and on the 1.5 times projection (PLAN.md, next step).
+   - Pushed 2026-11-20 with Peter's two decisions taken (stall rule and caps kept; round 1 as designed).
+     Then Peter's preflight and submission of all five shards.
 4. `sim2.py analyze`, written while Puma runs, with vector figures in a colour-blind-safe palette.
 5. The close: rounds collected and analysed with MCSEs; the gate record; records; S6's and S7's lists;
    the AI_DISCLOSURE entry.

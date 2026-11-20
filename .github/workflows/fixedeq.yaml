@@ -58,6 +58,10 @@ jobs:
     name: Oracle tests
     if: github.repository == 'petergoodman/iqtree3'
     runs-on: ubuntu-22.04
+    # OpenBLAS's Haswell kernels, with which the committed values (sim/target.txt) reproduce bitwise; on
+    # other kernels the oracle's pi* moves in its last bits (CODE_PLAN.md 3.7)
+    env:
+      OPENBLAS_CORETYPE: Haswell
     defaults:
       run:
         shell: bash
@@ -78,6 +82,8 @@ jobs:
     name: NQC seed case
     if: github.repository == 'petergoodman/iqtree3'
     runs-on: ubuntu-22.04
+    env:
+      OPENBLAS_CORETYPE: Haswell   # as in the oracle job
     defaults:
       run:
         shell: bash

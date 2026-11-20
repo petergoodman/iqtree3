@@ -320,7 +320,8 @@ audits' low findings are in `CODE_PLAN.md` section 4, "Known and left alone".
 - **Continuous integration:** Actions is back on since 2026-10-22. Upstream's Build workflow is
   switched off on the fork's Actions page (`ci.yaml` unchanged), so the fork no longer checks the
   macOS, Windows or ARM builds. fixedeq's first run (39817703469, `76dd4301`) passed all jobs, as
-  did the run on S4 and its audit (40550150265, `548dad20`).
+  did the run on S4 and its audit (40550150265, `548dad20`). Its Python jobs hold OpenBLAS to its
+  Haswell kernels, since other kernels move the oracle's π* in its last bits (`CODE_PLAN.md` 3.7).
 - **Independent reference (S5):** the balanced-flux reference (decision 042) passed its known-answer
   validation and, on toy, toy300 and twopart, reached the peak that the z climbs from NQC's relaxed
   endpoint reached; on aa_example the z climb met its first-order test 0.299 below the reference's
@@ -341,36 +342,24 @@ audits' low findings are in `CODE_PLAN.md` section 4, "Known and left alone".
   not 0.047 + 0.058), so power is measured directly (041). Gate record and counted failures:
   `CHANGELOG.md`, SIM-1 close; the audit's corrections: its fifth-session entry and commit `f181cf38`.
   SIM-2's arms: decision 045; specification `CODE_PLAN.md` section 3.8; transport 044; pass lines 021.
-- **SIM-2 (planned and approved 2026-11-19; commits 2 and 3 done, not yet submitted):** the design, cells, methods, Puma
+- **SIM-2 (planned and approved 2026-11-19; commits 2 and 3 done and pushed, not yet submitted):** the design, cells, methods, Puma
   execution and Peter's runbook are `CODE_PLAN.md` section 3.8's "SIM-2's plan"; the task list is section
   4. Every NQC fit runs IQ-TREE capped at 20 rounds (stage P), then the oracle's climb (stage B,
   `optimize.stage_b_climb`, "highest found" unless certified; decision 039). The drivers (`sim2.py`,
   `cloak.py`, the sbatch script) are written, reviewed and smoke-tested. In the calibration no climb
-  stalled within its cap, so B's caps are still provisional (section 3.8). BAliBASE 3.0 is in place
+  stalled within its cap; Peter kept the stall rule and the caps for round 1 (section 3.8). BAliBASE 3.0 is in place
   (CLAUDE.md, CLOAK). S6's list is written at SIM-2's close.
 
 ## Next step
 
-SIM-2's submission. Commit 3 is complete (3a, 3b, 3c: the drivers, the fixture and CLOAK's curve).
+SIM-2's submission. Commit 3 is complete (3a, 3b, 3c: the drivers, the fixture and CLOAK's curve) and
+pushed (`909e8c05`). Peter kept stage B's stall rule and caps, and approved round 1 as designed with
+round 2 decided on the measured times (2026-11-20; `CODE_PLAN.md` 3.8).
 
 Remaining steps:
-1. A push to `origin nq-constrained-pi` when Peter asks.
-2. Peter's runbook (`CODE_PLAN.md` 3.8): preflight, the test job, then shards 1 to 5.
-3. While Puma runs, commit 4 (`sim2.py analyze`) in a new session.
-
-Before submission Peter decides two things.
-
-1. **Stage B's stall rule and caps.** The rule's low-flux condition kept every calibration climb from
-   stalling, so every B runs to its cap (2, 4, 6 and 6 h, provisional).
-   - At 100 genes the lnL and Ĉ conditions alone would have stopped the climb at iteration 642, after
-     which it gained another 7.0 lnL.
-   - At 30 genes they would have stopped it at iteration 322, 0.06 below the endpoint.
-   - The choices: keep the rule and caps; loosen the low-flux line from 0.01; or drop the condition.
-   - The agent recommends keeping both. Every B records its final window movements, so round 1 shows
-     whether the caps cut climbs short, and the budget guard acts after each round.
-2. **The budget at 1.5 times the estimates.** With every B at its cap the projection is 26,879 charged
-   core-hours at the estimates and 40,394 at 1.5 times them, above the 40,000 ceiling (risk 26). The agent
-   recommends submitting round 1 as designed and deciding round 2 on the measured times, as the runbook's
-   budget check already provides.
+1. Peter's runbook (`CODE_PLAN.md` 3.8) at `909e8c05`: preflight, with the target test after it; the
+   test job; then shards 1 to 5.
+2. While Puma runs, commit 4 (`sim2.py analyze`) in a new session.
+3. After each round, the projection from measured times against the 40,000 ceiling (risk 26).
 
 The working rules are in `CODE_PLAN.md` section 4, "Implementation".
