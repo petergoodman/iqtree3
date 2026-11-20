@@ -341,7 +341,7 @@ audits' low findings are in `CODE_PLAN.md` section 4, "Known and left alone".
   not 0.047 + 0.058), so power is measured directly (041). Gate record and counted failures:
   `CHANGELOG.md`, SIM-1 close; the audit's corrections: its fifth-session entry and commit `f181cf38`.
   SIM-2's arms: decision 045; specification `CODE_PLAN.md` section 3.8; transport 044; pass lines 021.
-- **SIM-2 (planned and approved 2026-11-19; commits 2 and 3a done):** the design, cells, methods, Puma
+- **SIM-2 (planned and approved 2026-11-19; commits 2 and 3 done, not yet submitted):** the design, cells, methods, Puma
   execution and Peter's runbook are `CODE_PLAN.md` section 3.8's "SIM-2's plan"; the task list is section
   4. Every NQC fit runs IQ-TREE capped at 20 rounds (stage P), then the oracle's climb (stage B,
   `optimize.stage_b_climb`, "highest found" unless certified; decision 039). The drivers (`sim2.py`,
@@ -351,17 +351,14 @@ audits' low findings are in `CODE_PLAN.md` section 4, "Known and left alone".
 
 ## Next step
 
-SIM-2's commit 3c (`CODE_PLAN.md` section 4), CLOAK's curve. `sim/cloak.py run` started 2026-11-20 at 05:17
-(laptop time) from `36fc6bc8`'s clean tree, into `~/iqtree3-runs/sim2/20261120T121706Z-36fc6bc8-cloak-run`;
-its estimate is 3 to 30 h.
-- If it is still running, leave it.
-- If it was stopped, rerun the same command with `--out` on that directory; finished cases are
-  skipped.
-- When every case is done, run `cloak.py curve --run <that directory>` with the same two paths, from a
-  clean tree (`CLAUDE.md`, SIM-2 commands), and commit the curve as 3c.
+SIM-2's submission. Commit 3 is complete (3a, 3b, 3c: the drivers, the fixture and CLOAK's curve).
 
-Then a push when Peter asks, and Peter's runbook (`CODE_PLAN.md` 3.8): preflight; test job; shards 1 to 4,
-which can go before the curve; shard 5 after 3c. Before submission Peter decides two things.
+Remaining steps:
+1. A push to `origin nq-constrained-pi` when Peter asks.
+2. Peter's runbook (`CODE_PLAN.md` 3.8): preflight, the test job, then shards 1 to 5.
+3. While Puma runs, commit 4 (`sim2.py analyze`) in a new session.
+
+Before submission Peter decides two things.
 
 1. **Stage B's stall rule and caps.** The rule's low-flux condition kept every calibration climb from
    stalling, so every B runs to its cap (2, 4, 6 and 6 h, provisional).

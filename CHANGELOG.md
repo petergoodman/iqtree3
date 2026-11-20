@@ -8,11 +8,11 @@ gate record and may run to 25 lines. The next session starts from the top entry.
 This is a fork of `iqtree/iqtree3`. Entries here describe work on the fork, not upstream
 development.
 
-## 2026-11-19 to 20 (eighth session, overnight unattended): SIM-2 commits 2, 3a and 3b
+## 2026-11-19 to 20 (eighth session, overnight unattended): SIM-2 commits 2 and 3 (3a to 3c)
 
-- **Done.** Commit 2, the oracle additions (`05413d2b`). Commit 3a (`36fc6bc8`): the pipeline additions,
+- **Done.** Commit 2, the oracle additions (`05413d2b`). 3a (`36fc6bc8`): the pipeline additions,
   `sim2.py`, `cloak.py`, the sbatch script and the calibration script, with 23 new tests (pytest 422).
-  Commit 3b: the fixture from `700ceafb` (laptop checks against it all pass), the runbook, SIM-2 commands.
+  3b (`be3451c9`): the fixture (laptop checks pass), the runbook. 3c: CLOAK's curve, 218 cases in 6.7 h.
 - **Peter decided:** the stall rule's net-change reading and pgtol 1e-6; commit 3 split into 3a and 3b;
   rules for the certified subset and B's caps; CLOAK's r and bins.
 - **Calibration:** no climb stalled (the low-flux condition); no certified subset. The stop fired: Peter's
@@ -20,7 +20,7 @@ development.
 - **Failed:** the scheduler starved wide phases (EASY backfilling added); seed key 0 would repeat gene
   seeds (key 1000); the first calibration crashed writing its record (rerun); two smoke runs stopped
   (5 genes too slow); the fixture's first write (no directory) and second (no commit in it).
-- **Next.** CLOAK, running, then its curve as 3c (PLAN's next step); Peter's two decisions; push, runbook.
+- **Next.** Peter's two decisions, a push, his runbook (all 5 shards); then commit 4, `analyze`.
 
 ## 2026-11-19 (seventh session): SIM-2 planned and approved (decisions 013, 021, 039, 045)
 

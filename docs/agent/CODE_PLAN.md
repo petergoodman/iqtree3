@@ -1351,6 +1351,17 @@ given: on Puma, one under Peter's xdisk directory; on the laptop,
      - Output: removal frequency by r bin with case-bootstrap intervals, the overall fraction, and
        core columns beside it, written to `sim/masking/cloak_curve.tsv` with CLOAK's SHA-256.
      - Estimated 3 to 30 h; largest cases first.
+
+     **Done 2026-11-20.**
+     - `cloak.py run` from `36fc6bc8`'s clean tree, 3 jobs of 4 threads, about 6.7 h:
+       `~/iqtree3-runs/sim2/20261120T121706Z-36fc6bc8-cloak-run`. All 218 cases aligned and mapped (exit
+       0); the four largest took about an hour each.
+     - `cloak.py curve` from `be3451c9`'s clean tree. Results:
+       - 218 cases used, none excluded; 57,448 residues alone in their column excluded;
+       - removed overall 12.7%, in core columns 1.7%;
+       - by r: 34.5% at r below 1/51 (95% interval 29.5 to 39.2%), 11.8 to 14.8% up to r 0.2, then
+         falling to 0.6 to 1.6% above r 0.8, with small bumps rather than a steady decline.
+     - The curve's header carries the commit, the run, and CLOAK's, the mapper's and BAliBASE's SHA-256.
   3. **Smoke run:** every task type at 5 genes and 2 rounds with short climbs, in minutes. It covers
      `--init-model` under linked `-q`, Level 2, GTR20+F with frequency replacement, masking, profiles,
      shifts, pruning, the deadline and resume, and `collect`.
@@ -1628,8 +1639,7 @@ sanitizer run. Commits:
        ceiling row fails at 1.5 times, for Peter);
      - the laptop's `sim2.py checks` against the fixture, every row passing;
      - the runbook finalized, and `CLAUDE.md`'s SIM-2 commands.
-   - **3c:** CLOAK's curve. `cloak.py run` is running from `36fc6bc8` (PLAN.md, next step); then
-     `cloak.py curve` from a clean tree.
+   - **3c, done 2026-11-20:** CLOAK's curve, `sim/masking/cloak_curve.tsv` (section 3.8, laptop step 2).
    - Then a push when Peter asks, and Peter's preflight and submission, after his decisions on the stall
      rule and caps and on the 1.5 times projection (PLAN.md, next step).
 4. `sim2.py analyze`, written while Puma runs, with vector figures in a colour-blind-safe palette.
