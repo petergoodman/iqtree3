@@ -158,9 +158,22 @@ cmake --build ~/iqtree3-build -j 4
     run directory, and the run directory, logs and any file Peter makes stay outside the clone;
     otherwise every job stops at its clean-tree check.
   - **Where things are.** Runbook, design and cost: `CODE_PLAN.md` 3.8, "SIM-2's plan"; the budget
-    ceiling: PLAN.md risk 26. Driver `test_scripts/fixedeq/sim/sim2.py` (`design`, `checks`, `run`,
-    `collect`, `analyze`) and `sim/slurm/sim2.sbatch`, both from SIM-2's commit 3, which adds their
-    invocations here.
+    ceiling: PLAN.md risk 26.
+  - **SIM-2 commands** (driver `test_scripts/fixedeq/sim/sim2.py`; full usage in its docstring):
+    - On the laptop, in WSL's conda, with `--git git.exe`:
+      - `sim2.py design` (tasks, shards, the cost projection);
+      - `sim2.py checks --frozen ~/iqtree3-baseline/iqtree3 --gate ~/iqtree3-binaries/25d78d6e/iqtree3`
+        (with `--write-fixture` it writes `sim/fixtures/sim2_crossmachine.json`);
+      - `sim2.py run --smoke --skip-checks --out DIR --shard 1 --shards 1 --cores 12 --curve FILE ...`
+        (the smoke run);
+      - `sim2.py collect --out RUNDIR`.
+    - On Puma, through `sim/slurm/sim2.sbatch SHARD SHARDS RUNDIR FROZEN GATE CLONE` (runbook steps 4
+      and 5), with `--git git`.
+    - CLOAK's curve: `sim/cloak.py run --balibase ~/iqtree3-data/raw/balibase/BAliBASE_R1-5.tar.gz
+      --cloak-dir ~/iqtree3-data/tools/muscle-cloak-v0.3.0`, resumable with `--out` on the same
+      directory; then `cloak.py curve --run RUNDIR` with the same two paths. It writes
+      `sim/masking/cloak_curve.tsv`, never over an existing file.
+    - The calibration: `explore/stage_b_calibration.py --pilot DIR`.
 - **`python` in the Bash tool is the Windows Store alias** and hangs waiting for input; never call it
   there (three hangs on 2026-11-16 and 17). Python runs only through WSL's conda, as above.
 - **Long jobs need the laptop awake.** Windows Modern Standby pauses the WSL VM and every job in

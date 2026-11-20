@@ -1278,23 +1278,37 @@ given: on Puma, one under Peter's xdisk directory; on the laptop,
     first. Shard 5, holding D and F, follows once the curve is committed.
 - **Peter's runbook.** The account and paths are placeholders; the real values never appear in
   committed files.
+  `S` below stands for `python <clone>/test_scripts/fixedeq/sim/sim2.py`, run with the conda block
+  loaded (`CLAUDE.md`, Puma). `interactive`'s flags are `-a` (account, which selects the standard
+  partition), `-n` (CPUs) and `-t` (hh:mm:ss) (hpcdocs.hpc.arizona.edu, "Interactive jobs", read
+  2026-11-20).
   1. **Login node** (`ssh hpc.arizona.edu`, then `shell`): clone or pull the fork into the xdisk
      directory, then `git checkout <commit>`. The tree must be clean, since the drivers refuse an
      unclean one. The binaries are already there (verified 2026-11-18).
-  2. **Compute node, once** (`interactive -a <account> -t 1:00:00`): `conda create -n iqtree3-fixedeq
-     --file test_scripts/fixedeq/environment.lock.txt`. Modules exist only on compute nodes.
-  3. **Compute node, preflight** (`interactive -a <account> -t 0:30:00`, 12 or more cores; the core flag
-     is checked against Puma's documentation when this runbook is finalized): `sim2.py checks` asserts
-     the AliSim, pipeline, wiring and cross-machine rows. Go on only if every row passes; otherwise
-     send `checks/report.md`.
-  4. **Login node, from the run directory** (outside the clone, so that Slurm's log files stay out of
-     it): for k = 1 to 5, `sbatch --account=<account> --partition=standard --cpus-per-task=94
-     <clone>/test_scripts/fixedeq/sim/slurm/sim2.sbatch k 5 <run dir> <frozen> <gate>`.
-  5. **Login node:** watch with `squeue -u $USER` and each job's `slurm-*.out`.
-  6. **After each round:** run `sim2.py collect` (compute node, since conda loads only there), download the tarball with
-     WinSCP (`filexfer.hpc.arizona.edu`) into
-     `\\wsl.localhost\Debian\home\petergoodman\iqtree3-runs\sim2\`, and tell the agent.
-     Resubmit only the shards it names, with the core counts it names. Finished phases are skipped.
+  2. **Compute node, once** (`interactive -a <account> -n 4 -t 01:00:00`): `conda create -n
+     iqtree3-fixedeq --file test_scripts/fixedeq/environment.lock.txt`. Modules exist only on compute
+     nodes.
+  3. **Compute node, preflight** (`interactive -a <account> -n 12 -t 00:30:00`): `S checks --frozen
+     <frozen> --gate <gate> --out <run dir>/preflight --git git`. It asserts the AliSim, pipeline, wiring
+     and cross-machine rows. Go on only if every row passes; otherwise send its `report.md`.
+  4. **Login node, a test job** (a scratch directory outside the clone and the run directory):
+     `sbatch --account=<account> --partition=standard --cpus-per-task=4 --time=00:20:00
+     <clone>/test_scripts/fixedeq/sim/slurm/sim2.sbatch 1 5 <scratch>/test <frozen> <gate> <clone>`.
+     - Its `slurm-*.out` should show the checks passing and phases starting before the time limit stops
+       it.
+     - This tests the conda block in a batch shell, which the interactive preflight does not, at about
+       1.3 charged core-hours.
+     - Delete `<scratch>/test` afterwards.
+  5. **Login node, from the run directory** (outside the clone, so that Slurm's log files stay out of
+     it): for k = 1 to 4, `sbatch --account=<account> --partition=standard
+     <clone>/test_scripts/fixedeq/sim/slurm/sim2.sbatch k 5 <run dir> <frozen> <gate> <clone>`. The
+     script asks for 94 CPUs; `--cpus-per-task` overrides that for leftovers. Then k = 5 once CLOAK's
+     curve is in the checked-out commit; `run` refuses shard 5 without it.
+  6. **Login node:** watch with `squeue -u $USER` and each job's `slurm-*.out`.
+  7. **After each round:** run `S collect --out <run dir>` (compute node, since conda loads only there),
+     download the tarball with WinSCP (`filexfer.hpc.arizona.edu`) into
+     `\\wsl.localhost\Debian\home\petergoodman\iqtree3-runs\sim2\`, and tell the agent. Resubmit only the
+     shards it names, with the core counts it names. Finished phases are skipped.
 - **Laptop work before submission,** in this order:
   1. **Calibration.** An engineering measurement, recorded here with its commands, about 3 to 5 h, run
      alone because it times the climb. `stage_b_climb` runs from the pilot's capped 30-gene and
@@ -1359,6 +1373,16 @@ given: on Puma, one under Peter's xdisk directory; on the laptop,
      - `collect` wrote its tarball.
   4. **Cross-machine fixture:** replicate 1 of R0 and of the profile mechanism at 30 genes, with the
      genes' SHA-256 written to `sim/fixtures/sim2_crossmachine.json`.
+
+     **Done 2026-11-20** by `sim2.py checks --frozen ~/iqtree3-baseline/iqtree3 --gate
+     ~/iqtree3-binaries/25d78d6e/iqtree3 --write-fixture --git git.exe`, from `700ceafb`'s clean tree
+     (`~/iqtree3-runs/sim2/20261120T122920Z-700ceafb-checks`). Every asserted row passed: AliSim exact, and
+     the pipeline and wiring rows for R0, D1, NQ and QB. Two earlier attempts:
+     - at `36fc6bc8` the write failed, because `sim/fixtures/` did not exist (fixed at `90029321`);
+     - at `90029321` the fixture lacked its commit and date, so it was deleted uncommitted (fixed at
+       `700ceafb`).
+
+     The laptop's `sim2.py checks` against the fixture is recorded in `CHANGELOG.md`.
 
   `analyze` is written while Puma runs.
 - **Cost** (planning estimates). The model is built from S3c's 2.55 ms per 500 columns at 20 taxa (T1),
@@ -1597,14 +1621,17 @@ sanitizer run. Commits:
          classification or `cmd_collect`'s filter; the smoke run exercises them;
        - `nqc_state` and `stage_b` are tested only by the calibration and the smoke run;
        - the GTR20 and Level 2 checkpoint readers are confirmed on real checkpoints only by the smoke run.
-   - **3b.**
-     - From 3a's clean tree: the cross-machine fixture (`sim2.py checks --write-fixture`), the CLOAK
-       measurement (`cloak.py run`, then `cloak.py curve`) and `sim2.py design`.
-     - `sim2.py checks` on the laptop, every row passing.
-     - The runbook finalized, and `CLAUDE.md`'s Puma commands.
-     - If the curve is not ready, 3b goes without it and 3c adds it (CLOAK contingency).
-     - Then a push when Peter asks, and Peter's preflight and submission, after his decisions on the
-       stall rule and caps and on the 1.5 times projection (PLAN.md, next step).
+   - **3b, done 2026-11-20 without the curve** (CLOAK contingency):
+     - the cross-machine fixture, from `700ceafb`'s clean tree (section 3.8, laptop step 4), after two
+       fixes to its writing;
+     - `sim2.py design` from `36fc6bc8` (`~/iqtree3-runs/sim2/20261120T121651Z-36fc6bc8-design`; its
+       ceiling row fails at 1.5 times, for Peter);
+     - the laptop's `sim2.py checks` against the fixture, every row passing;
+     - the runbook finalized, and `CLAUDE.md`'s SIM-2 commands.
+   - **3c:** CLOAK's curve. `cloak.py run` is running from `36fc6bc8` (PLAN.md, next step); then
+     `cloak.py curve` from a clean tree.
+   - Then a push when Peter asks, and Peter's preflight and submission, after his decisions on the stall
+     rule and caps and on the 1.5 times projection (PLAN.md, next step).
 4. `sim2.py analyze`, written while Puma runs, with vector figures in a colour-blind-safe palette.
 5. The close: rounds collected and analysed with MCSEs; the gate record; records; S6's and S7's lists;
    the AI_DISCLOSURE entry.

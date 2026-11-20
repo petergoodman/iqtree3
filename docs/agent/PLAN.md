@@ -351,9 +351,17 @@ audits' low findings are in `CODE_PLAN.md` section 4, "Known and left alone".
 
 ## Next step
 
-SIM-2's commit 3b (`CODE_PLAN.md` section 4): the cross-machine fixture and CLOAK's curve from 3a's clean
-tree, `sim2.py design` and `checks`, and the runbook finalized. Then a push when Peter asks, and Peter's
-preflight and submission. Before submission Peter decides two things.
+SIM-2's commit 3c (`CODE_PLAN.md` section 4), CLOAK's curve. `sim/cloak.py run` started 2026-11-20 at 05:17
+(laptop time) from `36fc6bc8`'s clean tree, into `~/iqtree3-runs/sim2/20261120T121706Z-36fc6bc8-cloak-run`;
+its estimate is 3 to 30 h.
+- If it is still running, leave it.
+- If it was stopped, rerun the same command with `--out` on that directory; finished cases are
+  skipped.
+- When every case is done, run `cloak.py curve --run <that directory>` with the same two paths, from a
+  clean tree (`CLAUDE.md`, SIM-2 commands), and commit the curve as 3c.
+
+Then a push when Peter asks, and Peter's runbook (`CODE_PLAN.md` 3.8): preflight; test job; shards 1 to 4,
+which can go before the curve; shard 5 after 3c. Before submission Peter decides two things.
 
 1. **Stage B's stall rule and caps.** The rule's low-flux condition kept every calibration climb from
    stalling, so every B runs to its cap (2, 4, 6 and 6 h, provisional).
