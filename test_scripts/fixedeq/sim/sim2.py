@@ -615,9 +615,9 @@ def cmd_phase(a):
 
 # ---------------------------------------------------------------- checks
 
-def checks(out, frozen, gate, git, allow_dirty, write_fixture=False):
+def checks(out, frozen, gate, git, allow_dirty, write_fixture=False, prov=None):
     """Rows of decision 021's job-start checks; with write_fixture, the cross-machine genes are written to FIXTURE
-    instead of compared with it."""
+    instead of compared with it, with prov's commit, cleanliness, date and run directory."""
     tree, loci = pl.read_scaffold(SCAFFOLD)
     rows = []
     cmd = [sys.executable, str(HERE / "alisim_check.py"), "run", "--frozen", str(frozen), "--gate", str(gate), "--out",
@@ -641,7 +641,8 @@ def checks(out, frozen, gate, git, allow_dirty, write_fixture=False):
         rows += found
     if write_fixture:
         FIXTURE.parent.mkdir(parents=True, exist_ok=True)
-        write(FIXTURE, json.dumps({"provenance": {"script": SCRIPT, "base": BASE, "genes": 30, "replicate": 1,
+        made = {k: (prov or {}).get(k) for k in ("git_commit", "git_clean", "started_utc", "out")}
+        write(FIXTURE, json.dumps({"provenance": {"script": SCRIPT, **made, "base": BASE, "genes": 30, "replicate": 1,
                                                   "frozen_sha256": sha256(frozen)}, "genes": genes}, indent=1) + "\n")
         rows.append(check("cross-machine fixture written", None, path=str(FIXTURE)))
     else:
@@ -661,7 +662,7 @@ def cmd_checks(a):
     prov = common.provenance(a, SCRIPT, "checks", "confirmatory", write_fixture=a.write_fixture)
     out = common.new_out(a.out, prov, runs=RUNS)
     frozen, gate, prov["binaries"] = binaries(a)
-    common.finish(out, prov, "SIM-2 checks", checks(out, frozen, gate, a.git, a.allow_dirty, a.write_fixture))
+    common.finish(out, prov, "SIM-2 checks", checks(out, frozen, gate, a.git, a.allow_dirty, a.write_fixture, prov))
 
 
 # ---------------------------------------------------------------- design, run, collect
