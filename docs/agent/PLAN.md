@@ -219,7 +219,7 @@ and S7's two bootstraps complete them. The slices run in the order decision 040 
 | 24 | Fits stop short of their peaks under IQ-TREE's stopping rules, for every model, so comparing two fits' scores (box against wide, NQC against NONREV, D08's arms) needs a convergence protocol. IQ-TREE's optimizer stays unchanged (decision 009). At scale the shortfall grows: SIM-1's 100-gene fit, capped at 20 rounds, sat at least 90 below the oracle's climb from its endpoint. The stopping rules and the measurements: `UPSTREAM_FINDINGS.md`, Risk 24 | Testing: S3c's first part (done 2026-10-25). Science: decision 039 (SIM-2's stages P and B) |
 | 26 | Compute: SIM-2 and S7 run on UA HPC's Puma under UA's agentic AI policy and Peter's norms (`CLAUDE.md`, Puma). SIM-2's cost model (`CODE_PLAN.md` 3.8; estimates from SIM-1's pilot and S3c, with Puma's per-core speed, thread efficiency, evaluation and climb iteration counts assumed): 308 NQC fits with stage B and 176 GTR20 fits, about 19,700 charged core-hours in one 48 h round, rising to at least 26,300 to 39,900 over two or three rounds if the climbs run long or the estimates are 1.5 times low. S7, unverified extrapolation from S3c (`docs/agent/archive/SIM_plan_2026-11-07.md`, Appendix C): one NQC `-S` fit at 190 taxa and 1000 genes about 80 core-hours; NQC's first linked fit from LG took 5,000 to 13,000 evaluations and each later round 700 to 4,400, so a training run's cost is set by its first fit and its round count. SIM-1's pilot on the laptop (`-T 6`, round cap 20): 26 to 48 min and 0.6 GB a fit at 30 genes, 2.4 h and 1.5 GB at 100; at 1000 genes IQ-TREE asked for 10.1 GB | Peter's ceiling, 40,000 charged core-hours (2026-11-19): the agent projects the total from measured times after each round and stops for Peter only above it |
 | 28 | SIM-1's 100-gene NQ.bird fit (pilot, 20-round cap) pushed a few low-flux rates toward the domain floor (5 of the chart's z coordinates within 1 of the lower bound, none at it), always underestimated, the same pairs across replicates (K→G, K→P, E→P, V→P, N→A, N→G; across the pilot's fits the largest errors sit at flux ranks 119 to 309 of 380); its unweighted log-rate RMS rose to 1.11 from 0.72 to 0.97 at 30 genes while the two highest-flux quintiles improved (RMS 0.04, 0.09) (`explore/pilot_rate_errors.py`, commit `f181cf38`). Two parts, by a planning measurement on 2026-11-19 (exploratory, SIM-2 plan archive): at 100 genes mostly IQ-TREE's process stopping short, since the oracle's climb from the capped endpoint cut the third flux quintile's pair-sum log error from 0.55 to 0.22; at 30 genes the higher point pushed the lowest-flux rates further down (0.80 to 1.35) | SIM-2 (decision 045; aim 7, stage P against stage B) |
-| 29 | CR, the code consolidation and reuse review (a side excursion, not a slice): the maintainers' comments, reported by Peter on 2026-11-20 and made in discussion rather than from the code, that NQC's new files be condensed into one and that its reuse of IQ-TREE's code and commands (NONREV and `ModelMarkov` as the base) be checked. A consolidation that is not bitwise equal at `-T 1` to SIM-2's binary (`~/iqtree3-binaries/25d78d6e/`) would separate the submitted code from the validated code. Open choices: the chart's layout, the hooks' form, whether changes that alter numbers or the interface wait for SIM-2 and the maintainers' reply, the route to the maintainers, the branch's name (findings and the agent's recommendations: `docs/agent/archive/CR_brief_2026-11-20.md`) | Peter's choices, then CR's equivalence check (`CODE_PLAN.md` section 4, CR) |
+| 29 | CR, the code consolidation and reuse review (a side excursion, not a slice): the maintainers' comments, reported by Peter on 2026-11-20 and made in discussion rather than from the code, that NQC's new files be condensed into one and that its reuse of IQ-TREE's code and commands (NONREV and `ModelMarkov` as the base) be checked. A consolidation that is not bitwise equal at `-T 1` to SIM-2's binary (`~/iqtree3-binaries/25d78d6e/`) would separate the submitted code from the validated code. Open choices: the chart's layout; the hooks' form (three forms since the reuse review); whether other changes that alter numbers or the interface wait for SIM-2 and the maintainers' reply; whether the copies that exist because `ModelMarkov` and `Optimization` stay unedited (decisions 009, 015) are offered to the maintainers as a proposal, Peter leaning towards keeping both unchanged; the route to the maintainers; the branch's name. Taken: the reuse review's message and help fixes come into CR as one labelled commit (Peter, 2026-11-21). Findings and the agent's recommendations: `docs/agent/archive/CR_brief_2026-11-20.md` and `CR_reuse_review_2026-11-21.md` | Peter's choices, then CR's equivalence check (`CODE_PLAN.md` section 4, CR) |
 
 Retired risk numbers:
 
@@ -354,9 +354,15 @@ audits' low findings are in `CODE_PLAN.md` section 4, "Known and left alone".
   `cloak.py`, the sbatch script) are written, reviewed and smoke-tested. In the calibration no climb
   stalled within its cap; Peter kept the stall rule and the caps for round 1 (section 3.8). BAliBASE 3.0 is in place
   (CLAUDE.md, CLOAK). S6's list is written at SIM-2's close.
-- **CR (a side excursion, not a slice; prepared 2026-11-20, not started):** the code consolidation and
-  reuse review behind risk 29, on a side branch (decision 001; `CLAUDE.md`, Git). Task list and checks:
-  `CODE_PLAN.md` section 4, CR; investigation: `docs/agent/archive/CR_brief_2026-11-20.md`.
+- **CR (a side excursion, not a slice; its reuse review done, the consolidation not started):** the
+  code consolidation and reuse review behind risk 29, on a side branch (decision 001; `CLAUDE.md`,
+  Git). Task list and checks: `CODE_PLAN.md` section 4, CR; investigation:
+  `docs/agent/archive/CR_brief_2026-11-20.md`; reuse review:
+  `docs/agent/archive/CR_reuse_review_2026-11-21.md`. The review found about 50 lines of NQC that
+  could reuse IQ-TREE with outputs bitwise unchanged, about 75 copied only because decisions 009 and
+  015 keep `ModelMarkov` and `Optimization` unedited, and a user-facing command set that departs from
+  nQMaker's only where π* or a recorded reason requires. `-S` with a folder takes NONREV's path by
+  reading, but no NQC run has used one.
 
 ## Next step
 
@@ -373,6 +379,7 @@ Remaining steps:
 3. After each round, the projection from measured times against the 40,000 ceiling (risk 26).
 
 Side work while Puma runs, in its own sessions and in either order with step 1: CR (`CODE_PLAN.md`
-section 4, CR), starting with the read-only reuse review.
+section 4, CR). Its reuse review is done; next come Peter's open choices on risk 29, then the CR plan
+session in plan mode.
 
 The working rules are in `CODE_PLAN.md` section 4, "Implementation".

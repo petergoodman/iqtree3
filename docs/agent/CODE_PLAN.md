@@ -117,9 +117,11 @@ Construction (decisions 002, 006, 011):
 4. For a reversible seed, set `state_freq = π*`, then call `setReversible(false)`, which
    converts R into R_ij π*_j, roots an unrooted tree and keeps a rooted one (verified,
    `model/modelmarkov.cpp:112-119`, `145-149`). For a non-reversible seed, keep its jump chain
-   (`transferSeed`) and do not call `setReversible(false)`, which zeroes `rates[]` on a model that
-   is already non-reversible (verified, `model/modelmarkov.cpp:133-137`); apply its rooting rule
-   instead (lines 145-149), since nothing else roots the tree for a model read with adaptation off.
+   (`transferSeed`) and apply `setReversible(false)`'s rooting rule by hand (lines 145-149), since
+   nothing else roots the tree for a model read with adaptation off. The call itself would also
+   zero `rates[]` (verified, `model/modelmarkov.cpp:133-137`), which is harmless there: the seed
+   has already been read out of `rates[]`, and the constructor's decomposition rewrites it from
+   the coordinates (CR reuse review, section 1.2).
 5. Build LG at π* from the built-in models block and take the references from it, whatever the
    start (decision 011).
 6. Encode the start through the inverse chart. The start is not checked against the domain; as
@@ -1672,28 +1674,56 @@ Known limits, stated with the results:
   indels, so the masking rule carries over only CLOAK's dependence on column rarity.
 
 CR, the code consolidation and reuse review (a side excursion, not a slice: no row in PLAN.md's slice
-table and no gate; prepared 2026-11-20, not started). It answers the maintainers' two comments (PLAN.md
-risk 29, with the open choices); the investigation, its reasons and the agent's recommendations are
-frozen in `docs/agent/archive/CR_brief_2026-11-20.md`. It runs in its own sessions beside SIM-2 and
-changes nothing SIM-2 uses: the frozen binaries stay as they are, and the code work is on a side branch
-(decision 001; procedure in `CLAUDE.md`, Git). Steps:
-1. **Reuse review,** read-only, with no branch: a fresh subagent, given the code and IQ-TREE's base
-   classes but not the brief's conclusions, tables each NQC override and chart function against its
-   `ModelMarkov`, `ModelProtein` or NONREV counterpart, and each nQMaker workflow step against NQC's
-   (same, differs or refused, with the reason). The maintainer's `-S` folder question is answered in
-   the second table; if no existing test covers it, the CR plan adds a run.
-2. **Peter's choices** on risk 29's open items; decisions 005 and 012 are rewritten only where they
-   change.
+table and no gate). It answers the maintainers' two comments (PLAN.md risk 29, with the open choices).
+The investigation, its reasons and the agent's recommendations are frozen in
+`docs/agent/archive/CR_brief_2026-11-20.md`; the reuse review, with the claims checked against the
+source, in `docs/agent/archive/CR_reuse_review_2026-11-21.md` and its appendix (the reviewers' full
+tables). It runs in its own sessions beside SIM-2 and changes nothing SIM-2 uses: the frozen binaries
+stay as they are, and the code work is on a side branch (decision 001; procedure in `CLAUDE.md`, Git).
+Steps:
+1. **Reuse review, done 2026-11-21:** three fresh read-only reviewers (model class and shared edits;
+   chart; user-facing), not given the brief. Its findings that shape the change list, by the review's
+   section:
+   - 1.2, reuse with outputs bitwise unchanged:
+     - `readSeed`'s hand-copied rooting replaced by `setReversible(false)`;
+     - the linked-partition list built once rather than in both `optimizeLinkedModel` and `reportRun`
+       (this changes the hooks' signatures, so it goes with the hooks choice);
+     - the chart's repeated exit-rate division and the uncalled `freeDestinations`;
+     - small items (`iEquals`, `init(FREQ_USER_DEFINED)`, `TOL_RATE`, one 17-digit formatter);
+   - 1.3, copies that exist only because decisions 009 and 015 keep `optimization.*` and
+     `modelmarkov.*` unedited (`optimizeParameters`, the derivative loop, the stationary solve, the
+     diagonal fill, the gradient test's scaling): left as they are while step 2's choice on them is
+     open;
+   - 1.4, tier B: the reversible seed through `getQMatrix`;
+   - 1.6, code comments found wrong or imprecise, corrected in the consolidation: `scaledStep`'s
+     displacement and `FIRST_ORDER_GTOL` in `fixedeqchart.h`, the guard comment in `targetFunk`;
+   - 2.2, the `-S` folder question: by reading, a folder takes the same path as a partition file and
+     as for NONREV, but no NQC run has used one, nor the published joint step's partition file whose
+     charsets name separate files, so step 4 adds both;
+   - 3, side findings outside CR: `ModelMarkov::computeTrans` with derivatives is checked before it
+     becomes a maintainer question.
+2. **Peter's choices.**
+   - Taken 2026-11-21: the message and help fixes of review section 2.6 come into CR as one labelled
+     commit, with the refusal comparisons' expected differences written down before the run
+     (decision 021).
+   - Open:
+     - risk 29's items: the chart's layout; the hooks, now in three forms (review section 4); tier B;
+       the route to the maintainers; the branch's name;
+     - whether the section 1.3 copies are offered to the maintainers. Peter leans towards keeping
+       `ModelMarkov` and `Optimization` unchanged.
+   - Decisions 005 and 012 are rewritten only where they change.
 3. **The CR plan,** in plan mode: the change list and the full equivalence command list; the approved
    plan is frozen in `docs/agent/archive/`, and its test procedure goes into section 3.
 4. **The consolidation,** on the side branch (its CI trigger and build directory: `CLAUDE.md`, Git).
-   Only changes that keep outputs bitwise (tier A) are made. Checks, all existing tools:
+   Only changes that keep outputs bitwise (tier A) are made, with step 2's message fixes as their own
+   commit. Checks, all existing tools:
    - a control build of the unchanged head, compared bitwise with `~/iqtree3-binaries/25d78d6e/`, since
      decision 021's previous-build row needs the same toolchain (`nqcchecks.py`'s `toolchain_changes`);
      it also measures the run time, so far unmeasured;
    - `regress.py compare` against the three baselines;
    - `nqcchecks.py`'s `same_outputs`, extended from its 4 commands to every NQC entry point (Level 1,
-     and Level 2 with `+G4`, `+I+G4` and `+R4`; `-S`, `-p`, `-q` and `--link-model`; restart and
+     and Level 2 with `+G4`, `+I+G4` and `+R4`; `-S`, `-S` with a folder, `-S` with a partition file
+     whose charsets name separate files, `-p`, `-q` and `--link-model`; restart and
      `--undo`; export and re-import; every refusal, message and exit code; `--nqc-domain`;
      `--init-model`), at `-T 1` against `25d78d6e`; thread counts by decision 038's lines;
    - `unittests.py`, its fixtures unchanged.

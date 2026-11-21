@@ -297,7 +297,7 @@ nothing is floored or substituted. Every `+F` form without a vector, and a missi
 refused with a pointer to `NONREV`. Reports and exports print π* at 17 significant digits. The
 target never reaches `ModelMarkov::readStateFreq`.
 **Why.** Both routes reach the model with no shared change. IQ-TREE's reader accepts NaN, draws
-random values for non-numeric tokens and renormalizes with a warning. The 1e-6 line accepts
+random values for a token naming a distribution and renormalizes with a warning. The 1e-6 line accepts
 IQ-TREE's 8-decimal print; Peter accepted the departure because it lives only in NQC's code.
 **Not chosen.** A `--target-freq FILE` option (a maintainer question, PLAN.md); `NQC{...}` braces.
 **Since** 2026-09-23; sum line confirmed 2026-10-05 (026).

@@ -8,6 +8,17 @@ gate record and may run to 25 lines. The next session starts from the top entry.
 This is a fork of `iqtree/iqtree3`. Entries here describe work on the fork, not upstream
 development.
 
+## 2026-11-21 (eleventh session): CR step 1, the reuse review; Peter's answers recorded
+
+- **Done.** CR's read-only reuse review by three fresh reviewers (model class and shared edits; chart;
+  user-facing), not given the brief, their claims checked against the source; frozen in
+  `docs/agent/archive/CR_reuse_review_2026-11-21.md` with an appendix. Records: CODE_PLAN 4 (CR), PLAN.
+- **Peter decided:** message and help fixes come into CR as one labelled commit. Open, leaning no:
+  offering the copies that decisions 009 and 015 force to the maintainers as a proposal.
+- **Corrected:** `CODE_PLAN.md` 2.2 item 4's reason for the hand-copied rooting; decision 006's Why.
+- **Failed:** www.iqtree.org's certificate had expired (the github.io mirror was read); nothing run.
+- **Next.** In a new session: Peter's open risk 29 choices, then the CR plan in plan mode.
+
 ## 2026-11-20 (tenth session): CR prepared as a side excursion; decision 001 amended
 
 - **Done.** Read-only investigation of the maintainers' two comments (one file for NQC; reuse of
