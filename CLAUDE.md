@@ -260,6 +260,17 @@ cmake --build ~/iqtree3-build -j 4
   `docs/agent/PLAN.md`. Development on the fork never waits on upstream.
 - Work happens on `nq-constrained-pi`. **Never commit to `master`**, which is kept as an exact
   mirror of upstream so that syncing stays a fast-forward.
+  - **Side branches** (decision 001; first: CR's consolidation) branch from `nq-constrained-pi`. Build
+    each in its own WSL directory (`~/iqtree3-build-<branch>`), so that every binary's source is known.
+  - **Never switch branches while a build or driver runs** from the working copy: the drivers check
+    the tree only at start, and the WSL build reads its source from this copy.
+  - **CI:** `fixedeq.yaml` runs only on pushes to `nq-constrained-pi`, so a side branch's first commit
+    adds its name to the push trigger, and a last commit on the branch removes it before the
+    fast-forward. Pushing a side branch needs Peter's approval (`.claude/settings.json` allows only
+    `git push origin nq-constrained-pi`).
+  - **Merge back:** `git merge nq-constrained-pi` on the branch, rerun the branch's checks, remove the
+    trigger line, then `git switch nq-constrained-pi; git merge --ff-only <branch>`. Never rebase or
+    squash (decision 001). Puma's clone stays on `nq-constrained-pi`.
 - Baseline is `63c330d9` (upstream tag `v3.1.4`). The anchors in `docs/agent/` are verified
   against it.
 - To sync: `git switch master; git merge --ff-only upstream/master; git switch nq-constrained-pi;

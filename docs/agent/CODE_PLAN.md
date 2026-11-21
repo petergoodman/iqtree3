@@ -1305,12 +1305,12 @@ given: on Puma, one under Peter's xdisk directory; on the laptop,
      python -c "import sys; c='<clone>/test_scripts/fixedeq'; sys.path[:0]=[c, c+'/sim']; import numpy as np, common; from oracle import simulate; print('pi* bitwise as the laptop:', np.array_equal(common.target_values(), simulate.target()))"
      ```
   4. **Login node, a test job** (a scratch directory outside the clone and the run directory):
-     `sbatch --account=<account> --partition=standard --cpus-per-task=4 --time=00:20:00
+     `sbatch --account=<account> --partition=standard --cpus-per-task=4 --time=00:40:00
      <clone>/test_scripts/fixedeq/sim/slurm/sim2.sbatch 1 5 <scratch>/test <frozen> <gate> <clone>`.
      - Its `slurm-*.out` should show the checks passing and phases starting before the time limit stops
-       it.
+       it. Two `flatpak … OPENSSL_3.4.0` lines from the shell's start are harmless.
      - This tests the conda block in a batch shell, which the interactive preflight does not, at about
-       1.3 charged core-hours.
+       2.7 charged core-hours.
      - Delete `<scratch>/test` afterwards.
   5. **Login node, from the run directory** (outside the clone, so that Slurm's log files stay out of
      it): for k = 1 to 4, `sbatch --account=<account> --partition=standard
@@ -1654,7 +1654,8 @@ sanitizer run. Commits:
      - the runbook finalized, and `CLAUDE.md`'s SIM-2 commands.
    - **3c, done 2026-11-20:** CLOAK's curve, `sim/masking/cloak_curve.tsv` (section 3.8, laptop step 2).
    - Pushed 2026-11-20 with Peter's two decisions taken (stall rule and caps kept; round 1 as designed).
-     Then Peter's preflight and submission of all five shards.
+   - Round 1 submitted 2026-11-20 at `22ef0db7`, after the preflight and test job passed (job IDs in
+     `CHANGELOG.md`, 2026-11-20).
 4. `sim2.py analyze`, written while Puma runs, with vector figures in a colour-blind-safe palette.
 5. The close: rounds collected and analysed with MCSEs; the gate record; records; S6's and S7's lists;
    the AI_DISCLOSURE entry.
@@ -1669,6 +1670,42 @@ Known limits, stated with the results:
 - `--init-model` under linked `-q` is first exercised by the smoke run;
 - CLOAK removes residues where alternative alignments disagree, and simulated alignments have no
   indels, so the masking rule carries over only CLOAK's dependence on column rarity.
+
+CR, the code consolidation and reuse review (a side excursion, not a slice: no row in PLAN.md's slice
+table and no gate; prepared 2026-11-20, not started). It answers the maintainers' two comments (PLAN.md
+risk 29, with the open choices); the investigation, its reasons and the agent's recommendations are
+frozen in `docs/agent/archive/CR_brief_2026-11-20.md`. It runs in its own sessions beside SIM-2 and
+changes nothing SIM-2 uses: the frozen binaries stay as they are, and the code work is on a side branch
+(decision 001; procedure in `CLAUDE.md`, Git). Steps:
+1. **Reuse review,** read-only, with no branch: a fresh subagent, given the code and IQ-TREE's base
+   classes but not the brief's conclusions, tables each NQC override and chart function against its
+   `ModelMarkov`, `ModelProtein` or NONREV counterpart, and each nQMaker workflow step against NQC's
+   (same, differs or refused, with the reason). The maintainer's `-S` folder question is answered in
+   the second table; if no existing test covers it, the CR plan adds a run.
+2. **Peter's choices** on risk 29's open items; decisions 005 and 012 are rewritten only where they
+   change.
+3. **The CR plan,** in plan mode: the change list and the full equivalence command list; the approved
+   plan is frozen in `docs/agent/archive/`, and its test procedure goes into section 3.
+4. **The consolidation,** on the side branch (its CI trigger and build directory: `CLAUDE.md`, Git).
+   Only changes that keep outputs bitwise (tier A) are made. Checks, all existing tools:
+   - a control build of the unchanged head, compared bitwise with `~/iqtree3-binaries/25d78d6e/`, since
+     decision 021's previous-build row needs the same toolchain (`nqcchecks.py`'s `toolchain_changes`);
+     it also measures the run time, so far unmeasured;
+   - `regress.py compare` against the three baselines;
+   - `nqcchecks.py`'s `same_outputs`, extended from its 4 commands to every NQC entry point (Level 1,
+     and Level 2 with `+G4`, `+I+G4` and `+R4`; `-S`, `-p`, `-q` and `--link-model`; restart and
+     `--undo`; export and re-import; every refusal, message and exit code; `--nqc-domain`;
+     `--init-model`), at `-T 1` against `25d78d6e`; thread counts by decision 038's lines;
+   - `unittests.py`, its fixtures unchanged.
+   A difference in any bitwise check stops the work for diagnosis.
+5. **The merge,** by `CLAUDE.md`'s procedure (Git) with the equivalence rerun on the branch, after
+   SIM-2's last round is submitted unless Peter allows it earlier, so that no pull for a round brings
+   CR's code into Puma's clone.
+6. **One sanitizer run** (`sanitize.py`, section 3.6) before code reaches the maintainers.
+
+Changes that would alter numbers or the user interface (tier B, for instance the chart's stationary
+solve replaced by `computeStateFreqFromQMatrix`, or an option renamed) wait until after SIM-2 and the
+maintainers' reply, if Peter agrees (risk 29), and are listed for the maintainers as proposals.
 
 S6: list written at SIM-2's close, using its results (for instance, whether the Level 3 driver is worth
 building). S7: list written when SIM-2 closes; it starts from

@@ -25,14 +25,17 @@ and unit mean rate at π*, 360 free parameters, containing the 189-parameter rev
 
 ### 001. Develop on the fork's `nq-constrained-pi` branch, for an eventual upstream pull request
 
-**Rule.** All work happens on `nq-constrained-pi` of `petergoodman/iqtree3`; nothing is committed
-to `master` or pushed to `iqtree/iqtree3`. The work is to be offered upstream after testing, so
-every change to a shared IQ-TREE file is opt-in or behaviour-preserving.
+**Rule.** All work happens on `nq-constrained-pi` of `petergoodman/iqtree3`, or on a short-lived
+branch off it for work that must stay apart from a running study, merged back by merge or
+fast-forward, never rebased or squashed; nothing is committed to `master` or pushed to
+`iqtree/iqtree3`. The work is to be offered upstream after testing, so every change to a shared
+IQ-TREE file is opt-in or behaviour-preserving.
 **Why.** Peter's intent. A `master` that mirrors upstream keeps syncing a fast-forward, and opt-in
-changes keep the pull request reviewable.
+changes keep the pull request reviewable. A side branch keeps `nq-constrained-pi` at the code a
+running study uses and the side work easy to drop; the records cite commit hashes.
 **Not chosen.** A permanent private fork, which would allow invasive edits but forfeit
 contribution.
-**Since** 2026-09-23. Git procedure: `CLAUDE.md`.
+**Since** 2026-09-23; side branches 2026-11-20 (Peter, for CR). Git procedure: `CLAUDE.md`.
 
 ### D06. Change only the map from coordinates to generator, and no other IQ-TREE behaviour
 
