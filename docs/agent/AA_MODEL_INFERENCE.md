@@ -200,11 +200,16 @@ Branch lengths are therefore expected substitutions per site.
 | `GTR20` | 189 of 190 | `rates[189]` | the Tyr-Val exchangeability |
 | `NONREV` | 379 of 380 | `rates[379]` | the directed rate Val to Tyr |
 
-This is an unusual but harmless convention: the more common choice is to pin one rate to 1.0,
-whereas IQ-TREE pins it to whatever the seed matrix carried after `rescaleRates` scaled the seed
-so its largest entry is 10.0 (`model/modelprotein.cpp:1090-1105`, `AA_SCALE = 10.0`). Since the
-normalisation rescales everything afterwards, the seed value only chooses a point on the scale
-ray, not the fitted model.
+This is an unusual convention: the more common choice is to pin one rate to 1.0, whereas IQ-TREE
+pins it to whatever the seed matrix carried after `rescaleRates` scaled the seed so its largest
+entry is 10.0 (`model/modelprotein.cpp:1090-1105`, `AA_SCALE = 10.0`). Without bounds the seed
+value would only choose a point on the scale ray. With the box `[MIN_RATE, MAX_RATE] = [1e-4, 100]`
+on every free rate (Section 6's "Feasible set"), a pinned value p confines every free rate to
+`[1e-4/p, 100/p]` times the pinned one, so the seed can change the fitted model. From GTR20's
+default POISSON seed (p = 10) no exchangeability can exceed 10 times Tyr-Val, a range LG (43
+times) and SIM-2's reversible truth (498 times) exceed; NONREV's LG seed gives a wider window
+(Section 7's "Feasible set"; PLAN.md risk 30). Where p sits also sets the free rates' scale, and the BFGS
+step and gradient tests (`max(|x|, 1)` in `dfpmin` and `lnsrch`) are not scale-free.
 
 **Frequencies are parameterised projectively too.** When pi is free (`+FO`, `FREQ_ESTIMATE`)
 only `state_freq[0..18]` enter the optimiser, `state_freq[19]` is held fixed, the vector may have
@@ -982,6 +987,9 @@ fixed and `getNDim() = 189`.
 
 **Feasible set.** The box `[1e-4, 100]^189`, which is a relaxation of the true constraint
 `R_ij >= 0`. The lower bound of 1e-4 means an exchangeability can never actually reach zero.
+Relative to the pinned 190th exchangeability p, the box is `[1e-4/p, 100/p]`, so it also caps the
+fitted exchangeabilities' range: from the default seed (p = 10) at 10 times Tyr-Val (see
+"Pinning" in Section 1.4; PLAN.md risk 30).
 
 **Seed.** `Params::gtr20_model`, default `POISSON` (all exchangeabilities equal), overridable
 with `--init-exchange NAME` or `--init-model NAME|FILE`. A non-reversible seed is rejected with
@@ -995,7 +1003,8 @@ clamping, and no restarts because `bound_check` is false throughout. After the o
 
 **Normalisation.** `sum_i pi_i (-Q_ii) = 1` after every decomposition. The pinned 190th
 exchangeability, at its seed value, is the only thing fixing which point of the scale ray the
-free parameters live on.
+free parameters live on, and with the box it also sets which exchangeability ratios are
+attainable (see "Feasible set").
 
 **Practical note.** 189 parameters estimated from one alignment is the overfitting IQ-TREE warns
 about at construction. The published `Q.*` matrices were not estimated this way; they came from
@@ -1014,7 +1023,11 @@ Invocation: `-m NONREV`, `-m NONREV+G4`.
 is `FREQ_ESTIMATE`, which for a non-reversible model is a misnomer: nothing is estimated, and its
 only effect is to leave the solve-from-Q guard true.
 
-**Feasible set.** The box `[1e-4, 100]^379` on the off-diagonals. Zero row sums hold by
+**Feasible set.** The box `[1e-4, 100]^379` on the off-diagonals. Relative to the pinned 380th rate
+p (Val to Tyr), it is `[1e-4/p, 100/p]`: from the LG seed (below), p is about 0.0080, so every other
+rate lies between 0.0125 and 12,500 times it, a window that holds NQ.bird's range (0.33 to 2,840
+times its Val to Tyr) but not LG's lowest rates (0.0053 times); computed from the built-in
+matrices (PLAN.md risk 30). Zero row sums hold by
 construction, and the stationarity of pi holds because pi is derived rather than constrained.
 There is **no equality-constraint solver anywhere in IQ-TREE**; box bounds are the only
 constraint mechanism.

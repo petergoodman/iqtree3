@@ -8,6 +8,18 @@ gate record and may run to 25 lines. The next session starts from the top entry.
 This is a fork of `iqtree/iqtree3`. Entries here describe work on the fork, not upstream
 development.
 
+## 2026-11-24 (twelfth session, continued): round 2 read; GTR20's range limit; the seeded arm decided (046)
+
+- **Done.** Round 2's tarball (SHA-256 `c10cd93b`) read: all 1,640 phases of the five shards done, none failed,
+  every check row passed; round 2 took 22.93 h at 48 cores; SIM-2 charged about 19,600 so far (cores × wall).
+- **Failed: cell D's GTR20 arms (round 1, kept as the "default seed" arm).** IQ-TREE's GTR20 fixes Tyr–Val at the
+  seed's rescaled value, 10 from POISSON, and bounds every rate to [1e-4, 100], so none exceeds 10 × Tyr–Val; R0
+  needs 498, LG 43. All 160 D fits had Tyr–Val at 10 and one rate above 99; on unmasked R0 Tyr–Val was 44 to 47
+  times too high and the fits sat 339 below the truth's training lnL, relaxed refits alike (risk 30, question 19).
+- **Peter decided (046):** a "GTR20 seeded" arm, Tyr–Val fixed at p = 0.02 unless the laptop rule picks 0.05, as
+  its own driver, sbatch and three jobs; F stands. Two read-only reviews (plan; records) found gaps, all fixed.
+- **Next.** SIM-2 commit 3d in a new session (PLAN.md next step), then `analyze`.
+
 ## 2026-11-23 to 24 (twelfth session): SIM-2 round 1 read; round 2, shard 5's leftovers, run
 
 - **Done.** Round 1's tarball (SHA-256 `73a405cf`) read in `~/iqtree3-runs/sim2/round1-collect-20261123T144149Z`:

@@ -1,7 +1,7 @@
 # Upstream findings
 
 Evidence behind the questions for the maintainers in `docs/agent/PLAN.md` and behind the
-upstream-behaviour risks 23 and 24: what was run or read, on unmodified binaries and, where a
+upstream-behaviour risks 23, 24 and 30: what was run or read, on unmodified binaries and, where a
 question compares them, on NQC builds. It describes and never prescribes. Entries are keyed by
 PLAN.md's numbers, which stay the citation; questions 1 to 3 and 8 carry no evidence and live
 only in PLAN.md. Not read at session start; read when relaying a question or rechecking an
@@ -167,6 +167,57 @@ on which a reversible likelihood is the same. Should a reversible model unroot a
 refuse it?
 
 Anchors: `PhyloTree::optimizeAllBranches`'s assertion; the segfault's site not located.
+
+## Q19 and Risk 30
+
+Read in source at `63c330d9`: `ModelProtein::init`'s GTR20 branch seeds `rates[]` from `--init-model` (a
+model name, or a file through `readParameters`) or from `Params::gtr20_model` (`--init-exchange`, default
+POISSON), calls `rescaleRates`, which scales the largest rate to 10 (`AA_SCALE`), and frees 189 rates, so
+`ModelMarkov::setVariables` leaves `rates[189]`, Tyr–Val, at the seed's value. `ModelMarkov::setBounds`
+holds every free rate in [`MIN_RATE`, `MAX_RATE`] = [1e-4, 100], with `bound_check` false, so without
+restarts. From POISSON every rate starts at 10, so Tyr–Val is fixed at 10 and every other exchangeability
+lies in [1e-5, 10] × Tyr–Val. `ModelMarkov::isUnstableParameters` flags a rate above 0.99 × `MAX_RATE`;
+after the model fit `IQTree::optimizeModelParameters` prints "Estimated model parameters are at boundary
+that can cause numerical instability!" when it is true for any partition (`PartitionModel::
+isUnstableParameters`) and leaves the fit as it is. Whether SIM-2's fits printed it was not checked:
+their logs were not collected. NONREV's branch, by reading only, converts its rescaled LG seed with LG's
+frequencies (`setReversible(false)`, q_ij = R_ij π_j) and keeps `rates[379]` (Val→Tyr), about 0.0080,
+so its window is 0.0125 to 12,500 times that rate: NQ.bird's rates span 0.33 to 2,840 times its own
+Val→Tyr, inside it, and LG's 0.0053 to 86.5, the lowest below the floor (computed from the built-in
+matrices, not from a NONREV run). Under `--model-joint` each partition builds its
+own `ModelFactory` (`PartitionModel`'s constructor), so a seed file reaches every partition (traced by a
+read-only review on 2026-11-24, which also found that `readParameters` leaves the frequency type alone).
+IQ-TREE's BFGS tests its step and gradient against max(|x|, 1) (`dfpmin`, `lnsrch`), so where the fixed
+rate sits also changes the free rates' scale for the optimizer.
+
+Seen in SIM-2's round 1 (gate binary `25d78d6e`, whose GTR20 code is upstream's; `-q --model-joint`,
+unrooted `-te`, `-blfix`, `-keep-ident`, 20-round cap; cell D, 100 genes, 52 taxa):
+- Every one of cell D's 160 fits (R0 and NQ, every masking strength): checkpoint Tyr–Val 10 exactly and
+  exactly one rate above 99 (at 100 in the 40 unmasked fits checked for it); 0 to 11 rates a fit at
+  the floor on R0, 1 to 12 on NQ.
+- The 20 unmasked R0 fits, fitted over true exchangeability, the truth scaled by the fit's median ratio:
+  Tyr–Val 43.7 to 46.7; the other 189 with 5th percentiles 0.48 to 0.66 and 95th 1.33 to 1.46 a fit.
+  Over all 80 R0 fits, masked included, Tyr–Val 43.7 to 78.2.
+- Unmasked R0, training lnL minus the truth's (the oracle's; the truth lies in GTR20+F{π*}'s family),
+  n = 10: GTR20+F{π*} mean −339.33 (−397.11 to −270.20), GTR20+F −339.17; relaxed refits (`-me 1e-6`,
+  300 rounds, n = 2) −338.70 and −334.05; NQC on the same data +18.22 at P and +171.52 at B.
+- Held-out lnL minus the truth's, unmasked R0: GTR20+F{π*} −55.57; NQC at B −18.48.
+- Largest exchangeability over Tyr–Val in the built-in matrices (the oracle's
+  `builtin.exchangeabilities`): LG 42.7, WAG 24.9, JTT 60.1, Q.pfam 34.9, Q.bird 224.7, Q.mammal 103.6,
+  Q.insect 57.2, Q.plant 82.0, Q.yeast 47.0, mtREV 643.7, HIVb 498.1; R0's truth 497.7.
+- Round 1's fits on the true Tyr–Val's scale: the largest rate off the bound had medians 343 to 560 by
+  masking strength, at most 622; 1.3 to 6.0 rates a fit sat at IQ-TREE's floor, rising with masking.
+
+Scripts and outputs (each `.txt` headed by its command, commit and date):
+`~/iqtree3-runs/sim2/20261124-round2-read/` (`extra.py`, `bounds.py`, `ranges.py`, `floors.py`,
+`window_checks.py`, `firstlook.py`, `status2.py`), on round 2's collect (`collect-20261124T164042Z.tar.gz`, SHA-256
+`c10cd93b…`). Not yet run: the default-seed fit on the unmodified binary, which decision 046's laptop
+demonstration adds (`CODE_PLAN.md` 3.8, "SIM-2's seeded GTR20 arm").
+
+Anchors: `rescaleRates`; `ModelProtein::init`'s GTR20 and NONREV branches; `ModelMarkov::setBounds`,
+`isUnstableParameters`, `readParameters`, `setReversible`'s conversion; `IQTree::optimizeModelParameters`'s
+boundary warning; `PartitionModel::isUnstableParameters`; `--init-exchange` and `--init-model` parsing;
+`dfpmin`, `lnsrch`; `PartitionModel`'s per-partition `ModelFactory`.
 
 ## Risk 23
 

@@ -1,11 +1,11 @@
 # Plan: π-constrained non-reversible amino-acid models
 
-> **Status, 2026-11-19: S0 to S5 complete, so gates G0 to G3 and G4 as reduced by D01 are met (one
+> **Status, 2026-11-24: S0 to S5 complete, so gates G0 to G3 and G4 as reduced by D01 are met (one
 > S5 comparison failed, counted and accepted by Peter; its cause, retired risk 27, settled by
 > decision 039's revision) and the branch is the first release
-> candidate; SIM-1, the first simulation slice (decision 040), closed 2026-11-18; SIM-2 planned and
-> approved 2026-11-19, its implementation under way; approach accepted by the IQ-TREE maintainers (reported
-> by Peter, 2026-10-01).**
+> candidate; SIM-1, the first simulation slice (decision 040), closed 2026-11-18; SIM-2's five shards
+> ran 2026-11-21 to 24, its seeded GTR20 arm (decision 046) next; approach accepted by the IQ-TREE
+> maintainers (reported by Peter, 2026-10-01).**
 > Peter owns this document.
 
 This is the project's living core document: what we are building and why, the constraints the
@@ -203,7 +203,7 @@ and S7's two bootstraps complete them. The slices run in the order decision 040 
 | S4 | G3 | Export, re-import and report | export then `-m FILE` reproduces the log-likelihood of a Level 1 fit; metadata complete; first release candidate | done 2026-10-27 (`a0ebf5cf`); first release candidate |
 | S5 | G4, as reduced by D01 | Independent reference | D10's direct balanced-flux fit in Python (decision 042) passes its known-answer validation; on four small Level 1 problems it reaches, from NQC's start and from NQC's relaxed endpoint, the peak NQC's own chart reaches, within the calibrated line, with every compared fit converged and NQC's endpoints not above that peak; failures counted; comparison report (`CODE_PLAN.md` sections 3.1, 3.3, 4) | done 2026-11-09 (gate at `13799127`); aa_example's A6 failed, labelled "W stopped short", counted and accepted by Peter (risk 27) |
 | SIM-1 | G5 (simulation support), G6 (part) | Simulator check, exact recovery and screen, pipeline and pilot | AliSim's two-taxon exact check (three joint-law configurations, the root composition, frozen and gate binaries byte-identical) passes, or its fallback does; the oracle's NQC objective fitted to exact pattern frequencies returns the true Q in R1 to R6 within decision 021's SIM-1 rows; the screen's 14 fits tabled with flags and follow-ups; bird scaffold committed; pipeline with its reproducibility and wiring checks; pilot run (SIM-2's plan, first listed here, moved to its own session by Peter on 2026-11-18) | done 2026-11-18 (gate record in `CHANGELOG.md`, SIM-1 close; exact recovery passed after R4's counted failure and a solver fix) |
-| SIM-2 | G6 (part) | Simulation study on Puma | the approved plan's cells (`CODE_PLAN.md` section 3.8; arms in decision 045) run, every NQC fit at stage P and stage B (decision 039), failed fits counted, every result with Monte Carlo standard errors; outputs for S7's confirmatory plan: reference distributions of the circulation statistic (decision 041), the stopping setting (decision 039), how much of the available data the fit needs; recovery at P and B for the manuscript | planned and approved 2026-11-19 (`docs/agent/archive/SIM2_plan_2026-11-19.md`); implementation next |
+| SIM-2 | G6 (part) | Simulation study on Puma | the approved plan's cells (`CODE_PLAN.md` section 3.8; arms in decision 045) run, every NQC fit at stage P and stage B (decision 039), failed fits counted, every result with Monte Carlo standard errors; outputs for S7's confirmatory plan: reference distributions of the circulation statistic (decision 041), the stopping setting (decision 039), how much of the available data the fit needs; recovery at P and B for the manuscript | planned and approved 2026-11-19 (`docs/agent/archive/SIM2_plan_2026-11-19.md`); five shards run 2026-11-21 to 24, every phase done; the seeded GTR20 arm (decision 046, `docs/agent/archive/SIM2_gtr20_seeded_plan_2026-11-24.md`) next, then `analyze` and the close |
 | S6 | G5 | Workflow | candidate-set and mixing-guard tests; G5's remaining conditions | not started |
 | S7 | G6 | Science | the confirmatory plan's checks, with decision 039's convergence protocol; the parametric bootstraps of decisions 040 and 041 and the gene resampling of π*; G6's remaining conditions | not started |
 
@@ -217,9 +217,10 @@ and S7's two bootstraps complete them. The slices run in the order decision 040 
 | 11 | Scientific success criterion and manuscript details (placeholder above) | Peter, with SIM-2's reference distributions (decision 041) |
 | 23 | Reported by the S3 plan's review, not verified: resuming an `-S` tree search with `+I+G` may restore stale top-level model keys, for every model (`UPSTREAM_FINDINGS.md`, Risk 23). Outside S3's validation paths, which use `-te` | Checked before it becomes a question for the maintainers |
 | 24 | Fits stop short of their peaks under IQ-TREE's stopping rules, for every model, so comparing two fits' scores (box against wide, NQC against NONREV, D08's arms) needs a convergence protocol. IQ-TREE's optimizer stays unchanged (decision 009). At scale the shortfall grows: SIM-1's 100-gene fit, capped at 20 rounds, sat at least 90 below the oracle's climb from its endpoint. The stopping rules and the measurements: `UPSTREAM_FINDINGS.md`, Risk 24 | Testing: S3c's first part (done 2026-10-25). Science: decision 039 (SIM-2's stages P and B) |
-| 26 | Compute: SIM-2 and S7 run on UA HPC's Puma under UA's agentic AI policy and Peter's norms (`CLAUDE.md`, Puma). SIM-2's cost model (`CODE_PLAN.md` 3.8; estimates from SIM-1's pilot and S3c, with Puma's per-core speed, thread efficiency, evaluation and climb iteration counts assumed): 308 NQC fits with stage B and 176 GTR20 fits, about 19,700 charged core-hours in one 48 h round, rising to at least 26,300 to 39,900 over two or three rounds if the climbs run long or the estimates are 1.5 times low. S7, unverified extrapolation from S3c (`docs/agent/archive/SIM_plan_2026-11-07.md`, Appendix C): one NQC `-S` fit at 190 taxa and 1000 genes about 80 core-hours; NQC's first linked fit from LG took 5,000 to 13,000 evaluations and each later round 700 to 4,400, so a training run's cost is set by its first fit and its round count. SIM-1's pilot on the laptop (`-T 6`, round cap 20): 26 to 48 min and 0.6 GB a fit at 30 genes, 2.4 h and 1.5 GB at 100; at 1000 genes IQ-TREE asked for 10.1 GB | Peter's ceiling, 40,000 charged core-hours (2026-11-19): the agent projects the total from measured times after each round and stops for Peter only above it. SIM-2's round 1 charged about 18,500 (94 cores × the shards' wall times; Puma's accounting not read); round 2 was projected at about 1,100 |
+| 26 | Compute: SIM-2 and S7 run on UA HPC's Puma under UA's agentic AI policy and Peter's norms (`CLAUDE.md`, Puma). SIM-2's cost model (`CODE_PLAN.md` 3.8; estimates from SIM-1's pilot and S3c, with Puma's per-core speed, thread efficiency, evaluation and climb iteration counts assumed): 308 NQC fits with stage B and 176 GTR20 fits, about 19,700 charged core-hours in one 48 h round, rising to at least 26,300 to 39,900 over two or three rounds if the climbs run long or the estimates are 1.5 times low. S7, unverified extrapolation from S3c (`docs/agent/archive/SIM_plan_2026-11-07.md`, Appendix C): one NQC `-S` fit at 190 taxa and 1000 genes about 80 core-hours; NQC's first linked fit from LG took 5,000 to 13,000 evaluations and each later round 700 to 4,400, so a training run's cost is set by its first fit and its round count. SIM-1's pilot on the laptop (`-T 6`, round cap 20): 26 to 48 min and 0.6 GB a fit at 30 genes, 2.4 h and 1.5 GB at 100; at 1000 genes IQ-TREE asked for 10.1 GB | Peter's ceiling, 40,000 charged core-hours (2026-11-19): the agent projects the total from measured times after each round and stops for Peter only above it. SIM-2's five shards charged about 19,600 (cores × wall times: round 1 about 18,500 at 94 cores, round 2 1,101 at 48; Puma's accounting not read). The seeded GTR20 arm (046) is projected at roughly 5,000 to 8,000 before its laptop calibration, and from that calibration before submission |
 | 28 | SIM-1's 100-gene NQ.bird fit (pilot, 20-round cap) pushed a few low-flux rates toward the domain floor (5 of the chart's z coordinates within 1 of the lower bound, none at it), always underestimated, the same pairs across replicates (K→G, K→P, E→P, V→P, N→A, N→G; across the pilot's fits the largest errors sit at flux ranks 119 to 309 of 380); its unweighted log-rate RMS rose to 1.11 from 0.72 to 0.97 at 30 genes while the two highest-flux quintiles improved (RMS 0.04, 0.09) (`explore/pilot_rate_errors.py`, commit `f181cf38`). Two parts, by a planning measurement on 2026-11-19 (exploratory, SIM-2 plan archive): at 100 genes mostly IQ-TREE's process stopping short, since the oracle's climb from the capped endpoint cut the third flux quintile's pair-sum log error from 0.55 to 0.22; at 30 genes the higher point pushed the lowest-flux rates further down (0.80 to 1.35) | SIM-2 (decision 045; aim 7, stage P against stage B) |
 | 29 | CR, the code consolidation and reuse review (a side excursion, not a slice): the maintainers' comments, reported by Peter on 2026-11-20 and made in discussion rather than from the code, that NQC's new files be condensed into one and that its reuse of IQ-TREE's code and commands (NONREV and `ModelMarkov` as the base) be checked. A consolidation that is not bitwise equal at `-T 1` to SIM-2's binary (`~/iqtree3-binaries/25d78d6e/`) would separate the submitted code from the validated code. Open choices: the chart's layout; the hooks' form (three forms since the reuse review); whether other changes that alter numbers or the interface wait for SIM-2 and the maintainers' reply; whether the copies that exist because `ModelMarkov` and `Optimization` stay unedited (decisions 009, 015) are offered to the maintainers as a proposal, Peter leaning towards keeping both unchanged; the route to the maintainers; the branch's name. Taken: the reuse review's message and help fixes come into CR as one labelled commit (Peter, 2026-11-21). Findings and the agent's recommendations: `docs/agent/archive/CR_brief_2026-11-20.md` and `CR_reuse_review_2026-11-21.md` | Peter's choices, then CR's equivalence check (`CODE_PLAN.md` section 4, CR) |
+| 30 | IQ-TREE's GTR20 keeps its last exchangeability, Tyr–Val, fixed at the seed's value after `rescaleRates` scales the seed's largest entry to 10 (so at 10 from the default POISSON seed), and bounds every other to [1e-4, 100]: no exchangeability can exceed 10 times Tyr–Val, while SIM-2's reversible truth R0 needs 498, LG 43, WAG 25 and Q.bird 225. SIM-2's round 1 GTR20 arms (cells D and Dr) were held by it: every one of cell D's 160 fits had Tyr–Val at 10 and exactly one rate above 99; on unmasked R0, Tyr–Val 44 to 47 times too high (up to 78 with masking) and training lnL 339 below the truth's, which GTR20+F{π*} contains; the relaxed refits alike. Also affected: D05's GTR20 start and incumbent and 025's carry (S3a's nesting checks hold, NQC never below the incumbent, but the incumbent was probably bound-limited, not checked); S7's reversible arm. NONREV, by reading, fixes Val→Tyr from LG's seed at a value whose window, 0.0125 to 12,500 times it, holds NQ.bird's range but not LG's lowest rates. Evidence: `UPSTREAM_FINDINGS.md`, Q19 and Risk 30 | SIM-2 and every later GTR20 fit: decision 046's seeded start and bound check. Upstream: question 19 |
 
 Retired risk numbers:
 
@@ -238,7 +239,7 @@ Retired risk numbers:
 ### Questions for the maintainers
 
 Peter relays these if and when he chooses; no agent contacts the maintainers (`CLAUDE.md`).
-Questions 4 to 7 and 9 to 17 are stated here in brief; what was run or read, with commands,
+Questions 4 to 7, 9 to 17 and 19 are stated here in brief; what was run or read, with commands,
 outputs and anchors, is in `docs/agent/UPSTREAM_FINDINGS.md` under the same number.
 
 1. Final public names for the model and its options.
@@ -296,6 +297,14 @@ outputs and anchors, is in `docs/agent/UPSTREAM_FINDINGS.md` under the same numb
 18. Proposed with CR (risk 29): would a second file pair for NQC's pure chart (`fixedeqchart`), kept
     apart so that its unit tests compile without IQ-TREE's headers, be acceptable, or should NQC be
     one pair? The shared-file edits stay under either layout.
+19. Proposed (risk 30), 2026-11-24, read in source and seen in SIM-2's fits on the gate binary, whose
+    GTR20 code is upstream's (decision 046's laptop step repeats it on the unmodified binary): GTR20
+    keeps Tyr–Val fixed at the seed's value after `rescaleRates` (10 from the default POISSON seed)
+    while bounding every other exchangeability to [1e-4, 100], so none can exceed 10 times Tyr–Val,
+    against LG's 43; IQ-TREE's existing boundary warning, if it prints, leaves the fit held (whether it
+    printed in SIM-2's fits was not checked). NONREV, by reading, has the same mechanism with a wider
+    window from its LG seed. Would the maintainers prefer bounds relative to the fixed rate, or another
+    default seed?
 
 ## Current state
 
@@ -347,13 +356,16 @@ audits' low findings are in `CODE_PLAN.md` section 4, "Known and left alone".
   not 0.047 + 0.058), so power is measured directly (041). Gate record and counted failures:
   `CHANGELOG.md`, SIM-1 close; the audit's corrections: its fifth-session entry and commit `f181cf38`.
   SIM-2's arms: decision 045; specification `CODE_PLAN.md` section 3.8; transport 044; pass lines 021.
-- **SIM-2 (planned and approved 2026-11-19; commits 2 and 3 pushed; rounds 1 and 2 run on Puma from `22ef0db7`, round 2 not yet read):** the design, cells, methods, Puma
-  execution and Peter's runbook are `CODE_PLAN.md` section 3.8's "SIM-2's plan"; the task list is section
-  4. Every NQC fit runs IQ-TREE capped at 20 rounds (stage P), then the oracle's climb (stage B,
-  `optimize.stage_b_climb`, "highest found" unless certified; decision 039). The drivers (`sim2.py`,
-  `cloak.py`, the sbatch script) are written, reviewed and smoke-tested. In the calibration no climb
-  stalled within its cap; Peter kept the stall rule and the caps for round 1 (section 3.8). On Puma most climbs
-  at 100 genes or more stalled before their caps, and none was certified. BAliBASE 3.0 is in place
+- **SIM-2 (planned and approved 2026-11-19; commits 2 and 3 pushed; its five shards run on Puma from
+  `22ef0db7`, 2026-11-21 to 24; the seeded GTR20 arm decided 2026-11-24):** the design, cells, methods,
+  Puma execution and Peter's runbooks are `CODE_PLAN.md` section 3.8's "SIM-2's plan" and "SIM-2's seeded
+  GTR20 arm"; the task list is section 4. Every NQC fit runs IQ-TREE capped at 20 rounds (stage P), then
+  the oracle's climb (stage B, `optimize.stage_b_climb`, "highest found" unless certified; decision 039).
+  All 1,640 phases of the five shards finished, none failed, every check row passed; on Puma most climbs
+  at 100 genes or more stalled before their caps, and none was certified. Cell D's GTR20 arms failed by
+  IQ-TREE's range limit (risk 30): they are kept as the "default seed" arm, and decision 046 adds a
+  "GTR20 seeded" arm, the primary reversible arm of D's comparison, as its own study and Puma jobs. The
+  read's scripts and outputs: `~/iqtree3-runs/sim2/20261124-round2-read/`. BAliBASE 3.0 is in place
   (CLAUDE.md, CLOAK). S6's list is written at SIM-2's close.
 - **CR (a side excursion, not a slice; its reuse review done, the consolidation not started):** the
   code consolidation and reuse review behind risk 29, on a side branch (decision 001; `CLAUDE.md`,
@@ -367,20 +379,26 @@ audits' low findings are in `CODE_PLAN.md` section 4, "Known and left alone".
 
 ## Next step
 
-SIM-2's round 1 ran on Puma from `22ef0db7`: shards 1 to 4 finished every phase, and shard 5 (cells D and
-F) reached its 48 h limit with 146 of its 674 phases left, none failed. Round 2, those phases alone at 48
-cores (job 24779693), ended 2026-11-24 (reported by Peter). Puma's clone stays at `22ef0db7` until round 2
-is read. Details: `CHANGELOG.md`, 2026-11-23 to 24.
+SIM-2's five shards are done (rounds 1 and 2, 2026-11-21 to 24; `CHANGELOG.md`, 2026-11-23 to 24 and
+2026-11-24). Cell D's GTR20 arms failed by IQ-TREE's range limit (risk 30), and Peter decided a seeded
+GTR20 arm as its own study and Puma jobs (decision 046; specification `CODE_PLAN.md` 3.8, "SIM-2's seeded
+GTR20 arm"; the approved plan with its review: `docs/agent/archive/SIM2_gtr20_seeded_plan_2026-11-24.md`).
 
 Remaining steps:
-1. Peter collects round 2 and downloads its tarball into `~/iqtree3-runs/sim2/` (runbook step 7,
-   `CODE_PLAN.md` 3.8); the agent reads it, reports failed or unfinished phases, names any further round,
-   and projects the total against the 40,000 ceiling (risk 26).
-2. Commit 4 (`sim2.py analyze`) in a new session. Before cell D is read, it checks how the GTR20 arms
-   are scored: on the reversible truth their held-out lnL fell further below the truth's than NQC's did.
-3. Commit 5, SIM-2's close (`CODE_PLAN.md` section 4).
+1. SIM-2 commit 3d, the seeded GTR20 arm, in a new session started in plan mode with this prompt:
+   "Implement SIM-2 commit 3d, the seeded GTR20 arm: decision 046, `CODE_PLAN.md` 3.8 'SIM-2's seeded
+   GTR20 arm' and section 4's item 3d. Plan the commit, the smoke run and the laptop demonstration." It
+   ends with the code, the laptop runs' record and, with Peter's approval, a push for Puma.
+2. Peter runs the seeded arm's test job and three jobs (its runbook, `CODE_PLAN.md` 3.8), collects and
+   downloads; the agent reads the tarball and projects the total against the 40,000 ceiling (risk 26).
+3. Commit 4 (`sim2.py analyze`) in its own session, which may run while Puma runs step 2: both run
+   directories, the seeded arm primary for D's reversible comparison.
+4. Commit 5, SIM-2's close (`CODE_PLAN.md` section 4).
 
-Side work, in its own sessions and in either order with step 2: CR (`CODE_PLAN.md` section 4, CR). Its reuse review is done; next come Peter's open choices on risk 29, then the CR plan
-session in plan mode.
+Puma's clone moves to step 1's commit for step 2; the five shards need nothing more from it.
+
+Side work, in its own sessions and in either order with steps 1 and 3: CR (`CODE_PLAN.md` section 4,
+CR). Its reuse review is done; next come Peter's open choices on risk 29, then the CR plan session in
+plan mode. CR's merge waits until the seeded arm's jobs are submitted (CR step 5).
 
 The working rules are in `CODE_PLAN.md` section 4, "Implementation".

@@ -96,13 +96,14 @@ regression effect, legacy models never read it; finished comparisons keep their 
 ### D05. Build the first seed and the guide candidates at the target
 
 **Rule.** The default start is LG rebuilt at the target, q_ij = R_ij π*_j at unit mean rate. The
-fitted `GTR20+F{π*}` is an additional start and the nesting incumbent (025). Guide candidates are
-LG, WAG and JTT rebuilt at π*, with empirical and optimized frequency variants suppressed (S6).
+fitted `GTR20+F{π*}`, seeded per 046, is an additional start and the nesting incumbent (025). Guide
+candidates are LG, WAG and JTT rebuilt at π*, with empirical and optimized frequency variants
+suppressed (S6).
 **Why.** One composition convention across every stage; guide candidates only select models and
 trees per alignment (synthesis section 6.2). LG normalized at its own frequencies is a valid
 start whose exchangeabilities are not LG's.
 **Retained.** Empirical guide candidates and transported starts, as sensitivity arms.
-**Since** 2026-09-23.
+**Since** 2026-09-23; the GTR20 fit's seed 2026-11-24 (046).
 
 ### D07. Take one explicit, immutable target and never floor it silently
 
@@ -162,12 +163,12 @@ Each compared fit in SIM-2 and S7 has one declared stopping setting, its ending 
 conclusions survive relaxed settings or a reference fit. In SIM-2 every NQC fit runs IQ-TREE capped at
 20 linked rounds (stage P), then the oracle's z climb from P's endpoint (stage B, stall rule and caps
 in `CODE_PLAN.md` 3.8); B is a peak only where `flux.certificate` passes (021), else "highest found";
-GTR20 fits are capped at 20, checked by relaxed refits; default rounds compared at 300. S7 uses this setting.
+GTR20 fits are capped at 20, seeded per 046, checked by relaxed refits; default rounds compared at 300. S7 uses this setting.
 **Why.** S3c: endpoints up to 4.2 below converged peaks; where fits stop reversed two of three
 comparisons. The cap moved Ĉ ≤ 0.0005 at 30 genes; at 100 the capped fit sat ≥ 90 below B, Ĉ 0.0017 off.
 **Not chosen.** IQ-TREE's L-BFGS-B for NQC, revisited if SIM-2 shows arm differences the size of the
 stopping shortfall; relaxed settings alone; z climbs read as certified peaks (risk 27's false peak).
-**Since** 2026-10-25; SIM 2026-11-07; certificate 2026-11-16, threshold 2026-11-17; cap 2026-11-18; P and B 2026-11-19 (Peter).
+**Since** 2026-10-25; SIM 2026-11-07; certificate 2026-11-16, threshold 2026-11-17; cap 2026-11-18; P and B 2026-11-19; GTR20 seed 2026-11-24 (Peter).
 
 ### 040. Validate the estimator by simulation in two slices after S5
 
@@ -241,6 +242,21 @@ residue is in its column, at several strengths, one from CLOAK v0.3.0 on BAliBAS
 0.0027, so real-data power may fall below SIM-2's); CLOAK on simulated alignments; 4-taxon repeats;
 directions along per-locus bird composition axes.
 **Since** 2026-11-18 (Peter, risk 25); directions 2026-11-19 (Peter, SIM-2's plan).
+
+### 046. SIM-2 adds a seeded GTR20 arm; every later GTR20 fit uses its seed rule
+
+**Rule.** Every GTR20 fit from SIM-2's seeded arm on (D05's start and incumbent, 025's carry, S7's
+reversible arm) starts from `--init-model` with every exchangeability 10 and Tyr–Val p: IQ-TREE then
+fixes Tyr–Val at p and allows [1e-4/p, 100/p] × it; p = 0.02 unless `CODE_PLAN.md` 3.8's laptop rule
+picks 0.05. A fit with a rate above 99 is flagged and counted, never refitted. SIM-2's new arm, "GTR20
+seeded", fits cell D's 176 GTR20 tasks (Dr's included) on round 1's data, binaries and settings as its
+own study (`sim2_gtr20.py`, sbatch, run directory, three jobs) and is D's primary reversible arm; round
+1's "default seed" arm is kept and reported as failed by risk 30; cell F stands.
+**Why.** The default seed fixes Tyr–Val at 10 within [1e-4, 100] (risk 30): on R0 the fits sat 339
+below the truth's lnL. Round 1 wanted up to 622 × Tyr–Val; p = 0.02 adds ≤ 0.3 floor-held rates a fit.
+**Not chosen.** The default-seed arm alone; no reversible comparison in D; `--init-exchange LG` (at
+most 427 ×); seeding at the truth; editing IQ-TREE's bounds; p = 0.1 (under 2 × headroom at s = 2).
+**Since** 2026-11-24 (Peter).
 
 ## Model class
 
@@ -413,8 +429,8 @@ with given rates every nuisance stayed fixed, on the same edge-proportional tree
 
 ### 025. Carry the GTR20 incumbent from a fixed-tree fit's checkpoint
 
-**Rule.** The `GTR20+F{π*}` incumbent is fitted on fixed trees (`-te`), never after a tree
-search, and carried from its checkpoint (190 rates and gamma shape at 10 digits) as a PAML-format
+**Rule.** The `GTR20+F{π*}` incumbent is fitted on fixed trees (`-te`), seeded per 046, never after
+a tree search, and carried from its checkpoint (190 rates and gamma shape at 10 digits) as a PAML-format
 `-m` file with `+F{π*}` exact. The test evaluates it with `--show-lh` on the same trees and rates
 and starts NQC from it with `--nqc-domain` widened to contain the start (`CODE_PLAN.md` section
 3.5): NQC's first log-likelihood equals the evaluation within 1e-8 × |lnL|, and its final one
@@ -424,7 +440,7 @@ same fit in the default box is reported.
 moves the log-likelihood by about 3e-12 relative, kept out by re-evaluation. In the first
 default box the first line search clamped the start's 146 of 360 outside coordinates (`aa_example`).
 **Not chosen.** Carrying from the report; the printed log-likelihood; the default box alone.
-**Since** 2026-10-05; domain 2026-10-22 (Peter); the default box widened 2026-10-25 (007).
+**Since** 2026-10-05; domain 2026-10-22 (Peter); the default box widened 2026-10-25 (007); seed 2026-11-24 (046).
 
 ## Tests
 
@@ -486,6 +502,11 @@ compared; the seed Q (`-v`) and first gradient (`-vv`) are printed only because 
 | SIM-1 wiring: IQ-TREE `--show-lh` under `-q` at the true Q against `LinkedObjective` built from the trees AliSim used | ≤ 1e-8 × \|lnL\|, with \|lnL\| ≥ 5e4 | SIM-1 |
 | SIM-2 cross-machine: genes Puma simulates for the committed fixture replicates against the laptop's (frozen AliSim, same seeds), at every job start | byte-identical | SIM-2 (Peter, 2026-11-19) |
 | SIM-2 stage B against stage P, Level 1 cells (039): B's lnL against the oracle's re-score of P's checkpointed coordinates | not lower | SIM-2 (Peter, 2026-11-19) |
+| SIM-2 seeded GTR20 (046), laptop demonstration: default-seed fits on the frozen and the gate binary | identical checkpoint rates text and final lnL | 046 (Peter, 2026-11-24) |
+| SIM-2 seeded GTR20, every seeded fit (laptop and Puma): the fixed Tyr–Val; the largest free rate | checkpoint's 10-digit text equal to p's; ≤ 99 (IQ-TREE's 0.99 × `MAX_RATE`), a hit flagged and counted | 046 (Peter, 2026-11-24) |
+| SIM-2 seeded GTR20, laptop demonstration: a seeded fit's training lnL against the truth's (oracle) | not lower | 046 (Peter, 2026-11-24) |
+| SIM-2 seeded GTR20 in `analyze`: datasets against round 1's (gene SHA-256; masked, `data.json`'s file hashes and `curve_sha256`); gtr20f frequencies against round 1's; gtr20pi frequencies against π* | identical; equal at the checkpoint's 10 digits; equal at 10 digits | 046 (Peter, 2026-11-24) |
+| SIM-2 seeded GTR20 in `analyze`: R0 unmasked gtr20pi training lnL against the truth's | reported; a shortfall read against the same data's relaxed refit | 046 (Peter, 2026-11-24) |
 
 h_k is the step's displacement (`CODE_PLAN.md` section 2.1); for the export's central differences,
 h⁺_k + h⁻_k. S4 applies the compiled-Q row to the exported Q and the residual row to its file. The
