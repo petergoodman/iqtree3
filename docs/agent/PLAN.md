@@ -357,7 +357,8 @@ audits' low findings are in `CODE_PLAN.md` section 4, "Known and left alone".
   `CHANGELOG.md`, SIM-1 close; the audit's corrections: its fifth-session entry and commit `f181cf38`.
   SIM-2's arms: decision 045; specification `CODE_PLAN.md` section 3.8; transport 044; pass lines 021.
 - **SIM-2 (planned and approved 2026-11-19; commits 2 and 3 pushed; its five shards run on Puma from
-  `22ef0db7`, 2026-11-21 to 24; the seeded GTR20 arm decided 2026-11-24):** the design, cells, methods,
+  `22ef0db7`, 2026-11-21 to 24; the seeded GTR20 arm decided 2026-11-24, its code committed as 3d's first
+  step, its laptop runs next):** the design, cells, methods,
   Puma execution and Peter's runbooks are `CODE_PLAN.md` section 3.8's "SIM-2's plan" and "SIM-2's seeded
   GTR20 arm"; the task list is section 4. Every NQC fit runs IQ-TREE capped at 20 rounds (stage P), then
   the oracle's climb (stage B, `optimize.stage_b_climb`, "highest found" unless certified; decision 039).

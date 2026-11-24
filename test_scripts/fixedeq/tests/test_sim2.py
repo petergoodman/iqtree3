@@ -1,6 +1,7 @@
 """SIM-2's drivers (sim/sim2.py, sim/cloak.py and the pipeline additions; CODE_PLAN.md 3.8 and 4) on constructed
 inputs and committed files only, so CI runs them without a binary or downloaded data."""
 import gzip
+import hashlib
 import json
 import sys
 from pathlib import Path
@@ -166,6 +167,13 @@ def test_design_is_deterministic_and_has_the_planned_cells():
     held = {d["replicate"] for d in des["datasets"].values() if d["genes"] == sim2.HELDOUT_GENES}
     fitted = {des["datasets"][t["dataset"]]["replicate"] for t in des["tasks"]}
     assert held == {sim2.HELDOUT_REPLICATE} and sim2.HELDOUT_REPLICATE not in fitted
+
+
+def test_main_design_is_round_1s():
+    """Every change to sim2.py keeps the five shards' design: its body hashes as round 1's design.json (SIM-2
+    commit 3d, CODE_PLAN 3.8)."""
+    body = sim2.design_body(sim2.design())
+    assert hashlib.sha256(body.encode()).hexdigest() == "f1556f0d38256ca1e01c88742403c1238270c9e8c96e05160e8c8a4b1c39fa41"
 
 
 def test_smoke_design_has_unique_tasks():

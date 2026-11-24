@@ -472,12 +472,15 @@ def do_phase(des, phases, p, shard_dir, out, a):
     gate = Path(a.gate).expanduser().resolve()
     if p["kind"] in ("P", "fit"):
         init = start_matrix(t, shard_dir) if p["kind"] == "P" and t["init"] else None
+        seeded = t.get("gtr20_start")   # decision 046's seeded arm (sim2_gtr20.py): never start_matrix or init_check
         gtr20 = {"gtr20pi": "pi", "gtr20f": "counted"}.get(t["method"], False)
         # the smoke run prints each linked fit (-v, printing only) so that F's first start can be checked
         relaxed = t["relaxed"] and not des["smoke"]
         rec = pl.fit_into(out, data, gate, min(t["threads"], a.cores), cap_s, level2=t["level2"], relaxed=relaxed,
                           gtr20=gtr20,
-                          rounds=None if relaxed else t["rounds"], init_model=init,
+                          rounds=None if relaxed else t["rounds"],
+                          init_model=("seed.paml", pl.gtr20_seed(seeded["p"], common.target_text())) if seeded
+                          else init,
                           extra=["-v"] if des["smoke"] and init else [])
         worse = "Tree logl gets worse" in read(out / "fit" / "stdout.txt") if (out / "fit" / "stdout.txt").exists() \
             else False
@@ -489,7 +492,10 @@ def do_phase(des, phases, p, shard_dir, out, a):
                 rec.update(init_check(t, data, out, gate, init, shard_dir, float(fits[0][1]) if fits else None))
             except Exception:  # noqa: BLE001
                 rec["init_check_error"] = traceback.format_exc()[-2000:]
-        return {"status": "failed" if failed else "done", "record": {**rec, "logl_worse": worse}}, []
+        # also after a fit stopped at its cap, so that a rate at the bound is flagged whenever a checkpoint exists
+        rows = seeded_rows(out / "fit", seeded["p"], len(json.loads(read(data / "data.json"))["genes"])) \
+            if seeded and (out / "fit" / f"{PREFIX}.ckp.gz").exists() else []
+        return {"status": "failed" if failed else "done", "record": {**rec, "logl_worse": worse}}, rows
     tree_text = read(data / pl.TREE_RATE1).strip()
     level2 = pl.level2_state(task_dir / "P" / "fit", pl.leaf_order(tree_text)) if t["level2"] else None
     if p["kind"] == "B":
@@ -499,6 +505,31 @@ def do_phase(des, phases, p, shard_dir, out, a):
         return {"status": "done", "record": certify(data, task_dir / "P" / "fit", task_dir / "B",
                                                     min(p["cores"], a.cores), cap_s, tree_text, level2)}, []
     return {"status": "done", "record": metrics(t, data, shard_dir / "data" / t["heldout"], task_dir, out, gate)}, []
+
+
+SEED_READ = "Reading model parameters from file"            # ModelMarkov::readParameters, at every verbosity
+BOUNDARY = "Estimated model parameters are at boundary"     # IQTree::optimizeModelParameters' warning
+
+
+def seeded_rows(fitdir, p, genes):
+    """Decision 046's rows for a seeded GTR20 fit (021): from the checkpoint, the fixed Tyr-Val's 10-digit text
+    against p's and no free rate above 99 (asserted), the free rates at the floor (reported); from stdout,
+    reported only (printed output), the seed's reads against the gene count and IQ-TREE's boundary warning. A
+    failed row, or a checkpoint that cannot be read, fails in the shard's report; the phase stays done."""
+    try:
+        b = pl.rate_bounds(pl.gtr20_state(read_checkpoint(Path(fitdir) / f"{PREFIX}.ckp.gz")))
+    except Exception:  # noqa: BLE001
+        return [check("seeded GTR20: the checkpoint's rates can be read (046)", False,
+                      error=traceback.format_exc()[-1000:])]
+    text = read(Path(fitdir) / "stdout.txt") if (Path(fitdir) / "stdout.txt").exists() else ""
+    reads = sum(1 for line in text.splitlines() if line.startswith(SEED_READ))
+    return [check("seeded GTR20: the fixed Tyr-Val's checkpoint text equals p's (046, 021)",
+                  b["fixed_text"] == f"{p:.10g}", fixed_text=b["fixed_text"], p=p),
+            check("seeded GTR20: no free rate above 99, IQ-TREE's 0.99 x MAX_RATE (046, 021)", b["above_upper"] == 0,
+                  above_upper=b["above_upper"], largest_free=b["largest_free"], headroom=b["headroom"]),
+            check("seeded GTR20: free rates at the floor, <= 1.0001e-4", None, at_floor=b["at_floor"]),
+            check("seeded GTR20: printed seed reads against the genes, and boundary warnings (printed output)", None,
+                  seed_reads=reads, genes=genes, boundary_warnings=text.count(BOUNDARY))]
 
 
 def do_dataset(ds, shard_dir, out, a):
@@ -593,9 +624,10 @@ def metrics(t, data, held, task_dir, out, gate):
             "pooled": pooled, "partitions": len(st["part_freqs"])}
 
 
-def cmd_phase(a):
-    """One phase in its own process: works in a .partial directory, writes record.json, renames it."""
-    des = design(a.smoke)
+def cmd_phase(a, design_fn=design):
+    """One phase in its own process: works in a .partial directory, writes record.json, renames it. design_fn is
+    the study's design (sim2_gtr20.py passes its own)."""
+    des = design_fn(a.smoke)
     shard_dir = Path(a.out).expanduser().resolve() / f"shard-{a.shard}"
     phases = shard_phases(des, a.shard)
     p = phases[a.id]
@@ -722,18 +754,21 @@ def scan(shard_dir, phases):
     return state, interrupted, ratios
 
 
-def cmd_run(a):
+def cmd_run(a, design_fn=design, script=Path(__file__).resolve(), title="SIM-2 run"):
+    """One shard of the study whose design is design_fn and whose driver is script (each phase runs as
+    `script phase`); sim2_gtr20.py passes its own."""
     run_dir = Path(a.out).expanduser().resolve()
     if run_dir.is_relative_to(REPO):
         sys.exit(f"{run_dir}: the run directory must lie outside the repository")
-    prov = common.provenance(a, SCRIPT, f"run-shard{a.shard}", "confirmatory" if not a.smoke else "development",
+    prov = common.provenance(a, Path(script).relative_to(REPO).as_posix(), f"run-shard{a.shard}",
+                             "confirmatory" if not a.smoke else "development",
                              shard=a.shard, cores=a.cores, deadline_hours=a.deadline_hours, smoke=a.smoke,
                              skip_checks=a.skip_checks, curve=str(a.curve))
     frozen, gate, prov["binaries"] = binaries(a)
     shard_dir = run_dir / f"shard-{a.shard}"
     shard_dir.mkdir(parents=True, exist_ok=True)
     t_start = time.monotonic()
-    des = design(a.smoke)
+    des = design_fn(a.smoke)
     if des["shards"] != a.shards:
         sys.exit(f"the design has {des['shards']} shards, not {a.shards}")
     body = design_body(des)
@@ -757,7 +792,7 @@ def cmd_run(a):
         (log_dir / "checks").mkdir()
         rows = checks(log_dir / "checks", frozen, gate, a.git, a.allow_dirty)
         if any(r["passed"] is False for r in rows):
-            common.finish(log_dir, prov, f"SIM-2 run, shard {a.shard}: checks failed", rows)
+            common.finish(log_dir, prov, f"{title}, shard {a.shard}: checks failed", rows)
     state, interrupted, ratios = scan(shard_dir, phases)
     deadline_h = a.deadline_hours - (time.monotonic() - t_start) / 3600
     t0 = time.monotonic()
@@ -767,7 +802,7 @@ def cmd_run(a):
         r = ratios.get((p["kind"], p["size"]))
         return float(np.median(r)) if r else 1.0
 
-    base = [sys.executable, str(Path(__file__).resolve()), "phase", "--out", str(run_dir), "--shard", str(a.shard),
+    base = [sys.executable, str(script), "phase", "--out", str(run_dir), "--shard", str(a.shard),
             "--frozen", str(frozen), "--gate", str(gate), "--curve", str(a.curve), "--cores", str(a.cores)] \
         + (["--smoke"] if a.smoke else [])
     print(f"shard {a.shard}: {len(phases)} phases, {len(state)} already finished, {len(interrupted)} interrupted",
@@ -815,18 +850,19 @@ def cmd_run(a):
         if (final / "record.json").exists():
             for r in json.loads(read(final / "record.json")).get("rows", []):
                 rows.append({**r, "check": f"{p['id']}: {r['check']}"})
-    common.finish(log_dir, prov, f"SIM-2 run, shard {a.shard}", rows, {"state": state})
+    common.finish(log_dir, prov, f"{title}, shard {a.shard}", rows, {"state": state})
 
 
 COLLECT = ("record.json", "results.json", "report.md", "data.json", "design.json", "B.qmat", f"{PREFIX}.NQC.info",
-           f"{PREFIX}.NQC.qmat", "start.paml", "start.qmat")
+           f"{PREFIX}.NQC.qmat", "start.paml", "start.qmat", "seed.paml")
 
 
-def cmd_collect(a):
-    """One tarball of RUNDIR's records: no alignments, checkpoints or logs, but a failed phase's stdout."""
+def cmd_collect(a, prefix="collect"):
+    """One tarball of RUNDIR's records, named prefix-<stamp>.tar.gz: no alignments, checkpoints or logs, but a
+    failed phase's stdout."""
     run_dir = Path(a.out).expanduser().resolve()
     stamp = datetime.datetime.now(datetime.timezone.utc).strftime("%Y%m%dT%H%M%SZ")
-    target = run_dir / f"collect-{stamp}.tar.gz"
+    target = run_dir / f"{prefix}-{stamp}.tar.gz"
     with tarfile.open(target, "w:gz") as tar:
         for path in sorted(run_dir.rglob("*")):
             if not path.is_file() or path.name.startswith("collect-"):

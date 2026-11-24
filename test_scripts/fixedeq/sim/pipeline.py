@@ -526,6 +526,27 @@ def gtr20_paml(state, target_text):
         + "\n"
 
 
+MAX_RATE = 100.0          # ModelMarkov's upper bound on a free rate (model/modelmarkov.h, MAX_RATE)
+FLOOR_HELD = 1.0001e-4    # a free rate at ModelMarkov's lower bound, MIN_RATE = 1e-4
+
+
+def gtr20_seed(p, target_text):
+    """Decision 046's --init-model file for GTR20, written as gtr20_paml writes a carry: every exchangeability 10
+    and Tyr-Val, IQ-TREE's last rate (the one GTR20 keeps fixed), p; then pi*. Its largest entry is 10, so
+    rescaleRates scales by exactly 1 and Tyr-Val stays exactly p."""
+    return gtr20_paml({"rates_text": ["10"] * 189 + [f"{p:.10g}"]}, target_text)
+
+
+def rate_bounds(state):
+    """A GTR20 fit's rates against IQ-TREE's box (decision 046): the fixed last rate's checkpoint text; the
+    largest free rate and its headroom (MAX_RATE over it); the free rates above isUnstableParameters' 0.99 x
+    MAX_RATE; those at the floor."""
+    free = np.array([float(v) for v in state["rates_text"][:-1]])
+    largest = float(free.max())
+    return {"fixed_text": state["rates_text"][-1], "largest_free": largest, "headroom": MAX_RATE / largest,
+            "above_upper": int(np.sum(free > 0.99 * MAX_RATE)), "at_floor": int(np.sum(free <= FLOOR_HELD))}
+
+
 def level2_state(fitdir, taxa):
     """A -p fit's state for the oracle (SIM-2's cell G): the tree from the checkpoint (PhyloTree!newick, 10
     significant digits where .treefile has 10 decimals; taxon IDs index taxa, the alignment's rows), its paths

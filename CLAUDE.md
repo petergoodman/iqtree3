@@ -174,6 +174,17 @@ cmake --build ~/iqtree3-build -j 4
       directory; then `cloak.py curve --run RUNDIR` with the same two paths. It writes
       `sim/masking/cloak_curve.tsv`, never over an existing file.
     - The calibration: `explore/stage_b_calibration.py --pilot DIR`.
+  - **The seeded GTR20 arm** (decision 046; driver `test_scripts/fixedeq/sim/sim2_gtr20.py`, full usage in its
+    docstring; refuses binaries other than round 1's):
+    - On the laptop, in WSL's conda, with `--git git.exe`:
+      - `sim2_gtr20.py design` (176 tasks, three shards, the first-wave check, the projection);
+      - `sim2_gtr20.py run --smoke --skip-checks --out DIR --shard 1 --cores 12
+        --curve ~/iqtree3-runs/sim2/20261120T114049Z-smoke-curve.tsv --frozen ... --gate ...` (the smoke run, on
+        round 1's smoke data), then `explore/gtr20_window.py smoke --run DIR --reference
+        ~/iqtree3-runs/sim2/20261120T114049Z-smoke`;
+      - `explore/gtr20_window.py fits --frozen ... --gate ...` (the demonstration and calibration).
+    - On Puma, through `sim/slurm/sim2_gtr20.sbatch SHARD RUNDIR FROZEN GATE CLONE` (CODE_PLAN 3.8's runbook),
+      then `sim2_gtr20.py collect --out RUNDIR`.
 - **`python` in the Bash tool is the Windows Store alias** and hangs waiting for input; never call it
   there (three hangs on 2026-11-16 and 17). Python runs only through WSL's conda, as above.
 - **Long jobs need the laptop awake.** Windows Modern Standby pauses the WSL VM and every job in
