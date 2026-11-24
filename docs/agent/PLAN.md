@@ -217,7 +217,7 @@ and S7's two bootstraps complete them. The slices run in the order decision 040 
 | 11 | Scientific success criterion and manuscript details (placeholder above) | Peter, with SIM-2's reference distributions (decision 041) |
 | 23 | Reported by the S3 plan's review, not verified: resuming an `-S` tree search with `+I+G` may restore stale top-level model keys, for every model (`UPSTREAM_FINDINGS.md`, Risk 23). Outside S3's validation paths, which use `-te` | Checked before it becomes a question for the maintainers |
 | 24 | Fits stop short of their peaks under IQ-TREE's stopping rules, for every model, so comparing two fits' scores (box against wide, NQC against NONREV, D08's arms) needs a convergence protocol. IQ-TREE's optimizer stays unchanged (decision 009). At scale the shortfall grows: SIM-1's 100-gene fit, capped at 20 rounds, sat at least 90 below the oracle's climb from its endpoint. The stopping rules and the measurements: `UPSTREAM_FINDINGS.md`, Risk 24 | Testing: S3c's first part (done 2026-10-25). Science: decision 039 (SIM-2's stages P and B) |
-| 26 | Compute: SIM-2 and S7 run on UA HPC's Puma under UA's agentic AI policy and Peter's norms (`CLAUDE.md`, Puma). SIM-2's cost model (`CODE_PLAN.md` 3.8; estimates from SIM-1's pilot and S3c, with Puma's per-core speed, thread efficiency, evaluation and climb iteration counts assumed): 308 NQC fits with stage B and 176 GTR20 fits, about 19,700 charged core-hours in one 48 h round, rising to at least 26,300 to 39,900 over two or three rounds if the climbs run long or the estimates are 1.5 times low. S7, unverified extrapolation from S3c (`docs/agent/archive/SIM_plan_2026-11-07.md`, Appendix C): one NQC `-S` fit at 190 taxa and 1000 genes about 80 core-hours; NQC's first linked fit from LG took 5,000 to 13,000 evaluations and each later round 700 to 4,400, so a training run's cost is set by its first fit and its round count. SIM-1's pilot on the laptop (`-T 6`, round cap 20): 26 to 48 min and 0.6 GB a fit at 30 genes, 2.4 h and 1.5 GB at 100; at 1000 genes IQ-TREE asked for 10.1 GB | Peter's ceiling, 40,000 charged core-hours (2026-11-19): the agent projects the total from measured times after each round and stops for Peter only above it |
+| 26 | Compute: SIM-2 and S7 run on UA HPC's Puma under UA's agentic AI policy and Peter's norms (`CLAUDE.md`, Puma). SIM-2's cost model (`CODE_PLAN.md` 3.8; estimates from SIM-1's pilot and S3c, with Puma's per-core speed, thread efficiency, evaluation and climb iteration counts assumed): 308 NQC fits with stage B and 176 GTR20 fits, about 19,700 charged core-hours in one 48 h round, rising to at least 26,300 to 39,900 over two or three rounds if the climbs run long or the estimates are 1.5 times low. S7, unverified extrapolation from S3c (`docs/agent/archive/SIM_plan_2026-11-07.md`, Appendix C): one NQC `-S` fit at 190 taxa and 1000 genes about 80 core-hours; NQC's first linked fit from LG took 5,000 to 13,000 evaluations and each later round 700 to 4,400, so a training run's cost is set by its first fit and its round count. SIM-1's pilot on the laptop (`-T 6`, round cap 20): 26 to 48 min and 0.6 GB a fit at 30 genes, 2.4 h and 1.5 GB at 100; at 1000 genes IQ-TREE asked for 10.1 GB | Peter's ceiling, 40,000 charged core-hours (2026-11-19): the agent projects the total from measured times after each round and stops for Peter only above it. SIM-2's round 1 charged about 18,500 (94 cores × the shards' wall times; Puma's accounting not read); round 2 was projected at about 1,100 |
 | 28 | SIM-1's 100-gene NQ.bird fit (pilot, 20-round cap) pushed a few low-flux rates toward the domain floor (5 of the chart's z coordinates within 1 of the lower bound, none at it), always underestimated, the same pairs across replicates (K→G, K→P, E→P, V→P, N→A, N→G; across the pilot's fits the largest errors sit at flux ranks 119 to 309 of 380); its unweighted log-rate RMS rose to 1.11 from 0.72 to 0.97 at 30 genes while the two highest-flux quintiles improved (RMS 0.04, 0.09) (`explore/pilot_rate_errors.py`, commit `f181cf38`). Two parts, by a planning measurement on 2026-11-19 (exploratory, SIM-2 plan archive): at 100 genes mostly IQ-TREE's process stopping short, since the oracle's climb from the capped endpoint cut the third flux quintile's pair-sum log error from 0.55 to 0.22; at 30 genes the higher point pushed the lowest-flux rates further down (0.80 to 1.35) | SIM-2 (decision 045; aim 7, stage P against stage B) |
 | 29 | CR, the code consolidation and reuse review (a side excursion, not a slice): the maintainers' comments, reported by Peter on 2026-11-20 and made in discussion rather than from the code, that NQC's new files be condensed into one and that its reuse of IQ-TREE's code and commands (NONREV and `ModelMarkov` as the base) be checked. A consolidation that is not bitwise equal at `-T 1` to SIM-2's binary (`~/iqtree3-binaries/25d78d6e/`) would separate the submitted code from the validated code. Open choices: the chart's layout; the hooks' form (three forms since the reuse review); whether other changes that alter numbers or the interface wait for SIM-2 and the maintainers' reply; whether the copies that exist because `ModelMarkov` and `Optimization` stay unedited (decisions 009, 015) are offered to the maintainers as a proposal, Peter leaning towards keeping both unchanged; the route to the maintainers; the branch's name. Taken: the reuse review's message and help fixes come into CR as one labelled commit (Peter, 2026-11-21). Findings and the agent's recommendations: `docs/agent/archive/CR_brief_2026-11-20.md` and `CR_reuse_review_2026-11-21.md` | Peter's choices, then CR's equivalence check (`CODE_PLAN.md` section 4, CR) |
 
@@ -347,12 +347,13 @@ audits' low findings are in `CODE_PLAN.md` section 4, "Known and left alone".
   not 0.047 + 0.058), so power is measured directly (041). Gate record and counted failures:
   `CHANGELOG.md`, SIM-1 close; the audit's corrections: its fifth-session entry and commit `f181cf38`.
   SIM-2's arms: decision 045; specification `CODE_PLAN.md` section 3.8; transport 044; pass lines 021.
-- **SIM-2 (planned and approved 2026-11-19; commits 2 and 3 pushed; round 1 submitted 2026-11-20 at `22ef0db7`):** the design, cells, methods, Puma
+- **SIM-2 (planned and approved 2026-11-19; commits 2 and 3 pushed; rounds 1 and 2 run on Puma from `22ef0db7`, round 2 not yet read):** the design, cells, methods, Puma
   execution and Peter's runbook are `CODE_PLAN.md` section 3.8's "SIM-2's plan"; the task list is section
   4. Every NQC fit runs IQ-TREE capped at 20 rounds (stage P), then the oracle's climb (stage B,
   `optimize.stage_b_climb`, "highest found" unless certified; decision 039). The drivers (`sim2.py`,
   `cloak.py`, the sbatch script) are written, reviewed and smoke-tested. In the calibration no climb
-  stalled within its cap; Peter kept the stall rule and the caps for round 1 (section 3.8). BAliBASE 3.0 is in place
+  stalled within its cap; Peter kept the stall rule and the caps for round 1 (section 3.8). On Puma most climbs
+  at 100 genes or more stalled before their caps, and none was certified. BAliBASE 3.0 is in place
   (CLAUDE.md, CLOAK). S6's list is written at SIM-2's close.
 - **CR (a side excursion, not a slice; its reuse review done, the consolidation not started):** the
   code consolidation and reuse review behind risk 29, on a side branch (decision 001; `CLAUDE.md`,
@@ -366,20 +367,20 @@ audits' low findings are in `CODE_PLAN.md` section 4, "Known and left alone".
 
 ## Next step
 
-SIM-2's round 1 is running on Puma: five jobs, one a shard, submitted 2026-11-20 at `22ef0db7` after the
-preflight and test job passed (job IDs in `CHANGELOG.md`, 2026-11-20). The design's projection puts each
-shard at about 41 to 45 h from its start. Peter approved round 1 as designed, with round 2 decided on the
-measured times (`CODE_PLAN.md` 3.8).
+SIM-2's round 1 ran on Puma from `22ef0db7`: shards 1 to 4 finished every phase, and shard 5 (cells D and
+F) reached its 48 h limit with 146 of its 674 phases left, none failed. Round 2, those phases alone at 48
+cores (job 24779693), ended 2026-11-24 (reported by Peter). Puma's clone stays at `22ef0db7` until round 2
+is read. Details: `CHANGELOG.md`, 2026-11-23 to 24.
 
 Remaining steps:
-1. While Puma runs, commit 4 (`sim2.py analyze`) in a new session.
-2. When all five jobs have ended, Peter collects and downloads the tarball (runbook steps 6 and 7,
-   `CODE_PLAN.md` 3.8) into `~/iqtree3-runs/sim2/`; the agent reads it, reports failed phases, and names
-   the shards and cores for round 2.
-3. After each round, the projection from measured times against the 40,000 ceiling (risk 26).
+1. Peter collects round 2 and downloads its tarball into `~/iqtree3-runs/sim2/` (runbook step 7,
+   `CODE_PLAN.md` 3.8); the agent reads it, reports failed or unfinished phases, names any further round,
+   and projects the total against the 40,000 ceiling (risk 26).
+2. Commit 4 (`sim2.py analyze`) in a new session. Before cell D is read, it checks how the GTR20 arms
+   are scored: on the reversible truth their held-out lnL fell further below the truth's than NQC's did.
+3. Commit 5, SIM-2's close (`CODE_PLAN.md` section 4).
 
-Side work while Puma runs, in its own sessions and in either order with step 1: CR (`CODE_PLAN.md`
-section 4, CR). Its reuse review is done; next come Peter's open choices on risk 29, then the CR plan
+Side work, in its own sessions and in either order with step 2: CR (`CODE_PLAN.md` section 4, CR). Its reuse review is done; next come Peter's open choices on risk 29, then the CR plan
 session in plan mode.
 
 The working rules are in `CODE_PLAN.md` section 4, "Implementation".

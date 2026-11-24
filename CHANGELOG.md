@@ -8,6 +8,19 @@ gate record and may run to 25 lines. The next session starts from the top entry.
 This is a fork of `iqtree/iqtree3`. Entries here describe work on the fork, not upstream
 development.
 
+## 2026-11-23 to 24 (twelfth session): SIM-2 round 1 read; round 2, shard 5's leftovers, run
+
+- **Done.** Round 1's tarball (SHA-256 `73a405cf`) read in `~/iqtree3-runs/sim2/round1-collect-20261123T144149Z`:
+  shards 1 to 4 finished all 966 phases; shard 5 (D, Dr, F) hit its 48 h limit with 528 of 674 done. No phase
+  failed and all 1,100 check rows passed. Shard 5's GTR20 fits took 1.37 times their estimate (median).
+- **Round 2:** shard 5 alone at 48 cores, job 24779693 from `22ef0db7`, ended 2026-11-24 (Peter). The driver's
+  scheduler replayed on round 1's durations (seed 20261123) gave a median 22.4 h and 1,076 charged core-hours at
+  48 cores, against 21.3 h and 2,001 at 94. Round 1 charged about 18,500 (94 × wall, shard 5 at 48 h).
+- **First look,** exploratory (scripts, commands and outputs: `~/iqtree3-runs/sim2/20261124-round1-read/`): every B
+  "highest found"; 207 of 225 climbs at 100 genes or more stalled before their caps. For commit 4: on R0 at 100
+  genes GTR20+F{π*}'s held-out lnL is 56 below the truth's (relaxed refits 55), NQC's at B 18; its scoring is checked.
+- **Failed:** nothing. **Next.** Peter collects round 2; the agent reads it; then commit 4 (`analyze`).
+
 ## 2026-11-21 (eleventh session): CR step 1, the reuse review; Peter's answers recorded
 
 - **Done.** CR's read-only reuse review by three fresh reviewers (model class and shared edits; chart;

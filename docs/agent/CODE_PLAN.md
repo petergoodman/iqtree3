@@ -1658,6 +1658,8 @@ sanitizer run. Commits:
    - Pushed 2026-11-20 with Peter's two decisions taken (stall rule and caps kept; round 1 as designed).
    - Round 1 submitted 2026-11-20 at `22ef0db7`, after the preflight and test job passed (job IDs in
      `CHANGELOG.md`, 2026-11-20).
+   - Round 1 read 2026-11-23: shards 1 to 4 complete; shard 5's 146 leftover phases rerun as round 2 at
+     48 cores (job 24779693), ended 2026-11-24, not yet read (`CHANGELOG.md`, 2026-11-23 to 24).
 4. `sim2.py analyze`, written while Puma runs, with vector figures in a colour-blind-safe palette.
 5. The close: rounds collected and analysed with MCSEs; the gate record; records; S6's and S7's lists;
    the AI_DISCLOSURE entry.
