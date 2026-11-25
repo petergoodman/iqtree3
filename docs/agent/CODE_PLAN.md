@@ -1460,7 +1460,9 @@ frozen in `docs/agent/archive/SIM2_gtr20_seeded_plan_2026-11-24.md`).**
     rounds, 2 threads. Only the exchangeability start changes.
   - Declared before any refit: "GTR20 seeded" is D's primary reversible arm; round 1's "default seed"
     arm stays in round 1's run directory and is reported beside it as failed by risk 30; a seeded fit
-    with a rate at the upper bound is flagged and counted, never refitted.
+    with a rate at the upper bound is flagged and counted, never refitted (reported, not asserted, since
+    Peter's change after the laptop calibration; range limitation is judged by decision 021's `analyze` R0
+    lnL row).
   - Not run again: NQC fits; cell F (see F above).
 - **Seed and window.**
   - `--init-model seed.paml`, an existing option. For GTR20, `ModelProtein::init` calls `readParameters`
@@ -1471,19 +1473,25 @@ frozen in `docs/agent/archive/SIM2_gtr20_seeded_plan_2026-11-24.md`).**
   - The seed is a PAML lower triangle with every exchangeability written as 10 and Tyr–Val as p, then
     π*. Its largest entry is already 10, so `rescaleRates` scales by exactly 1 and Tyr–Val is fixed at
     exactly p; the free rates start at 10, as POISSON does today. Window: [1e-4/p, 100/p] × Tyr–Val.
-  - p = 0.02, window [0.005, 5000], unless the calibration's rule below picks 0.05.
-    - Headroom: the largest rate off the bound in round 1's fits had medians of 343 to 560 × the true
-      Tyr–Val by masking strength, at most 622 (at s = 2), and R0's truth needs 498.
-    - Floor: round 1's fits held 1.3 to 6.0 rates a fit at IQ-TREE's floor (effectively 0.00045 × the
-      true Tyr–Val), rising with masking; a floor at 0.005 would hold 1.4 to 6.2, at most 0.3 more
-      (`~/iqtree3-runs/sim2/20261124-round2-read/floors.txt`).
-  - Caveat: IQ-TREE's BFGS is not scale-free (`dfpmin` and `lnsrch` test against max(|x|, 1)); at
-    p = 0.02 most free rates lie below 1, so rounds, convergence and time may differ from round 1. The
-    calibration measures it; Dr's relaxed refits check convergence.
+  - p = 0.05, window [0.002, 2000] × Tyr–Val, chosen by Peter on 2026-11-24 against the calibration
+    rule's 0.02, a departure recorded with both fits (laptop runs below). The rule's headroom test could
+    not separate them: both fits ended with one rate (I–V) at 100. 0.05 met its lnL test (+1.34), stopped
+    by its gain test in 17 rounds and took 1.01 × the default fit's time; 0.02 ran to the 20-round cap at
+    1.43 ×, which would put round 1's longest fit at 39.4 h against the 40 h cap.
+    - The planning case for 0.02, kept for the record: round 1's largest rate off the bound had medians
+      of 343 to 560 × the true Tyr–Val by masking strength, at most 622, R0's truth needs 498; a floor at
+      0.005 × Tyr–Val would hold at most 0.3 more rates a fit than IQ-TREE's
+      (`~/iqtree3-runs/sim2/20261124-round2-read/floors.txt`). The calibration showed the ceiling is
+      reached by drift, not by the data: at 30 genes the likelihood barely constrains Tyr–Val's level
+      (scaling it alone 0.01 to 10 × moved lnL by at most 0.63), and the free rates rise until I–V is at
+      100 in either fit.
+  - Caveat: IQ-TREE's BFGS is not scale-free (`dfpmin` and `lnsrch` test against max(|x|, 1)), so rounds,
+    convergence and time depend on p; the calibration measured it at 30 genes, and Dr's relaxed refits
+    check convergence at 100.
   - Not chosen: `--init-exchange LG` (at most 427 ×, below 498; `--init-exchange` takes a model name,
     built-in or from `-mdef`, so a custom start would also need a NEXUS file); seeding at the truth (an
     unfair start); editing IQ-TREE's bounds (no change to existing inference); p = 0.1 (1,000 ×, under
-    2 × headroom at s = 2).
+    2 × headroom at s = 2); p = 0.02 (above).
 - **Code: SIM-2 commit 3d** (section 4).
   - New driver `sim/sim2_gtr20.py`, its own `SCRIPT` and runs root `~/iqtree3-runs/sim2-gtr20`, with
     `design`, `run`, `phase` and `collect`.
@@ -1518,13 +1526,13 @@ frozen in `docs/agent/archive/SIM2_gtr20_seeded_plan_2026-11-24.md`).**
     - `do_phase` passes `gtr20_start` through `fit_into`'s existing `init_model` on its own path, never
       through `start_matrix` or `init_check`, and after a seeded fit that left a checkpoint (one stopped at
       its cap included) adds rows from it
-      (`gtr20_state`, in `seeded_rows`): the fixed rate's 10-digit text equals p's (asserted); no free rate above 99,
-      IQ-TREE's own 0.99 × `MAX_RATE` in `isUnstableParameters` (asserted); the count at the floor,
-      ≤ 1.0001e-4 (reported); and, from the fit's stdout, reported and never asserted (printed output):
-      the lines beginning "Reading model parameters from file" (the path is printed as given) against
-      the gene count, and IQ-TREE's boundary warning ("Estimated model parameters are at boundary").
-      A failed fixed-rate or bound row, or a checkpoint that cannot be read, fails that row in the shard's
-      report, while the phase stays done so its metrics run; the fit is flagged and counted, never refitted;
+      (`gtr20_state`, in `seeded_rows`): the fixed rate's 10-digit text equals p's (asserted); the free rates
+      above 99, IQ-TREE's own 0.99 × `MAX_RATE` in `isUnstableParameters`, flagged and counted (reported);
+      the count at the floor, ≤ 1.0001e-4 (reported); and, from the fit's stdout, reported and never
+      asserted (printed output): the lines beginning "Reading model parameters from file" (the path is
+      printed as given) against the gene count, and IQ-TREE's boundary warning ("Estimated model
+      parameters are at boundary"). A failed fixed-rate row, or a checkpoint that cannot be read, fails that
+      row in the shard's report, while the phase stays done so its metrics run; never refitted;
     - `COLLECT` gains `seed.paml`.
   - `sim/pipeline.py`: `gtr20_seed(p, target_text)` through `gtr20_paml` (so `paml_rows`); `rate_bounds(state)`.
   - `sim/slurm/sim2_gtr20.sbatch`: `sim2.sbatch`'s copy, job name `sim2-gtr20`, arguments
@@ -1533,8 +1541,9 @@ frozen in `docs/agent/archive/SIM2_gtr20_seeded_plan_2026-11-24.md`).**
     arm's design (176 tasks, 160 D and 16 Dr, GTR20 only, round 1's datasets, unique `-seeded` ids, the
     three shards, every fit started in the first wave by `first_wave`, which fails above a ratio of about
     1.9); `gtr20_seed` (Tyr–Val the last PAML entry and equal to p, the largest entry 10); `rate_bounds` on
-    a constructed state; `do_phase` with a stand-in `fit_into`: `init_model` set only for seeded fits, and a
-    rate at 99.5 failing its row with the phase done; the binary check refusing a wrong hash; the rule for p.
+    a constructed state; `do_phase` with a stand-in `fit_into`: `init_model` set only for seeded fits, a
+    rate at 99.5 flagged and a wrong fixed rate failing its row, with the phase done; the binary check
+    refusing a wrong hash; the rule for p.
   - `explore/gtr20_window.py`, in the same commit so that both laptop runs start from a clean tree: `fits`
     (the demonstration and calibration below) and `smoke` (the smoke run against round 1's).
   - The same commit adds the driver, sbatch and window script to `CLAUDE.md`'s Puma SIM-2 commands.
@@ -1545,8 +1554,8 @@ frozen in `docs/agent/archive/SIM2_gtr20_seeded_plan_2026-11-24.md`).**
     round 1's; it passes with every phase done. `gtr20_window.py smoke` shows the fixed rate at p, the
     seed read once per gene, GTR20+F{π*}'s frequencies equal to π* and GTR20+F's equal to round 1's smoke run
     (`~/iqtree3-runs/sim2/20261120T114049Z-smoke`) on the same data.
-  - Demonstration and calibration, `gtr20_window.py fits` (exploratory, with provenance; about 3 to 6 h
-    under the keep-awake helper, not measured). Data: R0, 30 genes,
+  - Demonstration and calibration, `gtr20_window.py fits` (exploratory, with provenance; under the
+    keep-awake helper; measured 3.0 h for the default and p = 0.05 fits, 4.3 h for p = 0.02). Data: R0, 30 genes,
     replicate 1, which the committed cross-machine fixture shows the laptop simulates byte-identically
     to Puma. Four GTR20+F{π*} fits at 1 thread, run at the same time so that they share one load (12 h cap
     each): default seed on the frozen unmodified binary; default
@@ -1559,11 +1568,23 @@ frozen in `docs/agent/archive/SIM2_gtr20_seeded_plan_2026-11-24.md`).**
     submission: run on the tree being committed for the records, then repeated from the clean commit, whose
     `design.json` and projection must be identical. If p becomes 0.05 the smoke run is not repeated: the 0.05
     calibration fit shows the seed reaching the fit at p.
-- **Pass lines:** decision 021's five "SIM-2 seeded GTR20" rows, set by Peter 2026-11-24. How each acts:
+  - Done 2026-11-24 at `182a0dd7` (measurements in `CHANGELOG.md` and the commit message that follows it):
+    - smoke run (`~/iqtree3-runs/sim2-gtr20/20261124T190342Z-182a0dd7-smoke`): every phase done, the seed
+      read once per gene, Tyr–Val at "0.02", data and frequencies as round 1's; its five fits had 3 to 5
+      rates at 100, the then-asserted bound row failing in each (3 genes; diagnosis in
+      `~/iqtree3-runs/sim2-gtr20/20261124-smoke-diagnosis/`);
+    - calibration (`…/20261124T192220Z-182a0dd7-window`): frozen and gate default fits identical, 32.09
+      below the truth; seeded fits 98.76 (p = 0.02) and 100.10 (0.05) above it, each with I–V at 100;
+      the rule gave 0.02; Peter loosened the bound row to reported and chose p = 0.05 (above), ratio
+      1.0141. The other project's jobs shared the laptop for about 40 min of the fits' first 1.8 h, all
+      four fits alike, so the ratio may be a few percent nearer 1 than unloaded.
+- **Pass lines:** decision 021's five "SIM-2 seeded GTR20" rows, set by Peter 2026-11-24 (the rate above
+  99 reported since his change that day). How each acts:
   - the laptop rows (the demonstration and the smoke run): a failure stops the work for Peter before
     any Puma job. The default fits' limit is reported; if it does not bind at 30 genes, that is
     reported and the 100-gene evidence stands;
-  - the Puma rows (the fixed rate, no rate above 99): handled as in `do_phase` above, and the jobs go on,
+  - the Puma row (the fixed rate; the rate above 99 is flagged and counted): handled as in `do_phase`
+    above, and the jobs go on,
     since stopping running jobs would waste their other fits; the agent reports any failed row when it
     reads the tarball, and the analysis of D waits for Peter (the approved plan's "a failure stops the
     work for Peter", applied at the read, not mid-job);
@@ -1571,11 +1592,13 @@ frozen in `docs/agent/archive/SIM2_gtr20_seeded_plan_2026-11-24.md`).**
     lnL row is reported, a shortfall read against the same data's relaxed refit.
 - **Peter's runbook** (placeholders as above):
   1. After the agent's push of 3d and its laptop record (with Peter's approval), on the login node: in
-     the clone `git pull` and check out that commit; the tree must be clean.
+     the clone `git pull`, staying on `nq-constrained-pi` at its head, 3d's second commit ("SIM-2 commit 3d,
+     step 2", which sets P = 0.05; the first, `182a0dd7`, still has 0.02); the tree must be clean.
   2. A test job, 40 min at 4 cores, from a scratch directory outside the clone:
      `sbatch --account=<account> --partition=standard --cpus-per-task=4 --time=00:40:00
      <clone>/test_scripts/fixedeq/sim/slurm/sim2_gtr20.sbatch 3 <scratch>/test <frozen> <gate> <clone>`;
-     its `slurm-*.out` should show the checks passing and fits starting. Delete `<scratch>/test` after.
+     its `slurm-*.out` should show the checks passing and fits starting, and `<scratch>/test/design.json`
+     should hold `"p": 0.05` and `"ratio": 1.0141`. Delete `<scratch>/test` after.
   3. From a new run directory outside the clone (for example `…/sim2-gtr20-run`), for K = 1, 2, 3:
      `sbatch --account=<account> --partition=standard --cpus-per-task=<84, 84, 34>
      <clone>/test_scripts/fixedeq/sim/slurm/sim2_gtr20.sbatch K <run dir> <frozen> <gate> <clone>`.
@@ -1583,8 +1606,8 @@ frozen in `docs/agent/archive/SIM2_gtr20_seeded_plan_2026-11-24.md`).**
      <clone>/test_scripts/fixedeq/sim/sim2_gtr20.py collect --out <run dir>`; download
      `collect-gtr20-*.tar.gz` with WinSCP into `\\wsl.localhost\Debian\home\petergoodman\iqtree3-runs\sim2-gtr20\`;
      tell the agent.
-- **Cost** (rough, before the calibration): one wave of about 25 to 40 h, roughly 5,000 to 8,000
-  charged core-hours, a SIM-2 total of about 25,000 to 28,000 of 40,000 (PLAN.md risk 26).
+- **Cost:** `sim2_gtr20.py design` at p = 0.05 and ratio 1.0141, its numbers in PLAN.md risk 26; every fit
+  starts in its shard's first wave, and round 1's longest fit times the ratio is 27.9 h, inside the 40 h cap.
 - **`analyze`** (commit 4) takes both run directories: D's reversible comparison uses the seeded arm,
   with the default-seed arm beside it as failed; rate metrics with and without floor-held pairs, for
   both arms; the pass lines above.
@@ -1815,20 +1838,25 @@ sanitizer run. Commits:
    - Round 2 read 2026-11-24: all 1,640 phases of the five shards done, none failed, every check row
      passed; about 19,600 charged. Cell D's GTR20 arms failed by IQ-TREE's range limit (PLAN.md risk 30),
      kept as the "default seed" arm (`CHANGELOG.md`, 2026-11-24).
-   - **3d, the seeded GTR20 arm (decision 046), next,** in its own session (specification, runbook and
+   - **3d, the seeded GTR20 arm (decision 046), in progress, steps 1 to 4 done** (specification, runbook and
      pass lines: section 3.8, "SIM-2's seeded GTR20 arm"):
      1. done (2026-11-24): the commit: `sim/sim2_gtr20.py`, `sim/slurm/sim2_gtr20.sbatch`, `sim2.py`'s
         parameters, `do_phase` rows and `COLLECT`, `pipeline.gtr20_seed` and `rate_bounds`,
         `explore/gtr20_window.py`, the tests, `CLAUDE.md`'s commands; pytest passing (432), the main design's
         hash included;
-     2. the smoke run from the clean committed tree;
-     3. `explore/gtr20_window.py`, the demonstration and calibration, its pass lines, and p by its rule;
-     4. `sim2_gtr20.py design`'s projection, with the cumulative total against 40,000;
-     5. the laptop runs' record committed; a push with Peter's approval; Peter's runbook.
+     2. done (2026-11-24): the smoke run from the clean committed tree, every phase done; its bound row
+        failed at 3 genes, then became reported (step 3);
+     3. done (2026-11-24): `explore/gtr20_window.py`, the demonstration and calibration; its bound rows
+        failed; Peter made that row reported and chose p = 0.05 against the rule's 0.02 (decisions 021, 046);
+     4. done (2026-11-24) on the tree being committed: `sim2_gtr20.py design`'s projection (PLAN.md risk 26);
+     5. the second commit (P, RATIO, the reported ceiling row, the laptop runs' record); `design` repeated from
+        it, `design.json` and projection identical; a push with Peter's approval; Peter's runbook.
 
      Known shortfalls, to state with the results: the seeded arm's start differs from IQ-TREE's default
      and its fits run on a different scale of free rates (section 3.8's caveat); a rate at the raised
-     floor is held there, as at IQ-TREE's floor in round 1; no unit test runs IQ-TREE, so the seed's
+     floor is held there, as at IQ-TREE's floor in round 1; the fixed Tyr–Val is weakly identified, so the
+     free rates can drift to the ceiling (at 30 genes, I–V at 100 in every seeded fit, at under 1 lnL's
+     cost); p = 0.05 departs from the rule set before the calibration; no unit test runs IQ-TREE, so the seed's
      reach into every partition is shown by the smoke run's printed lines and checkpoint.
 4. `sim2.py analyze`, written while Puma runs, with vector figures in a colour-blind-safe palette. It
    reads both run directories (the five shards and the seeded arm); D's reversible comparison uses the

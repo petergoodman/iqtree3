@@ -12,9 +12,11 @@ default seed on the frozen and on the gate binary, and seeded (pipeline.gtr20_se
 gate binary. For each: the oracle's training lnL (sim2.objective_for, the trees AliSim used) against the truth's,
 the fixed rate, the largest free rate, headroom and floor count (pipeline.rate_bounds), rounds, ending rule and
 wall time. Asserted, decision 021's laptop rows: the two default fits' checkpoint rates text and final lnL
-identical; each seeded fit's fixed rate at p and no free rate above 99; each seeded fit's training lnL not below
-the truth's. Reported: whether the limit binds for the default fits at 30 genes; p by the rule set before the run
-(choose_p); the seeded-to-default wall ratio at that p, which scales sim2_gtr20.py's estimates.
+identical; each seeded fit's fixed rate at p; each seeded fit's training lnL not below the truth's. Reported: each
+seeded fit's free rates above 99, flagged and counted (asserted until Peter's change of 2026-11-24); whether the
+limit binds for the default fits at 30 genes; p by the rule set before the run (choose_p; Peter chose 0.05 against
+it on 2026-11-24, decision 046); the seeded-to-default wall ratio at each p, the chosen p's scaling sim2_gtr20.py's
+estimates (the run at 182a0dd7 reported the rule's p only; both are in its diagnosis, window_bounds.txt).
 smoke: a seeded smoke run (sim2_gtr20.py run --smoke) against round 1's smoke run on the same data: every phase
 done; the shard's seeded rows passed; every dataset's file hashes equal; each gtr20f fit's linked frequencies equal
 round 1's at the checkpoint's 10 digits; each gtr20pi fit's equal pi* at 10 digits; the seed's printed reads
@@ -124,24 +126,25 @@ def cmd_fits(a):
         f = fits.get(f"seeded-{p:g}")
         if f is None:
             continue
-        rows.append(check(f"seeded p = {p:g}: the fixed Tyr-Val's checkpoint text equals p's, and no free rate above 99 "
-                          "(021)", f["fixed_text"] == f"{p:.10g}" and f["above_upper"] == 0, fixed_text=f["fixed_text"],
-                          above_upper=f["above_upper"], largest_free=f["largest_free"], headroom=f["headroom"]))
+        rows.append(check(f"seeded p = {p:g}: the fixed Tyr-Val's checkpoint text equals p's (021)",
+                          f["fixed_text"] == f"{p:.10g}", fixed_text=f["fixed_text"]))
+        rows.append(check(f"seeded p = {p:g}: free rates above 99, flagged and counted (021, reported since Peter's "
+                          "2026-11-24 change)", None, flagged=f["above_upper"] > 0, above_upper=f["above_upper"],
+                          largest_free=f["largest_free"], headroom=f["headroom"]))
         rows.append(check(f"seeded p = {p:g}: training lnL not below the truth's, by the oracle (021)",
                           f["lnl_oracle"] >= truth, excess_over_truth=f["excess_over_truth"]))
     extra = {"fits": fits}
     if all(f"seeded-{p:g}" in fits for p in PS) and "default-gate" in fits:
         chosen = choose_p({p: fits[f"seeded-{p:g}"]["lnl_oracle"] for p in PS},
                           {p: fits[f"seeded-{p:g}"]["headroom"] for p in PS})
-        ratio = fits[f"seeded-{chosen:g}"]["wall_s"] / fits["default-gate"]["wall_s"]
-        extra.update({"p": chosen, "ratio": ratio})
+        ratios = {f"{p:g}": fits[f"seeded-{p:g}"]["wall_s"] / fits["default-gate"]["wall_s"] for p in PS}
+        extra.update({"p_rule": chosen, "ratios": ratios})
         rows.append(check("p by the rule set before the run: 0.02 unless 0.05's lnL is higher by more than 1 and its "
                           "headroom at least 4", None, p=chosen,
                           lnl_gain_005=fits["seeded-0.05"]["lnl_oracle"] - fits["seeded-0.02"]["lnl_oracle"],
                           headroom_005=fits["seeded-0.05"]["headroom"]))
-        rows.append(check("seeded-to-default wall ratio at that p (scales sim2_gtr20.py's estimates)", None, ratio=ratio,
-                          seeded_wall_s=fits[f"seeded-{chosen:g}"]["wall_s"],
-                          default_wall_s=fits["default-gate"]["wall_s"]))
+        rows.append(check("seeded-to-default wall ratio at each p (the chosen p's scales sim2_gtr20.py's estimates)",
+                          None, ratios=ratios, default_wall_s=fits["default-gate"]["wall_s"]))
     common.finish(out, prov, title, rows, extra)
 
 

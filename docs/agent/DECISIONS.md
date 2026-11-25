@@ -247,16 +247,16 @@ directions along per-locus bird composition axes.
 
 **Rule.** Every GTR20 fit from SIM-2's seeded arm on (D05's start and incumbent, 025's carry, S7's
 reversible arm) starts from `--init-model` with every exchangeability 10 and Tyr–Val p: IQ-TREE then
-fixes Tyr–Val at p and allows [1e-4/p, 100/p] × it; p = 0.02 unless `CODE_PLAN.md` 3.8's laptop rule
-picks 0.05. A fit with a rate above 99 is flagged and counted, never refitted. SIM-2's new arm, "GTR20
-seeded", fits cell D's 176 GTR20 tasks (Dr's included) on round 1's data, binaries and settings as its
-own study (`sim2_gtr20.py`, sbatch, run directory, three jobs) and is D's primary reversible arm; round
-1's "default seed" arm is kept and reported as failed by risk 30; cell F stands.
-**Why.** The default seed fixes Tyr–Val at 10 within [1e-4, 100] (risk 30): on R0 the fits sat 339
-below the truth's lnL. Round 1 wanted up to 622 × Tyr–Val; p = 0.02 adds ≤ 0.3 floor-held rates a fit.
-**Not chosen.** The default-seed arm alone; no reversible comparison in D; `--init-exchange LG` (at
-most 427 ×); seeding at the truth; editing IQ-TREE's bounds; p = 0.1 (under 2 × headroom at s = 2).
-**Since** 2026-11-24 (Peter).
+fixes Tyr–Val at p and allows [1e-4/p, 100/p] × it; p = 0.05, chosen by Peter against the laptop rule's
+0.02 (`CODE_PLAN.md` 3.8). A rate above 99 is reported, flagged and counted, never refitted. SIM-2's new
+arm, "GTR20 seeded", fits cell D's 176 GTR20 tasks (Dr's included) on round 1's data, binaries and
+settings as its own study (`sim2_gtr20.py`, sbatch, run directory, three jobs) and is D's primary
+reversible arm; round 1's "default seed" arm is kept and reported as failed by risk 30; cell F stands.
+**Why.** The default seed fixes Tyr–Val at 10 within [1e-4, 100] (risk 30): on R0 the fits sat 339 below
+the truth's lnL. At 30 genes seeded fits beat it by 99 to 100, I–V drifting to 100 at under 1 lnL's cost.
+**Not chosen.** The default-seed arm alone; no reversible comparison in D; `--init-exchange LG` (at most
+427 ×); seeding at the truth; editing IQ-TREE's bounds; p = 0.1; p = 0.02 (1.43 × the time, round cap).
+**Since** 2026-11-24 (Peter; p and the reported ceiling after the laptop calibration, the same day).
 
 ## Model class
 
@@ -503,10 +503,10 @@ compared; the seed Q (`-v`) and first gradient (`-vv`) are printed only because 
 | SIM-2 cross-machine: genes Puma simulates for the committed fixture replicates against the laptop's (frozen AliSim, same seeds), at every job start | byte-identical | SIM-2 (Peter, 2026-11-19) |
 | SIM-2 stage B against stage P, Level 1 cells (039): B's lnL against the oracle's re-score of P's checkpointed coordinates | not lower | SIM-2 (Peter, 2026-11-19) |
 | SIM-2 seeded GTR20 (046), laptop demonstration: default-seed fits on the frozen and the gate binary | identical checkpoint rates text and final lnL | 046 (Peter, 2026-11-24) |
-| SIM-2 seeded GTR20, every seeded fit (laptop and Puma): the fixed Tyr–Val; the largest free rate | checkpoint's 10-digit text equal to p's; ≤ 99 (IQ-TREE's 0.99 × `MAX_RATE`), a hit flagged and counted | 046 (Peter, 2026-11-24) |
+| SIM-2 seeded GTR20, every seeded fit (laptop and Puma): the fixed Tyr–Val; the largest free rate | checkpoint's 10-digit text equal to p's; reported, a rate above 99 (IQ-TREE's 0.99 × `MAX_RATE`) flagged and counted (asserted until the laptop calibration, where seeded fits drifted to it at under 1 lnL's cost) | 046 (Peter, 2026-11-24; loosened by Peter the same day) |
 | SIM-2 seeded GTR20, laptop demonstration: a seeded fit's training lnL against the truth's (oracle) | not lower | 046 (Peter, 2026-11-24) |
 | SIM-2 seeded GTR20 in `analyze`: datasets against round 1's (gene SHA-256; masked, `data.json`'s file hashes and `curve_sha256`); gtr20f frequencies against round 1's; gtr20pi frequencies against π* | identical; equal at the checkpoint's 10 digits; equal at 10 digits | 046 (Peter, 2026-11-24) |
-| SIM-2 seeded GTR20 in `analyze`: R0 unmasked gtr20pi training lnL against the truth's | reported; a shortfall read against the same data's relaxed refit | 046 (Peter, 2026-11-24) |
+| SIM-2 seeded GTR20 in `analyze`: R0 unmasked gtr20pi training lnL against the truth's | reported; a shortfall read against the same data's relaxed refit; the check of range limitation since the ceiling row became reported | 046 (Peter, 2026-11-24) |
 
 h_k is the step's displacement (`CODE_PLAN.md` section 2.1); for the export's central differences,
 h⁺_k + h⁻_k. S4 applies the compiled-Q row to the exported Q and the residual row to its file. The
@@ -515,7 +515,8 @@ max(1, |g_ref|), reported at a near-zero start; the oracle reports its central d
 **Why.** A line chosen after seeing results is not a test; each rests on a measurement or derivation
 in the archive (1e-10: the synthesis's goal, section 4.3; the κ-scaled Q line: two correct routes).
 **Since** 2026-10-04, merging 026, 030, 034 item 7 and 036's measure; later rows identified in the
-Set by column; Peter's loosening clause 2026-11-18, used once (the certificate row, 2026-11-17).
+Set by column; Peter's loosening clause 2026-11-18, used twice (the certificate row, 2026-11-17; the seeded
+GTR20 ceiling row, 2026-11-24).
 
 ### 012. Test the pure module with googletest in a standalone CMake project
 

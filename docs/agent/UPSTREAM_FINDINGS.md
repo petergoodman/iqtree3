@@ -211,8 +211,17 @@ unrooted `-te`, `-blfix`, `-keep-ident`, 20-round cap; cell D, 100 genes, 52 tax
 Scripts and outputs (each `.txt` headed by its command, commit and date):
 `~/iqtree3-runs/sim2/20261124-round2-read/` (`extra.py`, `bounds.py`, `ranges.py`, `floors.py`,
 `window_checks.py`, `firstlook.py`, `status2.py`), on round 2's collect (`collect-20261124T164042Z.tar.gz`, SHA-256
-`c10cd93b…`). Not yet run: the default-seed fit on the unmodified binary, which decision 046's laptop
-demonstration adds (`CODE_PLAN.md` 3.8, "SIM-2's seeded GTR20 arm").
+`c10cd93b…`).
+
+Reproduced on the unmodified binary (decision 046's laptop demonstration, 2026-11-24, `explore/gtr20_window.py
+fits` at `182a0dd7`; R0, 30 genes, replicate 1, the same settings, 1 thread): the default-seed GTR20+F{π*} fits on
+the frozen binary `9a72950b` and the gate binary gave identical checkpoint rates and final lnL (−234155.85); Tyr–Val
+10, exactly one rate (I–V) at 100, 8 at the floor; training lnL 32.09 below the truth's (oracle). Seeded fits on the
+gate binary (Tyr–Val fixed at p): p = 0.02 and 0.05 gave 98.76 and 100.10 above the truth's, each with I–V at 100
+too; with Tyr–Val alone scaled by 0.01 to 10 the oracle's lnL moved by at most 0.63, so that rate is weakly
+identified at 30 genes and the free rates drift to the ceiling at little cost. Outputs:
+`~/iqtree3-runs/sim2-gtr20/20261124T192220Z-182a0dd7-window/`; diagnosis
+`~/iqtree3-runs/sim2-gtr20/20261124-smoke-diagnosis/` (`window_bounds.py`, `bounds.py` for the 3-gene smoke fits).
 
 Anchors: `rescaleRates`; `ModelProtein::init`'s GTR20 and NONREV branches; `ModelMarkov::setBounds`,
 `isUnstableParameters`, `readParameters`, `setReversible`'s conversion; `IQTree::optimizeModelParameters`'s

@@ -111,19 +111,22 @@ def run_fit_phase(des, tid, tmp_path, monkeypatch, rates):
 
 
 def test_only_seeded_fits_get_the_seed(tmp_path, monkeypatch):
-    rates = ["10"] * 189 + ["0.02"]
+    rates = ["10"] * 189 + [f"{g.P:.10g}"]
     init, res, rows = run_fit_phase(sim2.design(smoke=True), "D-gtr20pi-R0-g3-r1", tmp_path / "main", monkeypatch, rates)
     assert init is None and rows == [] and res["status"] == "done"
     init, res, rows = run_fit_phase(g.design(smoke=True), "D-gtr20pi-R0-g3-r1-seeded", tmp_path / "seeded", monkeypatch,
                                     rates)
     assert init == ("seed.paml", pl.gtr20_seed(g.P, common.target_text())) and res["status"] == "done"
-    assert [r["passed"] for r in rows] == [True, True, None, None] and rows[3]["seed_reads"] == rows[3]["genes"] == 3
+    assert [r["passed"] for r in rows] == [True, None, None, None] and not rows[1]["flagged"]
+    assert rows[3]["seed_reads"] == rows[3]["genes"] == 3
 
 
-def test_a_seeded_fit_at_the_bound_fails_its_row_and_stays_done(tmp_path, monkeypatch):
+def test_a_bound_hit_is_flagged_and_a_wrong_fixed_rate_fails_with_the_phase_done(tmp_path, monkeypatch):
+    """Peter, 2026-11-24: a rate above 99 is reported, flagged and counted; the fixed Tyr-Val stays asserted."""
     rates = ["10"] * 188 + ["99.5", "0.03"]
     _, res, rows = run_fit_phase(g.design(smoke=True), "D-gtr20f-R0-g3-r1-seeded", tmp_path, monkeypatch, rates)
-    assert res["status"] == "done" and [r["passed"] for r in rows[:2]] == [False, False]   # fixed 0.03, not 0.02
+    assert res["status"] == "done" and [r["passed"] for r in rows[:2]] == [False, None]   # fixed 0.03, not P
+    assert rows[1]["flagged"] and rows[1]["above_upper"] == 1
 
 
 def test_binary_check_refuses_other_binaries(tmp_path):

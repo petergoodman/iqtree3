@@ -8,6 +8,18 @@ gate record and may run to 25 lines. The next session starts from the top entry.
 This is a fork of `iqtree/iqtree3`. Entries here describe work on the fork, not upstream
 development.
 
+## 2026-11-24 (thirteenth session): SIM-2 commit 3d, the seeded GTR20 arm, coded and calibrated
+
+- **Done.** `182a0dd7`: `sim/sim2_gtr20.py`, its sbatch, `sim2.py`'s parameters and seeded rows (main design's hash
+  tested unchanged), `pipeline.gtr20_seed`, `rate_bounds`, `explore/gtr20_window.py`; a review's items fixed. Smoke
+  run: every phase done, seed read once a gene, data and frequencies as round 1's. Calibration (R0, 30 genes):
+  default fits identical on frozen and gate binaries, 32.09 below the truth; seeded p = 0.02, 0.05 98.76, 100.10 above.
+- **Failed, counted:** the then-asserted ceiling row, in all five smoke fits (3 to 5 rates at 100) and both seeded
+  calibration fits (I–V at 100; Tyr–Val scaled alone 0.01 to 10 × moved lnL at most 0.63).
+- **Peter decided:** that row reported, flagged and counted (021, 046); p = 0.05 against the rule's 0.02 (ratio
+  1.0141; 0.02 took 1.43 × and hit the round cap). The second commit sets both (pytest 432); projection in risk 26.
+- **Next.** `design` repeated from the second commit; the push with Peter's approval; his runbook; commit 4.
+
 ## 2026-11-24 (twelfth session, continued): round 2 read; GTR20's range limit; the seeded arm decided (046)
 
 - **Done.** Round 2's tarball (SHA-256 `c10cd93b`) read: all 1,640 phases of the five shards done, none failed,

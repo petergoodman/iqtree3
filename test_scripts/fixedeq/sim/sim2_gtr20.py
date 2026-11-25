@@ -32,8 +32,13 @@ from regress import REPO, sha256, write  # noqa: E402
 SCRIPT = Path(__file__).resolve().relative_to(REPO).as_posix()
 RUNS = "~/iqtree3-runs/sim2-gtr20"
 STUDY = "gtr20-seeded"
-P = 0.02            # decision 046: 0.02 unless the laptop calibration's rule picks 0.05
-RATIO = 1.0         # the calibration's seeded-to-default wall ratio (explore/gtr20_window.py), 1.0 until measured
+# decision 046: p = 0.05, chosen by Peter on 2026-11-24 against the laptop rule's 0.02, whose headroom test both
+# fits failed alike (each with I-V at the ceiling); 0.05 met the rule's lnL test and stopped by its gain test in 17
+# rounds, 0.02 at the 20-round cap
+P = 0.05
+# the calibration's seeded-to-default wall ratio at p = 0.05 on R0 at 30 genes, 10,852.0 s over 10,701.5 s
+# (~/iqtree3-runs/sim2-gtr20/20261124T192220Z-182a0dd7-window; 20261124-smoke-diagnosis/window_bounds.txt, section 3)
+RATIO = 1.0141
 FIT_CAP_H = 40.0    # a resource limit, not the 20-round setting: round 1's longest default-seed fit took 27.50 h
 # round 1 and 2's default-seed GTR20 wall-time medians, hours, by (method, relaxed), 1 thread (relaxed 2):
 # ~/iqtree3-runs/sim2/20261124-round2-read/window_checks.txt, (b)

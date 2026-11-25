@@ -513,9 +513,10 @@ BOUNDARY = "Estimated model parameters are at boundary"     # IQTree::optimizeMo
 
 def seeded_rows(fitdir, p, genes):
     """Decision 046's rows for a seeded GTR20 fit (021): from the checkpoint, the fixed Tyr-Val's 10-digit text
-    against p's and no free rate above 99 (asserted), the free rates at the floor (reported); from stdout,
-    reported only (printed output), the seed's reads against the gene count and IQ-TREE's boundary warning. A
-    failed row, or a checkpoint that cannot be read, fails in the shard's report; the phase stays done."""
+    against p's (asserted); the free rates above 99, flagged and counted, and at the floor (reported: Peter,
+    2026-11-24, after the calibration's fits drifted to the ceiling at a cost below 1 lnL); from stdout, reported
+    only (printed output), the seed's reads against the gene count and IQ-TREE's boundary warning. A failed row,
+    or a checkpoint that cannot be read, fails in the shard's report; the phase stays done."""
     try:
         b = pl.rate_bounds(pl.gtr20_state(read_checkpoint(Path(fitdir) / f"{PREFIX}.ckp.gz")))
     except Exception:  # noqa: BLE001
@@ -525,8 +526,9 @@ def seeded_rows(fitdir, p, genes):
     reads = sum(1 for line in text.splitlines() if line.startswith(SEED_READ))
     return [check("seeded GTR20: the fixed Tyr-Val's checkpoint text equals p's (046, 021)",
                   b["fixed_text"] == f"{p:.10g}", fixed_text=b["fixed_text"], p=p),
-            check("seeded GTR20: no free rate above 99, IQ-TREE's 0.99 x MAX_RATE (046, 021)", b["above_upper"] == 0,
-                  above_upper=b["above_upper"], largest_free=b["largest_free"], headroom=b["headroom"]),
+            check("seeded GTR20: free rates above 99, IQ-TREE's 0.99 x MAX_RATE, flagged and counted (046, 021)", None,
+                  flagged=b["above_upper"] > 0, above_upper=b["above_upper"], largest_free=b["largest_free"],
+                  headroom=b["headroom"]),
             check("seeded GTR20: free rates at the floor, <= 1.0001e-4", None, at_floor=b["at_floor"]),
             check("seeded GTR20: printed seed reads against the genes, and boundary warnings (printed output)", None,
                   seed_reads=reads, genes=genes, boundary_warnings=text.count(BOUNDARY))]
